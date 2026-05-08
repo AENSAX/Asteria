@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+out/
+release/
+.vite/
+*.tsbuildinfo
+
+# Local app data
+.dev-data/
+doc_private/
+
+# Local binaries
+resources/ffmpeg/ffmpeg.exe
+resources/ffmpeg/ffmpeg
+
+# Environment
+.env
+.env.*
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+
+# OS files
+Thumbs.db
+.DS_Store

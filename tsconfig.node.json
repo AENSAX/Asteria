@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022"],
+    "types": ["node", "electron"],
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true
+  },
+  "include": [
+    "electron.vite.config.ts",
+    "src/shared/**/*.ts",
+    "src/main/**/*.ts",
+    "src/preload/**/*.ts"
+  ]
+}

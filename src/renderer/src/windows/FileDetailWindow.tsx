@@ -1,0 +1,1091 @@
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import type {
+  FileDetailRecord,
+  FileTagRecord,
+  RatingGroupRecord,
+  TagStyleRecord
+} from '../../../shared/ipc';
+import { FileContextMenu } from '../components/FileContextMenu';
+import { FavoriteButton } from '../components/FavoriteButton';
+import { FileRatingStack } from '../components/FileRatingStack';
+import { ResizableColumns } from '../components/ResizableColumns';
+import { TagTokenInput } from '../components/TagTokenInput';
+import { useBoxSelection } from '../hooks/useBoxSelection';
+import { useShortcut } from '../hooks/useShortcut';
+import { useTagTokenInput } from '../hooks/useTagTokenInput';
+import { mergeIds } from '../utils/ids';
+import { isAudioExtension, isImageExtension, isVideoExtension } from '../utils/media';
+import {
+  formatTagLabel,
+  getTagNamespaceClassName,
+  getTagNamespaceStyle
+} from '../utils/tags';
+
+interface FileDetailWindowProps {
+  fileId: number;
+}
+
+export function FileDetailWindow({ fileId }: FileDetailWindowProps): JSX.Element {
+  const [currentFileId, setCurrentFileId] = useState(fileId);
+  const [file, setFile] = useState<FileDetailRecord | null>(null);
+  const [orderedFileIds, setOrderedFileIds] = useState<number[]>([]);
+  const [activeRatingGroups, setActiveRatingGroups] = useState<RatingGroupRecord[]>([]);
+  const [imageZoom, setImageZoom] = useState(1);
+  const [imagePan, setImagePan] = useState({ x: 0, y: 0 });
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    canAiRetag: boolean;
+    canAiAppendTag: boolean;
+    canTranslateTags: boolean;
+  } | null>(null);
+  const [message, setMessage] = useState('');
+  const imageDragRef = useRef({
+    active: false,
+    pointerId: 0,
+    startX: 0,
+    startY: 0,
+    panX: 0,
+    panY: 0
+  });
+
+  useEffect(() => {
+    void loadFileDetail();
+  }, [currentFileId]);
+
+  useEffect(() => {
+    function closeContextMenu(): void {
+      setContextMenu(null);
+    }
+
+    window.addEventListener('mousedown', closeContextMenu);
+
+    return () => {
+      window.removeEventListener('mousedown', closeContextMenu);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!window.asteria) {
+      return undefined;
+    }
+
+    const unsubscribeReset = window.asteria.onFileDetailReset((nextFileId) => {
+      resetImageViewport();
+      setCurrentFileId(nextFileId);
+
+      if (nextFileId === currentFileId) {
+        void loadFileDetail();
+      }
+    });
+
+    const unsubscribeFilesChanged = window.asteria.onFilesChanged(() => {
+      void loadFileDetail();
+    });
+
+    const unsubscribeFavoriteChanged = window.asteria.onFileFavoriteChanged((nextFileId, favorite) => {
+      setFile((currentFile) =>
+        currentFile && currentFile.id === nextFileId
+          ? { ...currentFile, isFavorite: favorite }
+          : currentFile
+      );
+    });
+
+    return () => {
+      unsubscribeReset();
+      unsubscribeFilesChanged();
+      unsubscribeFavoriteChanged();
+    };
+  }, [currentFileId]);
+
+  useShortcut('detail-previous-file', () => switchFile(-1), { enabled: orderedFileIds.length > 0 });
+  useShortcut('detail-next-file', () => switchFile(1), { enabled: orderedFileIds.length > 0 });
+
+  async function loadFileDetail(): Promise<void> {
+    if (!Number.isInteger(currentFileId) || currentFileId <= 0) {
+      setMessage('文件无效');
+      return;
+    }
+
+    if (!window.asteria) {
+      setMessage('preload unavailable');
+      return;
+    }
+
+    try {
+      const [nextFile, contextFileIds, fallbackOrderedFiles, nextRatingGroups] = await Promise.all([
+        window.asteria.getFileDetail(currentFileId),
+        window.asteria.getFileDetailSequence(),
+        window.asteria.listBrowserFiles(),
+        window.asteria.listRatingGroups()
+      ]);
+
+      setFile(nextFile);
+      setOrderedFileIds(
+        contextFileIds.length > 0 ? contextFileIds : fallbackOrderedFiles.map((item) => item.id)
+      );
+      setActiveRatingGroups(nextRatingGroups.filter((group) => group.isActive));
+      resetImageViewport();
+      setMessage(nextFile ? '' : '文件不存在');
+    } catch (error) {
+      setFile(null);
+      setMessage(error instanceof Error ? error.message : '加载失败');
+    }
+  }
+
+  async function toggleFavorite(): Promise<void> {
+    if (!window.asteria || !file) {
+      return;
+    }
+
+    const nextFavorite = !file.isFavorite;
+    setFile({ ...file, isFavorite: nextFavorite });
+
+    try {
+      await window.asteria.setFileFavorite(file.id, nextFavorite);
+    } catch (error) {
+      setFile({ ...file, isFavorite: file.isFavorite });
+      setMessage(error instanceof Error ? error.message : '收藏更新失败');
+    }
+  }
+
+  function openContextMenu(event: React.MouseEvent<HTMLElement>): void {
+    if (!file) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    void openContextMenuForFile(event.clientX, event.clientY);
+  }
+
+  async function openContextMenuForFile(x: number, y: number): Promise<void> {
+    const [translationSettings, aiSettings] = await Promise.all([
+      window.asteria?.getTagTranslationSettings(),
+      window.asteria?.getAiSettings()
+    ]);
+    const isCurrentFileImage = Boolean(
+      file && isImageExtension(file.extension ?? file.originalPath)
+    );
+
+    setContextMenu({
+      x,
+      y,
+      canAiRetag: Boolean(aiSettings?.enableImageRetagContextMenu && isCurrentFileImage),
+      canAiAppendTag: Boolean(aiSettings?.enableImageAppendTagContextMenu && isCurrentFileImage),
+      canTranslateTags: Boolean(translationSettings?.enableContextMenuTranslation)
+    });
+  }
+
+  async function openUrlManager(): Promise<void> {
+    if (!file) {
+      return;
+    }
+
+    setContextMenu(null);
+    await window.asteria?.openUrlManagerWindow([file.id]);
+  }
+
+  async function openExternally(): Promise<void> {
+    if (!file) {
+      return;
+    }
+
+    setContextMenu(null);
+    await window.asteria?.openFileExternally(file.id);
+  }
+
+  async function openExportWindow(): Promise<void> {
+    if (!file) {
+      return;
+    }
+
+    setContextMenu(null);
+    await window.asteria?.openExportWindow([file.id]);
+  }
+
+  async function translateCurrentTags(): Promise<void> {
+    if (!file || !window.asteria) {
+      return;
+    }
+
+    setContextMenu(null);
+    await window.asteria.translateFileTags([file.id]);
+    await loadFileDetail();
+  }
+
+  async function tagCurrentFileWithAi(overwrite: boolean): Promise<void> {
+    if (!file || !window.asteria) {
+      return;
+    }
+
+    setContextMenu(null);
+    await window.asteria.tagFilesWithAi([file.id], overwrite);
+    await loadFileDetail();
+  }
+
+  async function openScreening(): Promise<void> {
+    if (!file) {
+      return;
+    }
+
+    setContextMenu(null);
+    await window.asteria?.openScreeningWindow([file.id]);
+  }
+
+  async function trashCurrentFile(): Promise<void> {
+    if (!file || !window.asteria) {
+      return;
+    }
+
+    const trashedFileId = file.id;
+    setContextMenu(null);
+    await window.asteria.trashFiles([trashedFileId]);
+
+    const remainingFileIds = orderedFileIds.filter((id) => id !== trashedFileId);
+    setOrderedFileIds(remainingFileIds);
+
+    if (remainingFileIds.length === 0) {
+      setFile(null);
+      setMessage('文件已放入回收站');
+      return;
+    }
+
+    const currentIndex = orderedFileIds.findIndex((id) => id === trashedFileId);
+    const nextFileId = remainingFileIds[Math.min(Math.max(currentIndex, 0), remainingFileIds.length - 1)] ?? remainingFileIds[0];
+
+    if (nextFileId) {
+      setCurrentFileId(nextFileId);
+    }
+  }
+
+  async function openRatingDialog(group: RatingGroupRecord): Promise<void> {
+    if (!window.asteria || !file) {
+      return;
+    }
+
+    setContextMenu(null);
+    await window.asteria.openFileRatingEditorWindow([file.id], group.id);
+  }
+
+  function switchFile(offset: -1 | 1): void {
+    if (orderedFileIds.length === 0) {
+      return;
+    }
+
+    const currentIndex = orderedFileIds.findIndex((id) => id === currentFileId);
+
+    if (currentIndex < 0) {
+      const firstFileId = orderedFileIds[0];
+
+      if (firstFileId) {
+        setCurrentFileId(firstFileId);
+      }
+
+      return;
+    }
+
+    const nextIndex = (currentIndex + offset + orderedFileIds.length) % orderedFileIds.length;
+    const nextFileId = orderedFileIds[nextIndex];
+
+    if (nextFileId) {
+      setCurrentFileId(nextFileId);
+    }
+  }
+
+  function resetImageViewport(): void {
+    imageDragRef.current.active = false;
+    setImageZoom(1);
+    setImagePan({ x: 0, y: 0 });
+  }
+
+  function handleImageWheel(deltaY: number): void {
+    const zoomStep = deltaY < 0 ? 0.1 : -0.1;
+    setImageZoom((zoom) => Math.min(8, Math.max(0.1, Number((zoom + zoomStep).toFixed(2)))));
+  }
+
+  function handleImagePointerDown(event: React.PointerEvent<HTMLElement>): void {
+    if (event.button !== 0) {
+      return;
+    }
+
+    imageDragRef.current = {
+      active: true,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      panX: imagePan.x,
+      panY: imagePan.y
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    event.preventDefault();
+  }
+
+  function handleImagePointerMove(event: React.PointerEvent<HTMLElement>): void {
+    const drag = imageDragRef.current;
+
+    if (!drag.active) {
+      return;
+    }
+
+    setImagePan({
+      x: drag.panX + event.clientX - drag.startX,
+      y: drag.panY + event.clientY - drag.startY
+    });
+    event.preventDefault();
+  }
+
+  function handleImagePointerUp(event: React.PointerEvent<HTMLElement>): void {
+    const drag = imageDragRef.current;
+
+    if (!drag.active || drag.pointerId !== event.pointerId) {
+      return;
+    }
+
+    imageDragRef.current.active = false;
+    event.currentTarget.releasePointerCapture(event.pointerId);
+  }
+
+  return (
+    <ResizableColumns
+      className="file-detail-window"
+      defaultLeftWidth={148}
+      minLeftWidth={110}
+      minRightWidth={260}
+      storageKey="asteria:file-detail-tags-width"
+      left={<FileDetailTagColumn fileId={currentFileId} />}
+      right={(
+        <main className="file-detail-content" onContextMenu={openContextMenu}>
+          {file ? (
+            <>
+              <FileRatingStack className="file-detail-rating-stack" ratings={file.ratings} />
+              <FavoriteButton active={Boolean(file.isFavorite)} onToggle={() => void toggleFavorite()} />
+              <DetailMedia
+                file={file}
+                imageZoom={imageZoom}
+                imagePan={imagePan}
+                onImageWheel={handleImageWheel}
+                onImagePointerDown={handleImagePointerDown}
+                onImagePointerMove={handleImagePointerMove}
+                onImagePointerUp={handleImagePointerUp}
+              />
+            </>
+          ) : (
+            <div className="file-detail-message">{message}</div>
+          )}
+          {contextMenu && file ? (
+            <FileContextMenu
+              activeRatingGroups={activeRatingGroups}
+              canAiAppendTag={contextMenu.canAiAppendTag}
+              canAiRetag={contextMenu.canAiRetag}
+              canManageTags={false}
+              canOpenExternally
+              canScreening={file.domain === 'pending'}
+              canTranslateTags={contextMenu.canTranslateTags}
+              fileIds={[file.id]}
+              x={contextMenu.x}
+              y={contextMenu.y}
+              onAiAppendTag={() => void tagCurrentFileWithAi(false)}
+              onAiRetag={() => void tagCurrentFileWithAi(true)}
+              onTranslateTags={() => void translateCurrentTags()}
+              onManageTags={() => undefined}
+              onManageUrl={() => void openUrlManager()}
+              onExport={() => void openExportWindow()}
+              onOpenExternally={() => void openExternally()}
+              onOpenRating={(_fileIds, group) => void openRatingDialog(group)}
+              onOpenScreening={() => void openScreening()}
+              onTrash={() => void trashCurrentFile()}
+            />
+          ) : null}
+        </main>
+      )}
+    />
+  );
+}
+
+interface ScreeningDetailWindowProps {
+  fileIds: number[];
+}
+
+export function ScreeningDetailWindow({ fileIds }: ScreeningDetailWindowProps): JSX.Element {
+  const [index, setIndex] = useState(0);
+  const [file, setFile] = useState<FileDetailRecord | null>(null);
+  const currentFileId = fileIds[index] ?? null;
+
+  useEffect(() => {
+    void loadFile();
+  }, [currentFileId]);
+
+  async function loadFile(): Promise<void> {
+    if (!window.asteria || !currentFileId) {
+      setFile(null);
+      return;
+    }
+
+    setFile(await window.asteria.getFileDetail(currentFileId));
+  }
+
+  async function acceptCurrentFile(): Promise<void> {
+    if (!currentFileId || !window.asteria) {
+      return;
+    }
+
+    await window.asteria.setFilesDomain([currentFileId], 'library');
+    goNext();
+  }
+
+  async function rejectCurrentFile(): Promise<void> {
+    if (!currentFileId || !window.asteria) {
+      return;
+    }
+
+    await window.asteria.trashFiles([currentFileId]);
+    goNext();
+  }
+
+  function goNext(): void {
+    setIndex((currentIndex) => currentIndex + 1);
+  }
+
+  if (index >= fileIds.length) {
+    return (
+      <section className="screening-window">
+        <div className="file-detail-message">筛选完成</div>
+      </section>
+    );
+  }
+
+  return (
+    <ResizableColumns
+      className="file-detail-window screening-window"
+      defaultLeftWidth={148}
+      minLeftWidth={110}
+      minRightWidth={260}
+      storageKey="asteria:file-detail-tags-width"
+      left={currentFileId ? <FileDetailTagColumn fileId={currentFileId} /> : <aside className="file-detail-tags" />}
+      right={(
+        <main
+          className="file-detail-content"
+          onContextMenu={(event) => event.preventDefault()}
+          onMouseDown={(event) => {
+            if (event.button === 0) {
+              void acceptCurrentFile();
+            }
+
+            if (event.button === 2) {
+              void rejectCurrentFile();
+            }
+          }}
+        >
+          {file ? <ScreeningMedia file={file} /> : <div className="file-detail-message">文件不存在</div>}
+          <div className="screening-status">
+            {index + 1} / {fileIds.length}
+          </div>
+        </main>
+      )}
+    />
+  );
+}
+
+function ScreeningMedia({ file }: { file: FileDetailRecord }): JSX.Element {
+  const extension = file.extension?.toLowerCase() ?? '';
+
+  if (isImageExtension(extension)) {
+    return <img alt="" className="file-detail-media screening-media" src={file.mediaUrl} />;
+  }
+
+  if (isVideoExtension(extension)) {
+    return <video className="file-detail-media screening-media" controls src={file.mediaUrl} />;
+  }
+
+  if (isAudioExtension(extension)) {
+    return <audio className="file-detail-audio" controls src={file.mediaUrl} />;
+  }
+
+  return <div className="file-detail-message">无法预览</div>;
+}
+
+interface FileDetailTagColumnProps {
+  fileId: number;
+}
+
+function FileDetailTagColumn({ fileId }: FileDetailTagColumnProps): JSX.Element {
+  const [fileTags, setFileTags] = useState<FileTagRecord[]>([]);
+  const [tagStyles, setTagStyles] = useState<TagStyleRecord[]>([]);
+  const [pendingTagIds, setPendingTagIds] = useState<number[]>([]);
+  const [lastPendingTagId, setLastPendingTagId] = useState<number | null>(null);
+  const tagListRef = useRef<HTMLDivElement | null>(null);
+  const tagInput = useTagTokenInput({
+    onCommit: async (nextTokens) => {
+      if (!window.asteria) {
+        return;
+      }
+
+      const nextFileTags = await window.asteria.addFileTags(fileId, nextTokens);
+      setFileTags(nextFileTags);
+    }
+  });
+  const groupedFileTags = useMemo(
+    () => groupFileTagsByStyle(fileTags, tagStyles),
+    [fileTags, tagStyles]
+  );
+  const orderedFileTags = useMemo(
+    () => groupedFileTags.flatMap((group) => group.tags),
+    [groupedFileTags]
+  );
+  const boxSelection = useBoxSelection({
+    containerRef: tagListRef,
+    itemSelector: '[data-box-select-id]',
+    selectedIds: pendingTagIds,
+    startOnlyFromContainer: true,
+    onSelect: setPendingTagIds,
+    onLastSelectedId: setLastPendingTagId
+  });
+
+  useShortcut('select-all', () => {
+    const tagIds = orderedFileTags.map((tag) => tag.id);
+    setPendingTagIds(tagIds);
+    setLastPendingTagId(tagIds[tagIds.length - 1] ?? null);
+  });
+
+  useEffect(() => {
+    tagInput.reset();
+    setPendingTagIds([]);
+    setLastPendingTagId(null);
+    void loadFileTags();
+  }, [fileId]);
+
+  useEffect(() => {
+    function clearPendingTags(event: MouseEvent): void {
+      const target = event.target as Element | null;
+
+      if (!target?.closest('.file-tag-item')) {
+        setPendingTagIds([]);
+        setLastPendingTagId(null);
+      }
+    }
+
+    window.addEventListener('mousedown', clearPendingTags);
+
+    return () => {
+      window.removeEventListener('mousedown', clearPendingTags);
+    };
+  }, []);
+
+  async function loadFileTags(): Promise<void> {
+    if (!window.asteria || !Number.isInteger(fileId) || fileId <= 0) {
+      setFileTags([]);
+      setTagStyles([]);
+      return;
+    }
+
+    const [nextFileTags, nextTagStyles] = await Promise.all([
+      window.asteria.listFileTags(fileId),
+      window.asteria.listTagStyles()
+    ]);
+    setFileTags(nextFileTags);
+    setTagStyles(nextTagStyles);
+  }
+
+  async function removePendingFileTags(tagIds: number[]): Promise<void> {
+    if (!window.asteria || tagIds.length === 0) {
+      return;
+    }
+
+    const nextFileTags = await window.asteria.removeFileTags(fileId, tagIds);
+    setFileTags(nextFileTags);
+    setPendingTagIds([]);
+    setLastPendingTagId(null);
+  }
+
+  function handleFileTagMouseDown(event: React.MouseEvent<HTMLElement>, tag: FileTagRecord, index: number): void {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const isPending = pendingTagIds.includes(tag.id);
+
+    if (event.shiftKey && lastPendingTagId !== null) {
+      const anchorIndex = orderedFileTags.findIndex((item) => item.id === lastPendingTagId);
+
+      if (anchorIndex >= 0) {
+        const start = Math.min(anchorIndex, index);
+        const end = Math.max(anchorIndex, index);
+        const rangeIds = orderedFileTags.slice(start, end + 1).map((item) => item.id);
+
+        setPendingTagIds((currentTagIds) =>
+          event.ctrlKey ? mergeIds(currentTagIds, rangeIds) : rangeIds
+        );
+        return;
+      }
+    }
+
+    if (event.ctrlKey) {
+      if (isPending) {
+        void removePendingFileTags(pendingTagIds);
+        return;
+      }
+
+      setPendingTagIds((currentTagIds) => [...currentTagIds, tag.id]);
+      setLastPendingTagId(tag.id);
+      return;
+    }
+
+    if (isPending && pendingTagIds.length === 1) {
+      void removePendingFileTags([tag.id]);
+      return;
+    }
+
+    setPendingTagIds([tag.id]);
+    setLastPendingTagId(tag.id);
+  }
+
+  return (
+    <aside className="file-detail-tags" aria-label="文件标签">
+      <div
+        className="file-tag-list"
+        ref={tagListRef}
+        onMouseDownCapture={boxSelection.handleMouseDownCapture}
+      >
+        {groupedFileTags.map((group) => (
+          <section className="file-tag-group" key={group.styleName}>
+            <header>
+              <span>{group.displayName}</span>
+              <span>{group.tags.length}</span>
+            </header>
+            <div>
+              {group.tags.map((tag) => {
+                const visualIndex = orderedFileTags.findIndex((item) => item.id === tag.id);
+
+                return (
+                  <button
+                    className={getTagNamespaceClassName(
+                      tag,
+                      pendingTagIds.includes(tag.id) ? 'file-tag-item pending' : 'file-tag-item'
+                    )}
+                    data-box-select-id={tag.id}
+                    key={tag.id}
+                    style={getTagNamespaceStyle(tag)}
+                    title={formatTagLabel(tag)}
+                    type="button"
+                    onMouseDown={(event) => handleFileTagMouseDown(event, tag, visualIndex)}
+                  >
+                    {formatTagLabel(tag)}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        ))}
+        {boxSelection.selectionBox ? (
+          <div className="box-selection-rect" style={boxSelection.selectionBox} />
+        ) : null}
+      </div>
+
+      <TagTokenInput
+        ariaLabel="输入标签"
+        placeholder="输入标签以增加"
+        selectedSuggestionIndex={tagInput.selectedSuggestionIndex}
+        suggestions={tagInput.suggestions}
+        text={tagInput.text}
+        tokens={tagInput.tokens}
+        onKeyDown={tagInput.handleKeyDown}
+        onPickSuggestion={tagInput.addTokenFromSuggestion}
+        onTextChange={tagInput.setText}
+      />
+    </aside>
+  );
+}
+
+interface FileTagStyleGroup {
+  styleName: string;
+  displayName: string;
+  isDefault: boolean;
+  tags: FileTagRecord[];
+}
+
+function groupFileTagsByStyle(
+  fileTags: FileTagRecord[],
+  tagStyles: TagStyleRecord[]
+): FileTagStyleGroup[] {
+  const styleByName = new Map(tagStyles.map((style) => [style.name, style]));
+  const groups = new Map<string, FileTagStyleGroup>();
+
+  for (const tag of fileTags) {
+    const style = styleByName.get(tag.styleName);
+    const group = groups.get(tag.styleName) ?? {
+      styleName: tag.styleName,
+      displayName: style?.displayName ?? tag.styleName,
+      isDefault: Boolean(style?.isDefault),
+      tags: []
+    };
+
+    group.tags.push(tag);
+    groups.set(tag.styleName, group);
+  }
+
+  return [...groups.values()]
+    .map((group) => ({
+      ...group,
+      tags: [...group.tags].sort((left, right) => formatTagLabel(left).localeCompare(formatTagLabel(right)))
+    }))
+    .sort((left, right) => {
+      if (left.isDefault !== right.isDefault) {
+        return left.isDefault ? -1 : 1;
+      }
+
+      const countCompare = right.tags.length - left.tags.length;
+
+      if (countCompare !== 0) {
+        return countCompare;
+      }
+
+      return left.displayName.localeCompare(right.displayName);
+    });
+}
+
+interface DetailMediaProps {
+  file: FileDetailRecord;
+  imageZoom: number;
+  imagePan: { x: number; y: number };
+  onImageWheel: (deltaY: number) => void;
+  onImagePointerDown: (event: React.PointerEvent<HTMLElement>) => void;
+  onImagePointerMove: (event: React.PointerEvent<HTMLElement>) => void;
+  onImagePointerUp: (event: React.PointerEvent<HTMLElement>) => void;
+}
+
+function DetailMedia({
+  file,
+  imageZoom,
+  imagePan,
+  onImageWheel,
+  onImagePointerDown,
+  onImagePointerMove,
+  onImagePointerUp
+}: DetailMediaProps): JSX.Element {
+  const extension = file.extension?.toLowerCase() ?? '';
+
+  if (isImageExtension(extension)) {
+    return (
+      <DetailImage
+        key={file.id}
+        file={file}
+        imagePan={imagePan}
+        imageZoom={imageZoom}
+        onImagePointerDown={onImagePointerDown}
+        onImagePointerMove={onImagePointerMove}
+        onImagePointerUp={onImagePointerUp}
+        onImageWheel={onImageWheel}
+      />
+    );
+  }
+
+  if (isVideoExtension(extension)) {
+    return (
+      <DetailVideo
+        key={file.id}
+        file={file}
+        mediaPan={imagePan}
+        mediaZoom={imageZoom}
+        onMediaPointerDown={onImagePointerDown}
+        onMediaPointerMove={onImagePointerMove}
+        onMediaPointerUp={onImagePointerUp}
+        onMediaWheel={onImageWheel}
+      />
+    );
+  }
+
+  if (isAudioExtension(extension)) {
+    return <audio className="file-detail-audio" controls src={file.mediaUrl} />;
+  }
+
+  return <div className="file-detail-message">无法预览</div>;
+}
+
+interface DetailVideoProps {
+  file: FileDetailRecord;
+  mediaPan: { x: number; y: number };
+  mediaZoom: number;
+  onMediaPointerDown: (event: React.PointerEvent<HTMLElement>) => void;
+  onMediaPointerMove: (event: React.PointerEvent<HTMLElement>) => void;
+  onMediaPointerUp: (event: React.PointerEvent<HTMLElement>) => void;
+  onMediaWheel: (deltaY: number) => void;
+}
+
+function DetailVideo({
+  file,
+  mediaPan,
+  mediaZoom,
+  onMediaPointerDown,
+  onMediaPointerMove,
+  onMediaPointerUp,
+  onMediaWheel
+}: DetailVideoProps): JSX.Element {
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [fitSize, setFitSize] = useState<{ width: number; height: number } | null>(null);
+
+  useLayoutEffect(() => {
+    setFitSize(null);
+  }, [file.id]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+
+    if (!video) {
+      return;
+    }
+
+    video.load();
+    requestVideoPlayback(video);
+  }, [file.mediaUrl]);
+
+  useEffect(() => {
+    const stage = stageRef.current;
+
+    if (!stage) {
+      return undefined;
+    }
+
+    function handleWheel(event: WheelEvent): void {
+      event.preventDefault();
+      onMediaWheel(event.deltaY);
+    }
+
+    stage.addEventListener('wheel', handleWheel, { passive: false });
+
+    return () => {
+      stage.removeEventListener('wheel', handleWheel);
+    };
+  }, [onMediaWheel]);
+
+  useEffect(() => {
+    const stage = stageRef.current;
+
+    if (!stage) {
+      return undefined;
+    }
+
+    const observer = new ResizeObserver(() => {
+      updateVideoFitSize();
+    });
+
+    observer.observe(stage);
+    updateVideoFitSize();
+
+    const video = videoRef.current;
+
+    if (video && video.readyState >= 1) {
+      updateVideoFitSize();
+    }
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [file.id]);
+
+  function updateVideoFitSize(): void {
+    const stage = stageRef.current;
+    const video = videoRef.current;
+
+    if (!stage || !video || video.videoWidth <= 0 || video.videoHeight <= 0) {
+      setFitSize(null);
+      return;
+    }
+
+    const stageRect = stage.getBoundingClientRect();
+    const scale = Math.min(stageRect.width / video.videoWidth, stageRect.height / video.videoHeight, 1);
+
+    setFitSize({
+      width: Math.max(1, Math.floor(video.videoWidth * scale)),
+      height: Math.max(1, Math.floor(video.videoHeight * scale))
+    });
+  }
+
+  function isVideoControlArea(event: React.PointerEvent<HTMLElement> | React.MouseEvent<HTMLElement>): boolean {
+    const rect = event.currentTarget.getBoundingClientRect();
+
+    return event.clientY >= rect.bottom - 40;
+  }
+
+  function requestVideoPlayback(video: HTMLVideoElement): void {
+    void video.play().catch(() => {
+      // Some codecs need metadata before playback can begin; media events retry below.
+    });
+  }
+
+  function restartVideo(video: HTMLVideoElement): void {
+    try {
+      video.pause();
+      video.currentTime = 0;
+    } catch {
+      // Some files do not support reliable seek after ending; reloading below handles that path.
+    }
+
+    video.load();
+    requestVideoPlayback(video);
+  }
+
+  return (
+    <div
+      className="file-detail-video-stage"
+      ref={stageRef}
+      onClickCapture={(event) => {
+        if (!isVideoControlArea(event)) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+      }}
+      onPointerDown={(event) => {
+        if (isVideoControlArea(event)) {
+          return;
+        }
+
+        onMediaPointerDown(event);
+      }}
+      onPointerMove={onMediaPointerMove}
+      onPointerUp={onMediaPointerUp}
+      onPointerCancel={onMediaPointerUp}
+    >
+      <video
+        autoPlay
+        className="file-detail-media file-detail-video"
+        controls
+        ref={videoRef}
+        src={file.mediaUrl}
+        style={{
+          width: fitSize ? `${fitSize.width}px` : '1px',
+          height: fitSize ? `${fitSize.height}px` : '1px',
+          visibility: fitSize ? 'visible' : 'hidden',
+          transform: `translate(${mediaPan.x}px, ${mediaPan.y}px) scale(${mediaZoom})`
+        }}
+        onCanPlay={(event) => {
+          updateVideoFitSize();
+          requestVideoPlayback(event.currentTarget);
+        }}
+        onEnded={(event) => {
+          restartVideo(event.currentTarget);
+        }}
+        onLoadedData={updateVideoFitSize}
+        onLoadedMetadata={(event) => {
+          updateVideoFitSize();
+          requestVideoPlayback(event.currentTarget);
+        }}
+      />
+    </div>
+  );
+}
+
+interface DetailImageProps {
+  file: FileDetailRecord;
+  imageZoom: number;
+  imagePan: { x: number; y: number };
+  onImageWheel: (deltaY: number) => void;
+  onImagePointerDown: (event: React.PointerEvent<HTMLElement>) => void;
+  onImagePointerMove: (event: React.PointerEvent<HTMLElement>) => void;
+  onImagePointerUp: (event: React.PointerEvent<HTMLElement>) => void;
+}
+
+function DetailImage({
+  file,
+  imageZoom,
+  imagePan,
+  onImageWheel,
+  onImagePointerDown,
+  onImagePointerMove,
+  onImagePointerUp
+}: DetailImageProps): JSX.Element {
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const imageRef = useRef<HTMLImageElement | null>(null);
+  const [fitSize, setFitSize] = useState<{ width: number; height: number } | null>(null);
+
+  useLayoutEffect(() => {
+    setFitSize(null);
+  }, [file.id]);
+
+  useEffect(() => {
+    const stage = stageRef.current;
+
+    if (!stage) {
+      return undefined;
+    }
+
+    function handleWheel(event: WheelEvent): void {
+      event.preventDefault();
+      onImageWheel(event.deltaY);
+    }
+
+    stage.addEventListener('wheel', handleWheel, { passive: false });
+
+    return () => {
+      stage.removeEventListener('wheel', handleWheel);
+    };
+  }, [onImageWheel]);
+
+  useEffect(() => {
+    const stage = stageRef.current;
+
+    if (!stage) {
+      return undefined;
+    }
+
+    const observer = new ResizeObserver(() => {
+      updateImageFitSize();
+    });
+
+    observer.observe(stage);
+    updateImageFitSize();
+
+    const image = imageRef.current;
+
+    if (image?.complete) {
+      updateImageFitSize();
+    }
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [file.id]);
+
+  function updateImageFitSize(): void {
+    const stage = stageRef.current;
+    const image = imageRef.current;
+
+    if (!stage || !image || image.naturalWidth <= 0 || image.naturalHeight <= 0) {
+      setFitSize(null);
+      return;
+    }
+
+    const stageRect = stage.getBoundingClientRect();
+    const scale = Math.min(stageRect.width / image.naturalWidth, stageRect.height / image.naturalHeight, 1);
+
+    setFitSize({
+      width: Math.max(1, Math.floor(image.naturalWidth * scale)),
+      height: Math.max(1, Math.floor(image.naturalHeight * scale))
+    });
+  }
+
+  return (
+    <div
+      className="file-detail-image-stage"
+      ref={stageRef}
+      onPointerDown={onImagePointerDown}
+      onPointerMove={onImagePointerMove}
+      onPointerUp={onImagePointerUp}
+      onPointerCancel={onImagePointerUp}
+    >
+      <img
+        alt=""
+        className="file-detail-media file-detail-image"
+        ref={imageRef}
+        src={file.mediaUrl}
+        style={{
+          width: fitSize ? `${fitSize.width}px` : '1px',
+          height: fitSize ? `${fitSize.height}px` : '1px',
+          visibility: fitSize ? 'visible' : 'hidden',
+          transform: `translate(${imagePan.x}px, ${imagePan.y}px) scale(${imageZoom})`
+        }}
+        onLoad={updateImageFitSize}
+      />
+    </div>
+  );
+}

@@ -1,0 +1,35 @@
+{
+  // 默认页面模板：一个 page 是 view 的容器。
+  // view 可通过菜单按需打开，view 标签可以拖动到布局边缘或其它标签组，实现自适应贴合。
+  "global": {
+    "tabEnableClose": true,
+    "tabEnableRename": false,
+    "tabSetEnableMaximize": false,
+    "splitterSize": 4,
+    "tabSetTabStripHeight": 26,
+    "tabSetHeaderHeight": 0
+  },
+  "borders": [],
+  "layout": {
+    "type": "row",
+    "id": "page-default",
+    "weight": 100,
+    "children": [
+      {
+        "type": "tabset",
+        "id": "main-tabset",
+        "weight": 100,
+        "children": [
+          {
+            "type": "tab",
+            "id": "view-placeholder",
+            "name": "空页面",
+            "component": "empty-page",
+            "enableClose": false,
+            "enableDrag": false
+          }
+        ]
+      }
+    ]
+  }
+}

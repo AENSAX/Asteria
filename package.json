@@ -1,0 +1,90 @@
+{
+  "name": "asteria",
+  "productName": "Asteria",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A local-first Hydrus-like media manager built with Electron.",
+  "main": "out/main/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "start": "electron-vite dev",
+    "build": "tsc --noEmit && electron-vite build",
+    "preview": "electron-vite preview",
+    "check": "tsc --noEmit",
+    "rebuild:native": "electron-rebuild -f -w better-sqlite3"
+  },
+  "keywords": [
+    "electron",
+    "asteria",
+    "hydrus",
+    "tagging"
+  ],
+  "author": "",
+  "license": "MIT",
+  "build": {
+    "appId": "app.asteria.desktop",
+    "productName": "Asteria",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "out/**",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/ffmpeg",
+        "to": "ffmpeg",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "resources/icons",
+        "to": "icons",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "icon": "resources/icons/app.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "deleteAppDataOnUninstall": true,
+      "include": "build/installer.nsh"
+    },
+    "mac": {
+      "icon": "resources/icons/app.icns"
+    },
+    "linux": {
+      "icon": "resources/icons/app.png"
+    }
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.1.2",
+    "flexlayout-react": "^0.7.15",
+    "jsonc-parser": "^3.3.1",
+    "onnxruntime-node": "^1.25.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^3.6.1",
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/node": "^20.14.15",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "electron": "^30.5.1",
+    "electron-builder": "^26.8.1",
+    "electron-vite": "^2.3.0",
+    "typescript": "^5.5.4",
+    "vite": "^5.4.0"
+  }
+}
