@@ -12,16 +12,16 @@ interface FormatSegment {
 }
 
 const defaultFilenameFormat = '{index}-{hash}';
-const exportRootClass = 'grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_32px] bg-[var(--panel)] text-[11px] text-[var(--ink)]';
-const exportConfigClass = 'grid gap-1.5 border-b border-[var(--line)] bg-[var(--surface-bg)] p-2';
+const exportRootClass = 'grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_32px] bg-(--panel) text-[11px] text-(--ink)';
+const exportConfigClass = 'grid gap-1.5 border-b border-(--line) bg-(--surface-bg) p-2';
 const exportRowClass = 'grid grid-cols-[72px_minmax(0,1fr)_32px] items-center gap-1.5';
-const exportInputClass = 'h-6 min-w-0 border border-[var(--line-strong)] bg-[var(--surface-inset-bg)] px-1.5 text-[var(--ink)]';
-const exportButtonClass = 'h-6 min-w-[58px] cursor-default border border-[var(--line-strong)] bg-[var(--panel-strong)] px-2 text-[11px] text-[var(--ink)]';
-const exportPreviewClass = 'flex min-h-6 flex-wrap items-center gap-1 border border-[var(--line)] bg-[var(--surface-inset-bg)] p-1';
-const exportTokenClass = 'border border-[var(--line-strong)] bg-[var(--tag-bg)] px-1.5 leading-[18px]';
-const exportTokenInvalidClass = 'border-[var(--danger)] text-[var(--danger-ink)]';
-const exportProgressClass = 'grid gap-1.5 border-b border-[var(--line)] p-2';
-const exportFooterClass = 'flex items-center justify-end gap-1.5 border-t border-[var(--line)] bg-[var(--surface-bg)] px-2';
+const exportInputClass = 'h-6 min-w-0 border border-(--line-strong) bg-(--surface-inset-bg) px-1.5 text-(--ink)';
+const exportButtonClass = 'h-6 min-w-[58px] cursor-default border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px] text-(--ink)';
+const exportPreviewClass = 'flex min-h-6 flex-wrap items-center gap-1 border border-(--line) bg-(--surface-inset-bg) p-1';
+const exportTokenClass = 'border border-(--line-strong) bg-(--tag-bg) px-1.5 leading-[18px]';
+const exportTokenInvalidClass = 'border-(--danger) text-(--danger-ink)';
+const exportProgressClass = 'grid gap-1.5 border-b border-(--line) p-2';
+const exportFooterClass = 'flex items-center justify-end gap-1.5 border-t border-(--line) bg-(--surface-bg) px-2';
 
 function createIdleProgress(jobId: string, total: number): ExportProgress {
   return {
@@ -160,13 +160,13 @@ export function ExportWindow({ fileIds }: ExportWindowProps): JSX.Element {
                   {segment.value}
                 </span>
               ) : (
-                <span className="text-[var(--muted)]" key={`${segment.value}-${index}`}>
+                <span className="text-(--muted)" key={`${segment.value}-${index}`}>
                   {segment.value}
                 </span>
               )
             )
           ) : (
-            <span className="text-[var(--muted)]">无格式</span>
+            <span className="text-(--muted)">无格式</span>
           )}
         </div>
       </div>
@@ -174,9 +174,9 @@ export function ExportWindow({ fileIds }: ExportWindowProps): JSX.Element {
       <div className={exportProgressClass}>
         <div className="grid grid-cols-[minmax(0,1fr)_42px] items-center gap-2">
           <progress max={100} value={percent} />
-          <span className="text-right text-[var(--muted)]">{percent}%</span>
+          <span className="text-right text-(--muted)">{percent}%</span>
         </div>
-        <div className="grid grid-cols-[70px_minmax(0,1fr)_minmax(0,1fr)] gap-1.5 text-[var(--muted)]">
+        <div className="grid grid-cols-[70px_minmax(0,1fr)_minmax(0,1fr)] gap-1.5 text-(--muted)">
           <span>
             {progress.processed} / {progress.total}
           </span>

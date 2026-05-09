@@ -34,19 +34,19 @@ import {
 type SettingsCategory = 'file' | 'interface' | 'appearance' | 'network' | 'shortcut';
 
 const navItemClass =
-  'block h-7 w-full cursor-default border-0 border-b border-[var(--line)] bg-transparent px-2 text-left text-[11px]';
-const activeNavItemClass = `${navItemClass} bg-[var(--panel-strong)]`;
-const panelClass = 'border border-[var(--line)] bg-[var(--panel)]';
-const titleClass = 'h-7 border-b border-[var(--line)] bg-[var(--panel-strong)] px-2 font-semibold leading-7';
+  'block h-7 w-full cursor-default border-0 border-b border-(--line) bg-transparent px-2 text-left text-[11px]';
+const activeNavItemClass = `${navItemClass} bg-(--panel-strong)`;
+const panelClass = 'border border-(--line) bg-(--panel)';
+const titleClass = 'h-7 border-b border-(--line) bg-(--panel-strong) px-2 font-semibold leading-7';
 const pathListClass = 'grid gap-2 p-2';
 const pathRowClass =
-  'grid grid-cols-[104px_minmax(0,1fr)_32px_58px] items-center gap-1.5 [&>span]:text-[11px] [&>span]:text-[var(--text)] [&>input]:h-6 [&>input]:min-w-0 [&>input]:border [&>input]:border-[var(--line-strong)] [&>input]:bg-[var(--surface-inset-bg)] [&>input]:px-1.5 [&>input]:text-[var(--ink)] [&>input::placeholder]:text-[var(--disabled-ink)] [&>button]:h-6 [&>button]:min-w-0 [&>button]:cursor-default [&>button]:border [&>button]:border-[var(--line-strong)] [&>button]:bg-[var(--panel-strong)] [&>button]:text-[11px] [&>button:disabled]:text-[var(--disabled-ink)]';
+  'grid grid-cols-[104px_minmax(0,1fr)_32px_58px] items-center gap-1.5 [&>span]:text-[11px] [&>span]:text-(--text) [&>input]:h-6 [&>input]:min-w-0 [&>input]:border [&>input]:border-(--line-strong) [&>input]:bg-(--surface-inset-bg) [&>input]:px-1.5 [&>input]:text-(--ink) [&>input::placeholder]:text-(--disabled-ink) [&>button]:h-6 [&>button]:min-w-0 [&>button]:cursor-default [&>button]:border [&>button]:border-(--line-strong) [&>button]:bg-(--panel-strong) [&>button]:text-[11px] [&>button:disabled]:text-(--disabled-ink)';
 const checkRowClass =
-  'grid min-h-6 grid-cols-[16px_minmax(0,1fr)_70px] items-center gap-1.5 text-[11px] [&>input]:m-0 [&>input]:h-3.5 [&>input]:w-3.5 [&>span]:text-[var(--text)] [&>button]:h-6 [&>button]:cursor-default [&>button]:border [&>button]:border-[var(--line-strong)] [&>button]:bg-[var(--panel-strong)] [&>button]:text-[11px]';
+  'grid min-h-6 grid-cols-[16px_minmax(0,1fr)_70px] items-center gap-1.5 text-[11px] [&>input]:m-0 [&>input]:h-3.5 [&>input]:w-3.5 [&>span]:text-(--text) [&>button]:h-6 [&>button]:cursor-default [&>button]:border [&>button]:border-(--line-strong) [&>button]:bg-(--panel-strong) [&>button]:text-[11px]';
 const configTitleClass =
-  'flex h-6 items-center justify-between border-b border-[var(--line)] bg-[var(--panel-strong)] px-2 text-[11px] font-semibold leading-6 text-[var(--text)]';
+  'flex h-6 items-center justify-between border-b border-(--line) bg-(--panel-strong) px-2 text-[11px] font-semibold leading-6 text-(--text)';
 const smallInputButtonClass =
-  '[&>input]:h-6 [&>input]:min-w-0 [&>input]:border [&>input]:border-[var(--line-strong)] [&>input]:bg-[var(--surface-inset-bg)] [&>input]:px-1.5 [&>input]:text-[var(--ink)] [&>input::placeholder]:text-[var(--disabled-ink)] [&>button]:h-6 [&>button]:min-w-0 [&>button]:cursor-default [&>button]:border [&>button]:border-[var(--line-strong)] [&>button]:bg-[var(--panel-strong)] [&>button]:px-1.5 [&>button]:text-[var(--ink)] [&>button:disabled]:text-[var(--disabled-ink)]';
+  '[&>input]:h-6 [&>input]:min-w-0 [&>input]:border [&>input]:border-(--line-strong) [&>input]:bg-(--surface-inset-bg) [&>input]:px-1.5 [&>input]:text-(--ink) [&>input::placeholder]:text-(--disabled-ink) [&>button]:h-6 [&>button]:min-w-0 [&>button]:cursor-default [&>button]:border [&>button]:border-(--line-strong) [&>button]:bg-(--panel-strong) [&>button]:px-1.5 [&>button]:text-(--ink) [&>button:disabled]:text-(--disabled-ink)';
 
 export function SettingsWindow(): JSX.Element {
   const [category, setCategory] = useState<SettingsCategory>('file');
@@ -322,13 +322,13 @@ export function SettingsWindow(): JSX.Element {
 
   return (
     <ResizableColumns
-      className="relative grid h-full min-h-0 min-w-0 grid-cols-[148px_minmax(0,1fr)] border border-[var(--line)] bg-[var(--panel)]"
+      className="relative grid h-full min-h-0 min-w-0 grid-cols-[148px_minmax(0,1fr)] border border-(--line) bg-(--panel)"
       defaultLeftWidth={148}
       minLeftWidth={110}
       minRightWidth={360}
       storageKey="asteria:settings-sidebar-width"
       left={(
-        <aside className="min-h-0 min-w-0 border-r border-[var(--line)] bg-[var(--surface-bg)]">
+        <aside className="min-h-0 min-w-0 border-r border-(--line) bg-(--surface-bg)">
         <button
           className={category === 'file' ? activeNavItemClass : navItemClass}
           type="button"
@@ -367,7 +367,7 @@ export function SettingsWindow(): JSX.Element {
         </aside>
       )}
       right={(
-        <main className="min-h-0 min-w-0 bg-[var(--bg)] p-2">
+        <main className="min-h-0 min-w-0 bg-(--bg) p-2">
         {category === 'file' ? (
           <section className={panelClass}>
             <header className={titleClass}>文件</header>
@@ -425,9 +425,9 @@ export function SettingsWindow(): JSX.Element {
         ) : category === 'interface' ? (
           <section className={`${panelClass} grid min-h-0 grid-rows-[28px_auto_24px_minmax(0,1fr)]`}>
             <header className={titleClass}>界面</header>
-            <div className="grid gap-1.5 border-b border-[var(--line)] bg-[var(--surface-bg)] p-2">
+            <div className="grid gap-1.5 border-b border-(--line) bg-(--surface-bg) p-2">
               <div className={configTitleClass}>浏览</div>
-              <label className={`grid grid-cols-[104px_120px_58px_minmax(0,1fr)] items-center gap-1.5 [&>span]:text-[11px] [&>span]:text-[var(--text)] ${smallInputButtonClass}`}>
+              <label className={`grid grid-cols-[104px_120px_58px_minmax(0,1fr)] items-center gap-1.5 [&>span]:text-[11px] [&>span]:text-(--text) ${smallInputButtonClass}`}>
                 <span>单页文件数</span>
                 <input
                   aria-label="文件浏览器单页文件数"
@@ -442,19 +442,19 @@ export function SettingsWindow(): JSX.Element {
             </div>
             <div className={configTitleClass}>
               <span>页面配置</span>
-              <span className="text-[11px] font-normal text-[var(--muted)]">{layoutMessage}</span>
+              <span className="text-[11px] font-normal text-(--muted)">{layoutMessage}</span>
             </div>
             <div className="grid min-h-0 grid-cols-[260px_minmax(0,1fr)]">
-              <div className="flex min-h-0 flex-col border-r border-[var(--line)] bg-[var(--surface-bg)]">
+              <div className="flex min-h-0 flex-col border-r border-(--line) bg-(--surface-bg)">
                 <div className="min-h-0 flex-1 overflow-auto">
                   {layoutConfigs.length > 0 ? (
                     layoutConfigs.map((config) => (
                       <div
-                        className={`grid min-h-[26px] w-full grid-cols-[minmax(0,1fr)] border-0 border-b border-l-[3px] border-b-[var(--line)] p-0 text-[11px] text-[var(--ink)] ${config.id === selectedLayoutConfigId ? 'border-l-[var(--accent)] bg-[var(--surface-raised-bg)]' : 'border-l-transparent bg-transparent'}`}
+                        className={`grid min-h-[26px] w-full grid-cols-[minmax(0,1fr)] border-0 border-b border-l-[3px] border-b-(--line) p-0 text-[11px] text-(--ink) ${config.id === selectedLayoutConfigId ? 'border-l-(--accent) bg-(--surface-raised-bg)' : 'border-l-transparent bg-transparent'}`}
                         key={config.id}
                       >
                         <button
-                          className="min-w-0 cursor-pointer overflow-hidden text-ellipsis whitespace-nowrap border-0 bg-transparent px-1.5 text-left text-[var(--ink)]"
+                          className="min-w-0 cursor-pointer overflow-hidden text-ellipsis whitespace-nowrap border-0 bg-transparent px-1.5 text-left text-(--ink)"
                           title={config.path}
                           type="button"
                           onClick={() => setSelectedLayoutConfigId(config.id)}
@@ -464,10 +464,10 @@ export function SettingsWindow(): JSX.Element {
                       </div>
                     ))
                   ) : (
-                    <div className="px-2 py-1.5 text-[var(--muted)]">没有配置</div>
+                    <div className="px-2 py-1.5 text-(--muted)">没有配置</div>
                   )}
                 </div>
-                <div className={`border-t border-[var(--line)] p-2 ${smallInputButtonClass}`}>
+                <div className={`border-t border-(--line) p-2 ${smallInputButtonClass}`}>
                   <button type="button" onClick={() => void createLayoutConfig()}>
                     新建配置
                   </button>
@@ -489,7 +489,7 @@ export function SettingsWindow(): JSX.Element {
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <label className="flex min-w-0 cursor-pointer items-center justify-start gap-1 border-0 bg-transparent p-0 text-[11px] text-[var(--ink)]">
+                  <label className="flex min-w-0 cursor-pointer items-center justify-start gap-1 border-0 bg-transparent p-0 text-[11px] text-(--ink)">
                     <input
                       checked={selectedLayoutConfig ? selectedLayoutConfig.id === layoutSettings.defaultConfigId : false}
                       disabled={!selectedLayoutConfig}
@@ -502,7 +502,7 @@ export function SettingsWindow(): JSX.Element {
                     />
                     <span>默认导入页</span>
                   </label>
-                  <label className="flex min-w-0 cursor-pointer items-center justify-start gap-1 border-0 bg-transparent p-0 text-[11px] text-[var(--ink)]">
+                  <label className="flex min-w-0 cursor-pointer items-center justify-start gap-1 border-0 bg-transparent p-0 text-[11px] text-(--ink)">
                     <input
                       checked={selectedLayoutConfig ? selectedLayoutConfig.id === layoutSettings.newPageConfigId : false}
                       disabled={!selectedLayoutConfig}
@@ -531,9 +531,9 @@ export function SettingsWindow(): JSX.Element {
         ) : category === 'appearance' ? (
           <section className={`${panelClass} grid min-h-0 grid-rows-[28px_auto_minmax(0,1fr)]`}>
             <header className={titleClass}>外观</header>
-            <div className="grid gap-1.5 border-b border-[var(--line)] bg-[var(--surface-bg)] p-2">
+            <div className="grid gap-1.5 border-b border-(--line) bg-(--surface-bg) p-2">
               <div className={configTitleClass}>主题设置</div>
-              <label className="grid grid-cols-[104px_160px_58px_minmax(0,1fr)] items-center gap-1.5 [&>span]:text-[11px] [&>span]:text-[var(--text)] [&>select]:h-6 [&>select]:min-w-0 [&>select]:border [&>select]:border-[var(--line-strong)] [&>select]:bg-[var(--surface-inset-bg)] [&>select]:px-1.5 [&>select]:text-[var(--ink)] [&>button]:h-6 [&>button]:min-w-0 [&>button]:cursor-default [&>button]:border [&>button]:border-[var(--line-strong)] [&>button]:bg-[var(--panel-strong)]">
+              <label className="grid grid-cols-[104px_160px_58px_minmax(0,1fr)] items-center gap-1.5 [&>span]:text-[11px] [&>span]:text-(--text) [&>select]:h-6 [&>select]:min-w-0 [&>select]:border [&>select]:border-(--line-strong) [&>select]:bg-(--surface-inset-bg) [&>select]:px-1.5 [&>select]:text-(--ink) [&>button]:h-6 [&>button]:min-w-0 [&>button]:cursor-default [&>button]:border [&>button]:border-(--line-strong) [&>button]:bg-(--panel-strong)">
                 <span>主题</span>
                 <select
                   aria-label="主题"
@@ -557,7 +557,7 @@ export function SettingsWindow(): JSX.Element {
         ) : category === 'network' ? (
           <section className={panelClass}>
             <header className={titleClass}>网络</header>
-            <label className="grid min-h-7 grid-cols-[18px_minmax(0,1fr)] items-center gap-1.5 border-b border-[var(--line)] bg-[var(--surface-bg)] px-2 text-[11px]">
+            <label className="grid min-h-7 grid-cols-[18px_minmax(0,1fr)] items-center gap-1.5 border-b border-(--line) bg-(--surface-bg) px-2 text-[11px]">
               <input
                 checked={proxyEnabled}
                 type="checkbox"
@@ -598,21 +598,21 @@ export function SettingsWindow(): JSX.Element {
         ) : (
           <section className={`${panelClass} grid min-h-0 grid-rows-[28px_minmax(0,1fr)_32px]`}>
             <header className={titleClass}>快捷键</header>
-            <div className="min-h-0 overflow-auto bg-[var(--surface-bg)]">
+            <div className="min-h-0 overflow-auto bg-(--surface-bg)">
               {shortcutActionConfigs.map((config) => {
                 const definitions = shortcutSettings[config.action] ?? [];
 
                 return (
-                <div className="grid min-h-7 grid-cols-[130px_150px_minmax(0,1fr)] items-center gap-1.5 border-b border-[var(--line)] px-2 py-[3px]" key={config.action}>
+                <div className="grid min-h-7 grid-cols-[130px_150px_minmax(0,1fr)] items-center gap-1.5 border-b border-(--line) px-2 py-[3px]" key={config.action}>
                   <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{config.label}</span>
-                  <small className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[var(--muted)]">{config.description}</small>
-                  <div className="flex min-w-0 flex-wrap gap-1 [&_button]:h-[22px] [&_button]:cursor-default [&_button]:border [&_button]:border-[var(--line-strong)] [&_button]:bg-[var(--surface-inset-bg)] [&_button]:px-1.5 [&_button]:leading-5 [&_button]:text-[var(--ink)] [&_button:disabled]:text-[var(--disabled-ink)]">
+                  <small className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-(--muted)">{config.description}</small>
+                  <div className="flex min-w-0 flex-wrap gap-1 [&_button]:h-[22px] [&_button]:cursor-default [&_button]:border [&_button]:border-(--line-strong) [&_button]:bg-(--surface-inset-bg) [&_button]:px-1.5 [&_button]:leading-5 [&_button]:text-(--ink) [&_button:disabled]:text-(--disabled-ink)">
                     {definitions.map((definition, index) => (
                       <span className="inline-grid h-[22px] min-w-0 grid-cols-[minmax(42px,auto)_20px]" key={`${config.action}-${index}`}>
                         <button
                           className={
                             recordingShortcut?.action === config.action && recordingShortcut.index === index
-                              ? 'border-[var(--accent)] text-[var(--active-ink)]'
+                              ? 'border-(--accent) text-(--active-ink)'
                               : ''
                           }
                           type="button"
@@ -635,7 +635,7 @@ export function SettingsWindow(): JSX.Element {
                     <button
                       className={
                         recordingShortcut?.action === config.action && recordingShortcut.index === definitions.length
-                        ? 'border-[var(--accent)] text-[var(--active-ink)]'
+                        ? 'border-(--accent) text-(--active-ink)'
                         : ''
                       }
                       type="button"
@@ -650,7 +650,7 @@ export function SettingsWindow(): JSX.Element {
                 );
               })}
             </div>
-            <div className="grid grid-cols-[72px_72px_minmax(0,1fr)] items-center gap-1.5 border-t border-[var(--line)] bg-[var(--panel)] px-2 py-1 [&>button]:h-[22px] [&>button]:cursor-default [&>button]:border [&>button]:border-[var(--line-strong)] [&>button]:bg-[var(--panel-strong)] [&>button]:text-[var(--ink)]">
+            <div className="grid grid-cols-[72px_72px_minmax(0,1fr)] items-center gap-1.5 border-t border-(--line) bg-(--panel) px-2 py-1 [&>button]:h-[22px] [&>button]:cursor-default [&>button]:border [&>button]:border-(--line-strong) [&>button]:bg-(--panel-strong) [&>button]:text-(--ink)">
               <ActionFeedbackButton label="保存" onAction={saveShortcuts} />
               <button type="button" onClick={resetShortcuts}>
                 恢复默认

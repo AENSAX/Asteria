@@ -19,27 +19,27 @@ const idleProgress: HydrusImportProgress = {
   message: '未开始'
 };
 
-const hydrusShellClass = 'grid h-full min-h-0 min-w-0 grid-cols-[260px_minmax(0,1fr)] overflow-hidden bg-[var(--bg)] text-[var(--ink)]';
-const hydrusSidebarClass = 'grid auto-rows-min gap-2 min-h-0 min-w-0 border-r border-[var(--line)] bg-[var(--panel)] p-2';
+const hydrusShellClass = 'grid h-full min-h-0 min-w-0 grid-cols-[260px_minmax(0,1fr)] overflow-hidden bg-(--bg) text-(--ink)';
+const hydrusSidebarClass = 'grid auto-rows-min gap-2 min-h-0 min-w-0 border-r border-(--line) bg-(--panel) p-2';
 const hydrusFieldClass =
-  'grid gap-1.5 text-[11px] text-[var(--muted)] [&>input]:h-6 [&>input]:min-w-0 [&>input]:border [&>input]:border-[var(--line-strong)] [&>input]:bg-[var(--surface-media-bg)] [&>input]:px-1.5 [&>input]:text-[var(--ink)] [&>textarea]:min-h-[84px] [&>textarea]:min-w-0 [&>textarea]:resize-none [&>textarea]:border [&>textarea]:border-[var(--line-strong)] [&>textarea]:bg-[var(--surface-media-bg)] [&>textarea]:p-1.5 [&>textarea]:text-[var(--ink)]';
-const hydrusCheckClass = 'grid grid-cols-[14px_1fr] items-center gap-1.5 text-[11px] text-[var(--ink)]';
+  'grid gap-1.5 text-[11px] text-(--muted) [&>input]:h-6 [&>input]:min-w-0 [&>input]:border [&>input]:border-(--line-strong) [&>input]:bg-(--surface-media-bg) [&>input]:px-1.5 [&>input]:text-(--ink) [&>textarea]:min-h-[84px] [&>textarea]:min-w-0 [&>textarea]:resize-none [&>textarea]:border [&>textarea]:border-(--line-strong) [&>textarea]:bg-(--surface-media-bg) [&>textarea]:p-1.5 [&>textarea]:text-(--ink)';
+const hydrusCheckClass = 'grid grid-cols-[14px_1fr] items-center gap-1.5 text-[11px] text-(--ink)';
 const hydrusContentClass = 'grid min-h-0 min-w-0 grid-rows-[auto_auto_auto_auto_auto_minmax(0,1fr)] gap-2 overflow-hidden p-2';
 const hydrusToolbarClass = 'flex h-6 items-center gap-1.5';
-const hydrusButtonClass = 'h-6 cursor-default border border-[var(--line-strong)] bg-[var(--surface-raised-bg)] px-2 text-[11px] text-[var(--ink)]';
+const hydrusButtonClass = 'h-6 cursor-default border border-(--line-strong) bg-(--surface-raised-bg) px-2 text-[11px] text-(--ink)';
 const hydrusProgressClass = 'grid h-5 grid-cols-[minmax(0,1fr)_42px] items-center gap-1.5';
 const hydrusStatsClass = 'grid grid-cols-[repeat(6,minmax(54px,1fr))] gap-1 text-[11px]';
-const hydrusStatClass = 'grid h-6 grid-cols-[44px_minmax(0,1fr)] border border-[var(--line)]';
-const hydrusStatLabelClass = 'truncate border-r border-[var(--line)] px-1.5 leading-5 text-[var(--muted)]';
+const hydrusStatClass = 'grid h-6 grid-cols-[44px_minmax(0,1fr)] border border-(--line)';
+const hydrusStatLabelClass = 'truncate border-r border-(--line) px-1.5 leading-5 text-(--muted)';
 const hydrusStatValueClass = 'truncate px-1.5 leading-5';
 const hydrusWideStatClass = 'col-span-6';
-const hydrusPanelClass = 'grid min-h-0 min-w-0 overflow-hidden border border-[var(--line)]';
-const hydrusPanelHeaderClass = 'h-6 border-b border-[var(--line)] bg-[var(--surface-raised-bg)] px-1.5 leading-6';
-const hydrusStatusClass = 'grid grid-cols-4 gap-0 text-[var(--muted)]';
-const hydrusStatusOkClass = 'text-[var(--success-ink)]';
-const hydrusDebugClass = 'grid min-h-0 min-w-0 grid-rows-[24px_minmax(0,1fr)] border border-[var(--line)] overflow-hidden';
-const hydrusDebugHeaderClass = 'grid grid-cols-[minmax(0,1fr)_48px] border-b border-[var(--line)] bg-[var(--surface-raised-bg)] px-1.5';
-const hydrusDebugListClass = 'min-h-0 overflow-auto bg-[var(--surface-deep-bg)]';
+const hydrusPanelClass = 'grid min-h-0 min-w-0 overflow-hidden border border-(--line)';
+const hydrusPanelHeaderClass = 'h-6 border-b border-(--line) bg-(--surface-raised-bg) px-1.5 leading-6';
+const hydrusStatusClass = 'grid grid-cols-4 gap-0 text-(--muted)';
+const hydrusStatusOkClass = 'text-(--success-ink)';
+const hydrusDebugClass = 'grid min-h-0 min-w-0 grid-rows-[24px_minmax(0,1fr)] border border-(--line) overflow-hidden';
+const hydrusDebugHeaderClass = 'grid grid-cols-[minmax(0,1fr)_48px] border-b border-(--line) bg-(--surface-raised-bg) px-1.5';
+const hydrusDebugListClass = 'min-h-0 overflow-auto bg-(--surface-deep-bg)';
 
 export function HydrusImportWindow(): JSX.Element {
   const [baseUrl, setBaseUrl] = useState('http://127.0.0.1:45869');
@@ -325,7 +325,7 @@ export function HydrusImportWindow(): JSX.Element {
           <button className={hydrusButtonClass} disabled={!importing} type="button" onClick={() => void cancelImport()}>
             取消
           </button>
-          <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[var(--muted)]">{progress.message}</span>
+          <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-(--muted)">{progress.message}</span>
         </div>
 
         <label className={hydrusFieldClass}>
@@ -340,7 +340,7 @@ export function HydrusImportWindow(): JSX.Element {
 
         <div className={hydrusProgressClass}>
           <progress max={100} value={percent} />
-          <span className="text-right text-[var(--muted)]">{percent}%</span>
+          <span className="text-right text-(--muted)">{percent}%</span>
         </div>
 
         <dl className={hydrusStatsClass}>
@@ -398,10 +398,10 @@ export function HydrusImportWindow(): JSX.Element {
           <div className={hydrusDebugListClass}>
             {debugLines.length > 0 ? (
               debugLines.map((line, index) => (
-                <div className="min-h-5 border-b border-[var(--splitter-hover-bg)] px-1.5 leading-5 text-[var(--muted)]" key={`${index}:${line}`}>{line}</div>
+                <div className="min-h-5 border-b border-(--splitter-hover-bg) px-1.5 leading-5 text-(--muted)" key={`${index}:${line}`}>{line}</div>
               ))
             ) : (
-              <div className="px-1.5 text-[var(--muted)]">没有 debug 信息</div>
+              <div className="px-1.5 text-(--muted)">没有 debug 信息</div>
             )}
           </div>
         </section>

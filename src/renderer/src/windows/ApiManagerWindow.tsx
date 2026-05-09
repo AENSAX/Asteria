@@ -9,29 +9,29 @@ import { ActionFeedbackButton } from '../components/ActionFeedbackButton';
 import { ResizableColumns } from '../components/ResizableColumns';
 
 const defaultServiceName = 'API 服务';
-const apiShellClass = 'grid h-full min-h-0 min-w-0 grid-cols-[190px_minmax(0,1fr)] bg-[var(--panel)]';
-const apiSidebarClass = 'flex min-h-0 min-w-0 flex-col border-r border-[var(--line)] bg-[var(--surface-bg)]';
-const apiSidebarHeaderClass = 'h-7 border-b border-[var(--line)] bg-[var(--panel-strong)] px-2 leading-7 text-[11px] font-semibold';
+const apiShellClass = 'grid h-full min-h-0 min-w-0 grid-cols-[190px_minmax(0,1fr)] bg-(--panel)';
+const apiSidebarClass = 'flex min-h-0 min-w-0 flex-col border-r border-(--line) bg-(--surface-bg)';
+const apiSidebarHeaderClass = 'h-7 border-b border-(--line) bg-(--panel-strong) px-2 leading-7 text-[11px] font-semibold';
 const apiSidebarListClass = 'min-h-0 overflow-auto';
 const apiSidebarItemClass =
-  'grid min-h-[26px] w-full grid-cols-[18px_minmax(0,1fr)_48px] items-center border-0 border-b border-[var(--line)] bg-transparent px-2 text-left text-[11px] text-[var(--ink)]';
-const apiSidebarActiveClass = 'bg-[var(--surface-raised-bg)]';
-const apiSidebarCreateClass = 'grid grid-cols-[minmax(0,1fr)_auto] gap-1.5 border-t border-[var(--line)] p-2';
-const apiInputClass = 'h-6 min-w-0 border border-[var(--line-strong)] bg-[var(--surface-inset-bg)] px-1.5 text-[var(--ink)]';
-const apiButtonClass = 'h-6 cursor-default border border-[var(--line-strong)] bg-[var(--panel-strong)] px-2 text-[11px] text-[var(--ink)]';
-const apiContentClass = 'grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] bg-[var(--panel)]';
-const apiToolbarClass = 'flex min-h-0 items-center gap-1.5 border-b border-[var(--line)] bg-[var(--panel)] p-2 text-[11px]';
-const apiInlineCheckClass = 'flex min-w-0 items-center gap-1.5 text-[var(--ink)]';
-const apiAvailabilityClass = 'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[var(--muted)]';
-const apiGridClass = 'grid gap-1.5 border-b border-[var(--line)] bg-[var(--surface-bg)] p-2';
+  'grid min-h-[26px] w-full grid-cols-[18px_minmax(0,1fr)_48px] items-center border-0 border-b border-(--line) bg-transparent px-2 text-left text-[11px] text-(--ink)';
+const apiSidebarActiveClass = 'bg-(--surface-raised-bg)';
+const apiSidebarCreateClass = 'grid grid-cols-[minmax(0,1fr)_auto] gap-1.5 border-t border-(--line) p-2';
+const apiInputClass = 'h-6 min-w-0 border border-(--line-strong) bg-(--surface-inset-bg) px-1.5 text-(--ink)';
+const apiButtonClass = 'h-6 cursor-default border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px] text-(--ink)';
+const apiContentClass = 'grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] bg-(--panel)';
+const apiToolbarClass = 'flex min-h-0 items-center gap-1.5 border-b border-(--line) bg-(--panel) p-2 text-[11px]';
+const apiInlineCheckClass = 'flex min-w-0 items-center gap-1.5 text-(--ink)';
+const apiAvailabilityClass = 'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-(--muted)';
+const apiGridClass = 'grid gap-1.5 border-b border-(--line) bg-(--surface-bg) p-2';
 const apiFieldClass =
-  'grid grid-cols-[84px_minmax(0,1fr)] items-center gap-1.5 [&>span]:text-[var(--muted)] [&>input]:h-6 [&>input]:min-w-0 [&>input]:border [&>input]:border-[var(--line-strong)] [&>input]:bg-[var(--surface-inset-bg)] [&>input]:px-1.5 [&>input]:text-[var(--ink)]';
-const apiPermissionPanelClass = 'grid min-h-0 grid-rows-[24px_minmax(0,1fr)] border border-[var(--line)] bg-[var(--panel)]';
-const apiPermissionHeaderClass = 'flex items-center justify-between border-b border-[var(--line)] bg-[var(--surface-raised-bg)] px-2 text-[11px]';
+  'grid grid-cols-[84px_minmax(0,1fr)] items-center gap-1.5 [&>span]:text-(--muted) [&>input]:h-6 [&>input]:min-w-0 [&>input]:border [&>input]:border-(--line-strong) [&>input]:bg-(--surface-inset-bg) [&>input]:px-1.5 [&>input]:text-(--ink)';
+const apiPermissionPanelClass = 'grid min-h-0 grid-rows-[24px_minmax(0,1fr)] border border-(--line) bg-(--panel)';
+const apiPermissionHeaderClass = 'flex items-center justify-between border-b border-(--line) bg-(--surface-raised-bg) px-2 text-[11px]';
 const apiPermissionListClass = 'min-h-0 overflow-auto';
 const apiPermissionItemClass =
-  'grid min-h-6 grid-cols-[18px_minmax(0,1fr)] items-center gap-1.5 border-b border-[var(--line)] px-2 text-[11px]';
-const apiEmptyClass = 'p-2 text-[var(--muted)]';
+  'grid min-h-6 grid-cols-[18px_minmax(0,1fr)] items-center gap-1.5 border-b border-(--line) px-2 text-[11px]';
+const apiEmptyClass = 'p-2 text-(--muted)';
 
 export function ApiManagerWindow(): JSX.Element {
   const [services, setServices] = useState<ApiServiceRecord[]>([]);
@@ -155,9 +155,9 @@ export function ApiManagerWindow(): JSX.Element {
                 type="button"
                 onClick={() => setSelectedServiceId(service.id)}
               >
-                <span className="text-center text-[var(--success-ink)]">{service.enabled ? '√' : ''}</span>
+                <span className="text-center text-(--success-ink)">{service.enabled ? '√' : ''}</span>
                 <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{service.name}</span>
-                <span className="text-right text-[var(--muted)]">{service.port}</span>
+                <span className="text-right text-(--muted)">{service.port}</span>
               </button>
             ))
           ) : (
@@ -203,7 +203,7 @@ export function ApiManagerWindow(): JSX.Element {
               <button className={apiButtonClass} disabled={!selectedService} type="button" onClick={() => void loadAvailability(selectedServiceId)}>
                 检查
               </button>
-              <span className={availability?.available ? 'text-[var(--success-ink)]' : apiAvailabilityClass}>
+              <span className={availability?.available ? 'text-(--success-ink)' : apiAvailabilityClass}>
                 {availability ? availability.reason : message}
               </span>
             </header>

@@ -30,16 +30,16 @@ export function TagTokenInput({
   onPickSuggestion
 }: TagTokenInputProps): JSX.Element {
   return (
-    <div className="relative min-w-0 border-t border-[var(--line)] bg-[var(--surface-input-panel-bg)]">
+    <div className="relative min-w-0 border-t border-(--line) bg-(--surface-input-panel-bg)">
       {suggestions.length > 0 ? (
-        <div className="absolute bottom-full left-[-1px] right-[-1px] z-[4] border border-[var(--line-strong)] bg-[var(--panel)]">
+        <div className="absolute bottom-full left-[-1px] right-[-1px] z-[4] border border-(--line-strong) bg-(--panel)">
           {suggestions.map((tag, index) => (
             <button
               className={getTagNamespaceClassName(
                 tag,
                 index === selectedSuggestionIndex
-                  ? 'block h-6 w-full border-0 border-b border-[var(--line)] bg-[var(--accent-weak)] px-1.5 text-left text-[11px] text-[var(--ink)]'
-                  : 'block h-6 w-full border-0 border-b border-[var(--line)] bg-transparent px-1.5 text-left text-[11px] text-[var(--ink)]'
+                  ? 'block h-6 w-full border-0 border-b border-(--line) bg-(--accent-weak) px-1.5 text-left text-[11px] text-(--ink)'
+                  : 'block h-6 w-full border-0 border-b border-(--line) bg-transparent px-1.5 text-left text-[11px] text-(--ink)'
               )}
               key={tag.id}
               style={getTagNamespaceStyle(tag)}
@@ -60,7 +60,7 @@ export function TagTokenInput({
           <span
             className={getTagNamespaceClassName(
               token,
-              'inline-flex min-h-[18px] max-w-full overflow-hidden border border-[var(--line-strong)] bg-[var(--tag-bg)] px-1.5 text-[11px] text-[var(--ink)]'
+              'inline-flex min-h-[18px] max-w-full overflow-hidden border border-(--line-strong) bg-(--tag-bg) px-1.5 text-[11px] text-(--ink)'
             )}
             key={token.key}
             style={getTagNamespaceStyle(token)}
@@ -69,7 +69,7 @@ export function TagTokenInput({
           </span>
         ))}
         <input
-          className="h-5 min-w-[48px] flex-1 border-0 bg-transparent p-0 text-[var(--ink)] outline-0"
+          className="h-5 min-w-[48px] flex-1 border-0 bg-transparent p-0 text-(--ink) outline-0"
           aria-label={ariaLabel}
           placeholder={placeholder}
           value={text}

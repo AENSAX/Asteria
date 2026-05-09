@@ -21,7 +21,7 @@ export function FileRatingStack({ className = '', ratings }: FileRatingStackProp
     >
       {ratings.map((rating) => (
         <div
-          className="grid min-h-[18px] max-w-full grid-cols-[auto_minmax(0,1fr)] border border-[var(--line-strong)] bg-[var(--surface-inset-bg)] text-[10px] text-[var(--ink)]"
+          className="grid min-h-[18px] max-w-full grid-cols-[auto_minmax(0,1fr)] border border-(--line-strong) bg-(--surface-inset-bg) text-[10px] text-(--ink)"
           key={`${rating.groupId}-${rating.entryId}`}
         >
           <span className="min-w-0 px-1 leading-[16px]">{rating.groupName}:</span>

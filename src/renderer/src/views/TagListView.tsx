@@ -63,19 +63,19 @@ const TAG_LIST_ITEM_HEIGHT = 24;
 const TAG_LIST_EMPTY_HEIGHT = 28;
 const TAG_LIST_OVERSCAN_PX = 180;
 
-const tagListRootClass = 'grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] bg-[var(--panel)]';
+const tagListRootClass = 'grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] bg-(--panel)';
 const tagListToolbarClass =
-  'grid grid-cols-[92px_112px_118px_minmax(0,1fr)] items-center gap-1.5 border-b border-[var(--line)] bg-[var(--panel)] p-1.5';
+  'grid grid-cols-[92px_112px_118px_minmax(0,1fr)] items-center gap-1.5 border-b border-(--line) bg-(--panel) p-1.5';
 const tagListSelectClass =
-  'h-6 min-w-0 border border-[var(--line-strong)] bg-[var(--surface-inset-bg)] px-1.5 text-[var(--ink)]';
-const tagListToolbarLabelClass = 'flex min-w-0 items-center gap-1 whitespace-nowrap text-[var(--ink)]';
-const tagListContentClass = 'min-h-0 overflow-auto bg-[var(--surface-bg)]';
+  'h-6 min-w-0 border border-(--line-strong) bg-(--surface-inset-bg) px-1.5 text-(--ink)';
+const tagListToolbarLabelClass = 'flex min-w-0 items-center gap-1 whitespace-nowrap text-(--ink)';
+const tagListContentClass = 'min-h-0 overflow-auto bg-(--surface-bg)';
 const tagListHeaderClass =
-  'absolute w-full h-7 border-b border-t border-[var(--border-dark)] bg-[var(--group-header-bg)] px-2 leading-[26px] font-semibold text-[var(--group-header-ink)]';
-const tagListEmptyClass = 'px-2 py-1.5 text-[var(--muted)]';
+  'absolute w-full h-7 border-b border-t border-(--border-dark) bg-(--group-header-bg) px-2 leading-[26px] font-semibold text-(--group-header-ink)';
+const tagListEmptyClass = 'px-2 py-1.5 text-(--muted)';
 const tagListItemClass =
-  'grid h-6 w-full grid-cols-[minmax(0,1fr)_52px] border-0 border-b border-[var(--line)] bg-transparent text-[11px] text-[var(--ink)] hover:bg-[var(--accent-weak)]';
-const tagListItemPendingClass = 'border-[var(--danger)] bg-[var(--danger-bg)]';
+  'grid h-6 w-full grid-cols-[minmax(0,1fr)_52px] border-0 border-b border-(--line) bg-transparent text-[11px] text-(--ink) hover:bg-(--accent-weak)';
+const tagListItemPendingClass = 'border-(--danger) bg-(--danger-bg)';
 
 export type TagListFilterMode = 'all' | 'namespace' | 'plain' | 'selection';
 
@@ -273,7 +273,7 @@ export function TagListView({
           />
           namespace优先
         </label>
-        <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-right text-[var(--muted)]">
+        <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-right text-(--muted)">
           {locked ? '不可操作，因为正在导入文件' : message}
         </span>
       </div>
@@ -325,7 +325,7 @@ function renderVirtualTagRow(
         onClick={() => onAppendSearchTag(row.tag)}
       >
         <span className="min-w-0 overflow-hidden px-2 leading-6 text-left text-ellipsis whitespace-nowrap">{row.domain.displayName}</span>
-        <span className="min-w-0 overflow-hidden px-2 leading-6 text-right text-ellipsis whitespace-nowrap text-[var(--muted)]">{row.domain.fileCount}</span>
+        <span className="min-w-0 overflow-hidden px-2 leading-6 text-right text-ellipsis whitespace-nowrap text-(--muted)">{row.domain.fileCount}</span>
       </button>
     );
   }
@@ -341,7 +341,7 @@ function renderVirtualTagRow(
       onClick={() => onAppendSearchTag(row.tag)}
     >
       <span className="min-w-0 overflow-hidden px-2 leading-6 text-left text-ellipsis whitespace-nowrap">{formatTagLabel(row.tag)}</span>
-      <span className="min-w-0 overflow-hidden px-2 leading-6 text-right text-ellipsis whitespace-nowrap text-[var(--muted)]">{row.tag.fileCount}</span>
+      <span className="min-w-0 overflow-hidden px-2 leading-6 text-right text-ellipsis whitespace-nowrap text-(--muted)">{row.tag.fileCount}</span>
     </button>
   );
 }

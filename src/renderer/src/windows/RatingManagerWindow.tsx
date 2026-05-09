@@ -4,34 +4,34 @@ import { ActionFeedbackButton } from '../components/ActionFeedbackButton';
 import { ResizableColumns } from '../components/ResizableColumns';
 
 const defaultEntryColor = '#d9dde1';
-const managerShellClass = 'grid h-full min-h-0 min-w-0 grid-cols-[180px_minmax(0,1fr)] bg-[var(--panel)]';
-const sidebarClass = 'flex min-h-0 min-w-0 flex-col border-r border-[var(--line)] bg-[var(--surface-bg)]';
-const sidebarHeaderClass = 'h-7 border-b border-[var(--line)] bg-[var(--panel-strong)] px-2 leading-7 text-[11px] font-semibold';
+const managerShellClass = 'grid h-full min-h-0 min-w-0 grid-cols-[180px_minmax(0,1fr)] bg-(--panel)';
+const sidebarClass = 'flex min-h-0 min-w-0 flex-col border-r border-(--line) bg-(--surface-bg)';
+const sidebarHeaderClass = 'h-7 border-b border-(--line) bg-(--panel-strong) px-2 leading-7 text-[11px] font-semibold';
 const listClass = 'min-h-0 overflow-auto';
 const sidebarItemClass =
-  'grid min-h-[26px] w-full grid-cols-[18px_minmax(0,1fr)_42px] items-center border-0 border-b border-[var(--line)] bg-transparent px-2 text-left text-[11px] text-[var(--ink)]';
-const sidebarItemActiveClass = 'bg-[var(--surface-raised-bg)]';
-const createRowClass = 'grid grid-cols-[minmax(0,1fr)_auto] gap-1.5 border-t border-[var(--line)] p-2';
+  'grid min-h-[26px] w-full grid-cols-[18px_minmax(0,1fr)_42px] items-center border-0 border-b border-(--line) bg-transparent px-2 text-left text-[11px] text-(--ink)';
+const sidebarItemActiveClass = 'bg-(--surface-raised-bg)';
+const createRowClass = 'grid grid-cols-[minmax(0,1fr)_auto] gap-1.5 border-t border-(--line) p-2';
 const inputClass =
-  'h-6 min-w-0 border border-[var(--line-strong)] bg-[var(--surface-inset-bg)] px-1.5 text-[var(--ink)]';
+  'h-6 min-w-0 border border-(--line-strong) bg-(--surface-inset-bg) px-1.5 text-(--ink)';
 const buttonClass =
-  'h-6 min-w-[72px] cursor-default border border-[var(--line-strong)] bg-[var(--panel-strong)] px-2 text-[11px] text-[var(--ink)]';
-const panelClass = 'grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_minmax(0,1fr)] bg-[var(--panel)]';
-const toolbarClass = 'grid gap-1 border-b border-[var(--line)] bg-[var(--panel)] p-2';
+  'h-6 min-w-[72px] cursor-default border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px] text-(--ink)';
+const panelClass = 'grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_minmax(0,1fr)] bg-(--panel)';
+const toolbarClass = 'grid gap-1 border-b border-(--line) bg-(--panel) p-2';
 const groupEditRowClass = 'grid grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-1.5';
 const entryCreateRowClass = 'grid grid-cols-[minmax(0,1fr)_auto_24px_auto] gap-1.5 items-center';
 const selectClass =
-  'h-6 min-w-0 border border-[var(--line-strong)] bg-[var(--surface-inset-bg)] px-1.5 text-[var(--ink)]';
-const messageClass = 'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[var(--muted)]';
-const entryListClass = 'min-h-0 overflow-auto bg-[var(--surface-bg)] p-2';
-const emptyClass = 'p-2 text-[var(--muted)]';
+  'h-6 min-w-0 border border-(--line-strong) bg-(--surface-inset-bg) px-1.5 text-(--ink)';
+const messageClass = 'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-(--muted)';
+const entryListClass = 'min-h-0 overflow-auto bg-(--surface-bg) p-2';
+const emptyClass = 'p-2 text-(--muted)';
 const entryRowClass =
-  'grid grid-cols-[18px_18px_minmax(0,1fr)_24px_auto_auto] items-center gap-1.5 border-b border-[var(--line)] px-2 py-1 text-[11px]';
-const entryRowDraggingClass = 'bg-[var(--selection-bg)]';
-const dragHandleClass = 'cursor-grab text-center text-[var(--muted)]';
-const swatchClass = 'h-4 w-4 border border-[var(--line-strong)]';
+  'grid grid-cols-[18px_18px_minmax(0,1fr)_24px_auto_auto] items-center gap-1.5 border-b border-(--line) px-2 py-1 text-[11px]';
+const entryRowDraggingClass = 'bg-(--selection-bg)';
+const dragHandleClass = 'cursor-grab text-center text-(--muted)';
+const swatchClass = 'h-4 w-4 border border-(--line-strong)';
 const entryActionClass =
-  'h-6 min-w-[56px] cursor-default border border-[var(--line-strong)] bg-[var(--panel-strong)] px-2 text-[11px] text-[var(--ink)]';
+  'h-6 min-w-[56px] cursor-default border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px] text-(--ink)';
 
 export function RatingManagerWindow(): JSX.Element {
   const [groups, setGroups] = useState<RatingGroupRecord[]>([]);
@@ -204,9 +204,9 @@ export function RatingManagerWindow(): JSX.Element {
               type="button"
               onClick={() => setSelectedGroupId(group.id)}
             >
-              <span className="text-center text-[var(--success-ink)]">{group.isActive ? '√' : ''}</span>
+              <span className="text-center text-(--success-ink)">{group.isActive ? '√' : ''}</span>
               <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{group.name}</span>
-              <span className="text-right text-[var(--muted)]">{group.entryCount}</span>
+              <span className="text-right text-(--muted)">{group.entryCount}</span>
             </button>
           ))}
         </div>
@@ -265,7 +265,7 @@ export function RatingManagerWindow(): JSX.Element {
               }}
             />
             <input
-              className="h-6 w-6 border border-[var(--line-strong)] bg-[var(--surface-inset-bg)] p-0"
+              className="h-6 w-6 border border-(--line-strong) bg-(--surface-inset-bg) p-0"
               aria-label="条目颜色"
               type="color"
               value={entryColor}
@@ -359,7 +359,7 @@ function RatingEntryRow({
         onChange={(event) => setLabel(event.target.value)}
       />
       <input
-        className="h-6 w-6 border border-[var(--line-strong)] bg-[var(--surface-inset-bg)] p-0"
+        className="h-6 w-6 border border-(--line-strong) bg-(--surface-inset-bg) p-0"
         aria-label="条目颜色"
         type="color"
         value={color}

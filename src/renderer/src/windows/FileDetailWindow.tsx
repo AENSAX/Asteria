@@ -25,24 +25,24 @@ interface FileDetailWindowProps {
   fileId: number;
 }
 
-const detailShellClass = 'grid h-full min-h-0 min-w-0 grid-cols-[148px_minmax(0,1fr)] border border-[var(--line)] bg-[var(--panel)]';
-const detailTagsClass = 'grid min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_auto] border-r border-[var(--line)] bg-[var(--surface-bg)]';
+const detailShellClass = 'grid h-full min-h-0 min-w-0 grid-cols-[148px_minmax(0,1fr)] border border-(--line) bg-(--panel)';
+const detailTagsClass = 'grid min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_auto] border-r border-(--line) bg-(--surface-bg)';
 const tagListClass = 'relative min-h-0 overflow-auto p-1.5';
-const fileTagGroupClass = 'mb-2 border-b border-[var(--border-dark)]';
+const fileTagGroupClass = 'mb-2 border-b border-(--border-dark)';
 const fileTagHeaderClass =
-  'mb-1.5 grid h-6 grid-cols-[minmax(0,1fr)_auto] border-y border-[var(--border-dark)] border-t-[var(--line-strong)] bg-[var(--group-header-bg)] px-1.5 leading-[22px] font-semibold text-[var(--group-header-ink)]';
+  'mb-1.5 grid h-6 grid-cols-[minmax(0,1fr)_auto] border-y border-(--border-dark) border-t-(--line-strong) bg-(--group-header-bg) px-1.5 leading-[22px] font-semibold text-(--group-header-ink)';
 const fileTagGroupBodyClass = 'flex flex-wrap content-start gap-1';
 const fileTagItemClass =
-  'inline-flex max-w-full min-h-[18px] cursor-default overflow-hidden border border-[var(--line-strong)] bg-[var(--tag-bg)] px-1.5 text-[11px] text-[var(--ink)]';
-const fileTagPendingClass = 'border-[var(--danger)]';
-const detailContentClass = 'relative grid min-h-0 min-w-0 place-items-center overflow-hidden bg-[var(--surface-media-bg)]';
-const detailMessageClass = 'text-[var(--muted)]';
+  'inline-flex max-w-full min-h-[18px] cursor-default overflow-hidden border border-(--line-strong) bg-(--tag-bg) px-1.5 text-[11px] text-(--ink)';
+const fileTagPendingClass = 'border-(--danger)';
+const detailContentClass = 'relative grid min-h-0 min-w-0 place-items-center overflow-hidden bg-(--surface-media-bg)';
+const detailMessageClass = 'text-(--muted)';
 const detailAudioClass = 'w-[min(520px,calc(100%-32px))]';
 const detailImageStageClass = 'grid h-full w-full min-h-0 min-w-0 place-items-center overflow-hidden cursor-grab';
 const detailVideoStageClass = detailImageStageClass;
 const detailMediaClass = 'max-h-full max-w-full object-contain';
 const screeningStatusClass =
-  'absolute bottom-2 right-2 h-[22px] min-w-[54px] border border-[var(--line-strong)] bg-[var(--surface-bg)] px-1.5 text-center leading-5 text-[var(--muted)]';
+  'absolute bottom-2 right-2 h-[22px] min-w-[54px] border border-(--line-strong) bg-(--surface-bg) px-1.5 text-center leading-5 text-(--muted)';
 
 export function FileDetailWindow({ fileId }: FileDetailWindowProps): JSX.Element {
   const [currentFileId, setCurrentFileId] = useState(fileId);
@@ -377,7 +377,7 @@ export function FileDetailWindow({ fileId }: FileDetailWindowProps): JSX.Element
         <main className={detailContentClass} onContextMenu={openContextMenu}>
           {file ? (
             <>
-              <FileRatingStack className="top-1.5 left-1.5 z-[2] max-w-[calc(100%-12px)]" ratings={file.ratings} />
+              <FileRatingStack className="top-1.5 left-1.5 z-2 max-w-[calc(100%-12px)]" ratings={file.ratings} />
               <FavoriteButton active={Boolean(file.isFavorite)} onToggle={() => void toggleFavorite()} />
               <DetailMedia
                 file={file}
@@ -696,7 +696,7 @@ function FileDetailTagColumn({ fileId }: FileDetailTagColumnProps): JSX.Element 
           </section>
         ))}
         {boxSelection.selectionBox ? (
-            <div className="absolute z-40 border border-[var(--accent)] bg-[var(--accent-overlay)] pointer-events-none" style={boxSelection.selectionBox} />
+            <div className="absolute z-40 border border-(--accent) bg-(--accent-overlay) pointer-events-none" style={boxSelection.selectionBox} />
           ) : null}
         </div>
 

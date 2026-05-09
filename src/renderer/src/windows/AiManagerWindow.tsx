@@ -31,30 +31,30 @@ const emptyModelCatalog: AiModelCatalog = {
   selectedModel: null
 };
 
-const aiShellClass = 'grid h-full min-h-0 min-w-0 grid-cols-[160px_minmax(0,1fr)] bg-[var(--panel)]';
-const aiNavClass = 'grid auto-rows-[28px] content-start min-h-0 min-w-0 border-r border-[var(--line)] bg-[var(--surface-bg)]';
+const aiShellClass = 'grid h-full min-h-0 min-w-0 grid-cols-[160px_minmax(0,1fr)] bg-(--panel)';
+const aiNavClass = 'grid auto-rows-[28px] content-start min-h-0 min-w-0 border-r border-(--line) bg-(--surface-bg)';
 const aiNavButtonClass =
-  'h-7 border-0 border-b border-[var(--line)] bg-transparent px-2 text-left text-[11px] text-[var(--ink)]';
-const aiNavActiveClass = 'border-l-2 border-l-[var(--accent)] bg-[var(--panel-strong)]';
-const aiContentClass = 'grid min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_34px] bg-[var(--panel)]';
+  'h-7 border-0 border-b border-(--line) bg-transparent px-2 text-left text-[11px] text-(--ink)';
+const aiNavActiveClass = 'border-l-2 border-l-(--accent) bg-(--panel-strong)';
+const aiContentClass = 'grid min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_34px] bg-(--panel)';
 const aiPanelClass = 'grid gap-2 content-start min-h-0 min-w-0 p-2 overflow-hidden';
 const aiGridClass = 'grid auto-rows-[28px] gap-1.5 content-start min-w-0';
 const aiFieldClass =
-  'grid grid-cols-[70px_minmax(0,1fr)] items-center min-w-0 gap-1.5 [&>span]:text-[var(--muted)] [&>input]:h-6 [&>input]:min-w-0 [&>input]:border [&>input]:border-[var(--line-strong)] [&>input]:bg-[var(--surface-inset-bg)] [&>input]:px-1.5 [&>input]:text-[var(--ink)] [&>select]:h-6 [&>select]:min-w-0 [&>select]:border [&>select]:border-[var(--line-strong)] [&>select]:bg-[var(--surface-inset-bg)] [&>select]:px-1.5 [&>select]:text-[var(--ink)]';
-const aiInputClass = 'h-6 min-w-0 border border-[var(--line-strong)] bg-[var(--surface-inset-bg)] px-1.5 text-[var(--ink)]';
+  'grid grid-cols-[70px_minmax(0,1fr)] items-center min-w-0 gap-1.5 [&>span]:text-(--muted) [&>input]:h-6 [&>input]:min-w-0 [&>input]:border [&>input]:border-(--line-strong) [&>input]:bg-(--surface-inset-bg) [&>input]:px-1.5 [&>input]:text-(--ink) [&>select]:h-6 [&>select]:min-w-0 [&>select]:border [&>select]:border-(--line-strong) [&>select]:bg-(--surface-inset-bg) [&>select]:px-1.5 [&>select]:text-(--ink)';
+const aiInputClass = 'h-6 min-w-0 border border-(--line-strong) bg-(--surface-inset-bg) px-1.5 text-(--ink)';
 const aiSelectClass = aiInputClass;
 const aiPathRowClass = 'grid grid-cols-[70px_minmax(0,1fr)_34px] items-center gap-0';
 const aiModelActionsClass = 'grid grid-cols-[80px_104px_minmax(0,1fr)] gap-1.5';
-const aiButtonClass = 'h-6 cursor-default border border-[var(--line-strong)] bg-[var(--panel-strong)] px-2 text-[11px] text-[var(--ink)]';
-const aiModelPanelClass = 'grid min-h-0 min-w-0 grid-rows-[26px_minmax(0,1fr)] border border-[var(--line)] bg-[var(--panel)]';
-const aiModelHeaderClass = 'h-[26px] border-b border-[var(--line)] bg-[var(--surface-raised-bg)] px-2 font-semibold leading-[25px]';
+const aiButtonClass = 'h-6 cursor-default border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px] text-(--ink)';
+const aiModelPanelClass = 'grid min-h-0 min-w-0 grid-rows-[26px_minmax(0,1fr)] border border-(--line) bg-(--panel)';
+const aiModelHeaderClass = 'h-[26px] border-b border-(--line) bg-(--surface-raised-bg) px-2 font-semibold leading-[25px]';
 const aiModelListClass = 'grid auto-rows-min content-start min-h-0 min-w-0 p-2';
-const aiModelRowClass = 'grid min-h-6 grid-cols-[72px_minmax(0,1fr)] border-b border-[var(--line)] text-[11px]';
+const aiModelRowClass = 'grid min-h-6 grid-cols-[72px_minmax(0,1fr)] border-b border-(--line) text-[11px]';
 const aiFeaturePanelClass = 'grid min-h-0 min-w-0 grid-rows-[min-content_min-content_minmax(0,1fr)] gap-2 p-2';
-const aiCheckRowClass = 'grid h-7 grid-cols-[20px_minmax(0,1fr)] items-center border border-[var(--line-strong)] bg-[var(--panel-strong)] px-2 text-[11px]';
-const aiFooterClass = 'grid grid-cols-[minmax(0,1fr)_58px_58px] border-t border-[var(--line)] bg-[var(--surface-bg)]';
-const aiFooterSpanClass = 'min-w-0 overflow-hidden px-2 leading-[33px] text-ellipsis whitespace-nowrap text-[var(--muted)]';
-const aiFooterButtonClass = 'border-0 border-l border-[var(--line)] bg-[var(--panel-strong)] px-2 text-[11px] text-[var(--ink)]';
+const aiCheckRowClass = 'grid h-7 grid-cols-[20px_minmax(0,1fr)] items-center border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px]';
+const aiFooterClass = 'grid grid-cols-[minmax(0,1fr)_58px_58px] border-t border-(--line) bg-(--surface-bg)';
+const aiFooterSpanClass = 'min-w-0 overflow-hidden px-2 leading-[33px] text-ellipsis whitespace-nowrap text-(--muted)';
+const aiFooterButtonClass = 'border-0 border-l border-(--line) bg-(--panel-strong) px-2 text-[11px] text-(--ink)';
 
 export function AiManagerWindow(): JSX.Element {
   const [section, setSection] = useState<AiConfigSection>('model');
@@ -323,19 +323,19 @@ export function AiManagerWindow(): JSX.Element {
                 <header className={aiModelHeaderClass}>模型信息</header>
                 <dl className={aiModelListClass}>
                   <div>
-                    <dt className="px-2 leading-6 text-[var(--muted)]">模型名称</dt>
+                    <dt className="px-2 leading-6 text-(--muted)">模型名称</dt>
                     <dd className="px-2 leading-6">{modelInfo.modelName || settings.modelName || '-'}</dd>
                   </div>
                   <div>
-                    <dt className="px-2 leading-6 text-[var(--muted)]">模型数量</dt>
+                    <dt className="px-2 leading-6 text-(--muted)">模型数量</dt>
                     <dd className="px-2 leading-6">{modelCatalog.models.length}</dd>
                   </div>
                   <div>
-                    <dt className="px-2 leading-6 text-[var(--muted)]">模型大小</dt>
+                    <dt className="px-2 leading-6 text-(--muted)">模型大小</dt>
                     <dd className="px-2 leading-6">{modelInfo.exists ? formatBytes(modelInfo.sizeBytes) : '-'}</dd>
                   </div>
                   <div>
-                    <dt className="px-2 leading-6 text-[var(--muted)]">路径</dt>
+                    <dt className="px-2 leading-6 text-(--muted)">路径</dt>
                     <dd className="px-2 leading-6">{(modelInfo.modelFilePath ?? settings.modelPath) || '-'}</dd>
                   </div>
                 </dl>

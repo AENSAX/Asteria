@@ -19,32 +19,32 @@ import {
 
 const MANAGED_TAG_ROW_HEIGHT = 26;
 const MANAGED_TAG_OVERSCAN_PX = 260;
-const managerShellClass = 'grid h-full min-h-0 min-w-0 grid-cols-[180px_minmax(0,1fr)] bg-[var(--panel)]';
-const managerSidebarClass = 'flex min-h-0 min-w-0 flex-col border-r border-[var(--line)] bg-[var(--surface-bg)]';
-const managerSidebarHeaderClass = 'h-7 border-b border-[var(--line)] bg-[var(--panel-strong)] px-2 leading-7 text-[11px] font-semibold';
+const managerShellClass = 'grid h-full min-h-0 min-w-0 grid-cols-[180px_minmax(0,1fr)] bg-(--panel)';
+const managerSidebarClass = 'flex min-h-0 min-w-0 flex-col border-r border-(--line) bg-(--surface-bg)';
+const managerSidebarHeaderClass = 'h-7 border-b border-(--line) bg-(--panel-strong) px-2 leading-7 text-[11px] font-semibold';
 const managerListClass = 'min-h-0 overflow-auto';
 const managerListItemClass =
-  'grid min-h-[26px] w-full grid-cols-[18px_minmax(0,1fr)_42px] items-center border-0 border-b border-[var(--line)] bg-transparent px-2 text-left text-[11px] text-[var(--ink)]';
-const managerListItemActiveClass = 'bg-[var(--surface-raised-bg)]';
-const managerPanelClass = 'grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_minmax(0,1fr)_28px] bg-[var(--panel)]';
-const managerToolbarClass = 'grid grid-rows-[auto_auto] gap-1 border-b border-[var(--line)] bg-[var(--panel)] p-2';
+  'grid min-h-[26px] w-full grid-cols-[18px_minmax(0,1fr)_42px] items-center border-0 border-b border-(--line) bg-transparent px-2 text-left text-[11px] text-(--ink)';
+const managerListItemActiveClass = 'bg-(--surface-raised-bg)';
+const managerPanelClass = 'grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_minmax(0,1fr)_28px] bg-(--panel)';
+const managerToolbarClass = 'grid grid-rows-[auto_auto] gap-1 border-b border-(--line) bg-(--panel) p-2';
 const managerInputRowClass = 'grid grid-cols-[minmax(0,1fr)_auto] gap-1.5';
 const managerSortRowClass = 'grid grid-cols-[120px_120px_auto_minmax(0,1fr)] items-center gap-1.5';
 const managerInputClass =
-  'h-6 min-w-0 border border-[var(--line-strong)] bg-[var(--surface-inset-bg)] px-1.5 text-[var(--ink)]';
+  'h-6 min-w-0 border border-(--line-strong) bg-(--surface-inset-bg) px-1.5 text-(--ink)';
 const managerButtonClass =
-  'h-6 min-w-[72px] cursor-default border border-[var(--line-strong)] bg-[var(--panel-strong)] px-2 text-[11px] text-[var(--ink)]';
+  'h-6 min-w-[72px] cursor-default border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px] text-(--ink)';
 const managerSelectClass =
-  'h-6 min-w-0 border border-[var(--line-strong)] bg-[var(--surface-inset-bg)] px-1.5 text-[var(--ink)]';
-const managerMessageClass = 'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[var(--muted)]';
-const managedTagListClass = 'relative min-h-0 overflow-auto bg-[var(--surface-bg)]';
+  'h-6 min-w-0 border border-(--line-strong) bg-(--surface-inset-bg) px-1.5 text-(--ink)';
+const managerMessageClass = 'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-(--muted)';
+const managedTagListClass = 'relative min-h-0 overflow-auto bg-(--surface-bg)';
 const managedTagRowClass =
-  'absolute left-0 right-0 grid h-[26px] grid-cols-[minmax(0,1fr)_42px] items-center border-b border-[var(--line)] bg-transparent text-[11px] text-[var(--ink)]';
-const managedTagRowPendingClass = 'bg-[var(--danger-bg)]';
+  'absolute left-0 right-0 grid h-[26px] grid-cols-[minmax(0,1fr)_42px] items-center border-b border-(--line) bg-transparent text-[11px] text-(--ink)';
+const managedTagRowPendingClass = 'bg-(--danger-bg)';
 const managedTagRowTextClass = 'min-w-0 overflow-hidden px-2 text-ellipsis whitespace-nowrap';
-const managedTagRowCountClass = 'min-w-0 overflow-hidden px-2 text-right text-ellipsis whitespace-nowrap text-[var(--muted)]';
-const managedTagEmptyClass = 'p-2 text-[var(--muted)]';
-const managedTagFooterClass = 'flex h-7 items-center justify-between border-t border-[var(--line)] bg-[var(--surface-bg)] px-2 text-[var(--muted)]';
+const managedTagRowCountClass = 'min-w-0 overflow-hidden px-2 text-right text-ellipsis whitespace-nowrap text-(--muted)';
+const managedTagEmptyClass = 'p-2 text-(--muted)';
+const managedTagFooterClass = 'flex h-7 items-center justify-between border-t border-(--line) bg-(--surface-bg) px-2 text-(--muted)';
 
 export function TagManagerWindow(): JSX.Element {
   const [styles, setStyles] = useState<TagStyleRecord[]>([]);
@@ -352,13 +352,13 @@ export function TagManagerWindow(): JSX.Element {
               type="button"
               onClick={() => setActiveStyleId(style.id)}
             >
-              <span className="text-center text-[var(--success-ink)]">{style.isDefault ? '√' : ''}</span>
+              <span className="text-center text-(--success-ink)">{style.isDefault ? '√' : ''}</span>
               <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{style.displayName}</span>
-              <span className="text-right text-[var(--muted)]">{style.tagCount}</span>
+              <span className="text-right text-(--muted)">{style.tagCount}</span>
             </button>
           ))}
         </div>
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-1.5 border-t border-[var(--line)] p-2">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-1.5 border-t border-(--line) p-2">
           <input
             className={managerInputClass}
             aria-label="新建风格"
@@ -375,7 +375,7 @@ export function TagManagerWindow(): JSX.Element {
             新建
           </button>
         </div>
-        <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-1.5 border-t border-[var(--line)] p-2">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-1.5 border-t border-(--line) p-2">
           <input
             className={managerInputClass}
             aria-label="重命名风格"
@@ -473,7 +473,7 @@ export function TagManagerWindow(): JSX.Element {
             <div className={managedTagEmptyClass}>没有标签</div>
           )}
           {boxSelection.selectionBox ? (
-            <div className="absolute z-40 border border-[var(--accent)] bg-[var(--accent-overlay)] pointer-events-none" style={boxSelection.selectionBox} />
+            <div className="absolute z-40 border border-(--accent) bg-(--accent-overlay) pointer-events-none" style={boxSelection.selectionBox} />
           ) : null}
         </div>
         <footer className={managedTagFooterClass}>

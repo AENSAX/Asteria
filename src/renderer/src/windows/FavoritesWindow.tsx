@@ -78,11 +78,11 @@ export function FavoritesWindow(): JSX.Element {
   }
 
   return (
-    <section className="grid h-full min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_24px] bg-[var(--panel)]">
+    <section className="grid h-full min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_24px] bg-(--panel)">
       <div className="grid auto-rows-[128px] grid-cols-[repeat(auto-fill,128px)] content-start justify-start gap-2 overflow-auto p-2">
         {files.length > 0 ? (
           files.map((file) => (
-            <article className="relative grid h-32 w-32 overflow-hidden border border-[var(--line)] bg-[var(--surface-bg)]" key={file.id} title={file.originalPath}>
+            <article className="relative grid h-32 w-32 overflow-hidden border border-(--line) bg-(--surface-bg)" key={file.id} title={file.originalPath}>
               <FileRatingStack ratings={file.ratings} />
               <FavoriteButton active={Boolean(file.isFavorite)} onToggle={() => void toggleFavorite(file)} />
               <button className="grid h-full w-full place-items-center border-0 bg-transparent p-0" type="button" onClick={() => void openFileDetail(file.id)}>
@@ -91,10 +91,10 @@ export function FavoritesWindow(): JSX.Element {
             </article>
           ))
         ) : (
-          <div className="text-[var(--muted)]">没有收藏文件</div>
+          <div className="text-(--muted)">没有收藏文件</div>
         )}
       </div>
-      <footer className="flex h-6 items-center border-t border-[var(--line)] px-2 text-[var(--muted)]">{message}</footer>
+      <footer className="flex h-6 items-center border-t border-(--line) px-2 text-(--muted)">{message}</footer>
     </section>
   );
 }
@@ -128,5 +128,5 @@ function renderFavoriteMedia(file: BrowserFileRecord): JSX.Element {
     return <video className="block max-h-full max-w-full object-contain" muted preload="metadata" src={file.mediaUrl} />;
   }
 
-  return <span className="text-[var(--muted)]">{extension || 'file'}</span>;
+  return <span className="text-(--muted)">{extension || 'file'}</span>;
 }

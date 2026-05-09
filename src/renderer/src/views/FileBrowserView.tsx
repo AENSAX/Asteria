@@ -57,22 +57,22 @@ const decodedPreviewCache = new Map<
     lastViewedAt: number;
   }
 >();
-const browserRootClass = 'grid h-full min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_24px] bg-[var(--panel)]';
+const browserRootClass = 'grid h-full min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_24px] bg-(--panel)';
 const browserGridClass =
   'relative grid min-h-0 auto-rows-[128px] grid-cols-[repeat(auto-fill,128px)] content-start justify-start gap-2 overflow-auto p-2';
 const browserCellClass =
-  'relative grid h-32 w-32 overflow-hidden border border-[var(--line)] bg-[var(--surface-bg)] cursor-default';
-const browserCellPendingClass = 'border-[var(--accent)] bg-[var(--selection-bg)]';
-const importBadgeClass = 'absolute right-1 bottom-1 z-[2] border border-[var(--line-strong)] bg-[var(--surface-bg)] px-1.5 leading-5 text-[10px] text-[var(--muted)]';
-const importBadgeDuplicateClass = 'border-[var(--warning)] text-[var(--warning-ink)]';
-const browserMediaClass = 'grid h-full w-full place-items-center overflow-hidden [&>img]:block [&>img]:max-h-full [&>img]:max-w-full [&>img]:object-contain [&>span]:text-[var(--muted)]';
-const browserStatusClass = 'flex h-6 min-w-0 items-center justify-end gap-1.5 border-t border-[var(--line)] bg-[var(--surface-bg)] px-2 text-[var(--muted)]';
-const browserSelectClass = 'h-[18px] min-w-[72px] border border-[var(--line-strong)] bg-[var(--surface-inset-bg)] text-[var(--ink)]';
+  'relative grid h-32 w-32 overflow-hidden border border-(--line) bg-(--surface-bg) cursor-default';
+const browserCellPendingClass = 'border-(--accent) bg-(--selection-bg)';
+const importBadgeClass = 'absolute right-1 bottom-1 z-[2] border border-(--line-strong) bg-(--surface-bg) px-1.5 leading-5 text-[10px] text-(--muted)';
+const importBadgeDuplicateClass = 'border-(--warning) text-(--warning-ink)';
+const browserMediaClass = 'grid h-full w-full place-items-center overflow-hidden [&>img]:block [&>img]:max-h-full [&>img]:max-w-full [&>img]:object-contain [&>span]:text-(--muted)';
+const browserStatusClass = 'flex h-6 min-w-0 items-center justify-end gap-1.5 border-t border-(--line) bg-(--surface-bg) px-2 text-(--muted)';
+const browserSelectClass = 'h-[18px] min-w-[72px] border border-(--line-strong) bg-(--surface-inset-bg) text-(--ink)';
 const browserPagerClass = 'inline-flex min-w-0 items-center gap-1';
-const browserPagerButtonClass = 'h-[18px] min-w-[38px] cursor-default border border-[var(--line-strong)] bg-[var(--panel-strong)] px-1.5 leading-4 text-[var(--ink)]';
-const browserPagerInputClass = 'h-[18px] w-[42px] border border-[var(--line-strong)] bg-[var(--surface-inset-bg)] px-1 text-[var(--ink)] leading-4';
+const browserPagerButtonClass = 'h-[18px] min-w-[38px] cursor-default border border-(--line-strong) bg-(--panel-strong) px-1.5 leading-4 text-(--ink)';
+const browserPagerInputClass = 'h-[18px] w-[42px] border border-(--line-strong) bg-(--surface-inset-bg) px-1 text-(--ink) leading-4';
 const contextMenuClass =
-  'fixed z-30 w-[142px] border border-[var(--line-strong)] bg-[var(--panel)] p-1 [&>button]:block [&>button]:h-6 [&>button]:w-full [&>button]:cursor-default [&>button]:border-0 [&>button]:bg-transparent [&>button]:px-2 [&>button]:text-left [&>button]:text-[11px] [&>button]:text-[var(--ink)] [&>button:hover]:bg-[var(--accent-weak)]';
+  'fixed z-30 w-[142px] border border-(--line-strong) bg-(--panel) p-1 [&>button]:block [&>button]:h-6 [&>button]:w-full [&>button]:cursor-default [&>button]:border-0 [&>button]:bg-transparent [&>button]:px-2 [&>button]:text-left [&>button]:text-[11px] [&>button]:text-(--ink) [&>button:hover]:bg-(--accent-weak)';
 
 export function FileBrowserView({
   importQueueMode,
@@ -653,10 +653,10 @@ export function FileBrowserView({
             </article>
           ))
         ) : (
-          <div className="text-[var(--muted)]">没有文件记录</div>
+          <div className="text-(--muted)">没有文件记录</div>
         )}
         {boxSelection.selectionBox ? (
-          <div className="absolute z-40 border border-[var(--accent)] bg-[var(--accent-overlay)] pointer-events-none" style={boxSelection.selectionBox} />
+          <div className="absolute z-40 border border-(--accent) bg-(--accent-overlay) pointer-events-none" style={boxSelection.selectionBox} />
         ) : null}
       </div>
 

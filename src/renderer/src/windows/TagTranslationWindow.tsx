@@ -8,15 +8,15 @@ const fallbackSettings: TagTranslationSettings = {
   enableContextMenuTranslation: false,
   translateOnTagCreate: false
 };
-const translationRootClass = 'grid h-full min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_32px] bg-[var(--bg)]';
+const translationRootClass = 'grid h-full min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_32px] bg-(--bg)';
 const translationContentClass = 'grid content-start gap-1.5 min-h-0 min-w-0 p-2';
 const translationFieldClass =
-  'grid grid-cols-[88px_minmax(0,1fr)_32px] items-center gap-1.5 [&>span]:min-w-0 [&>span]:overflow-hidden [&>span]:text-ellipsis [&>span]:whitespace-nowrap [&>span]:text-[var(--text)] [&>input]:h-6 [&>input]:min-w-0 [&>input]:border [&>input]:border-[var(--line-strong)] [&>input]:bg-[var(--surface-inset-bg)] [&>input]:px-1.5 [&>input]:text-[var(--ink)] [&>textarea]:min-w-0 [&>textarea]:border [&>textarea]:border-[var(--line-strong)] [&>textarea]:bg-[var(--surface-inset-bg)] [&>textarea]:px-1.5 [&>textarea]:text-[var(--ink)]';
-const translationHintClass = 'h-5 text-[10px] leading-5 text-[var(--muted)]';
-const translationCheckClass = 'grid min-h-6 grid-cols-[18px_minmax(0,1fr)] items-center gap-1.5 border border-[var(--line)] bg-[var(--panel)] px-2 text-[11px]';
-const translationFooterClass = 'grid grid-cols-[minmax(0,1fr)_58px_70px] items-center border-t border-[var(--line)] bg-[var(--surface-bg)]';
-const translationFooterTextClass = 'min-w-0 overflow-hidden px-2 leading-[31px] text-ellipsis whitespace-nowrap text-[var(--muted)]';
-const translationButtonClass = 'h-8 border-0 border-l border-[var(--line)] bg-[var(--panel-strong)] px-2 text-[11px] text-[var(--ink)]';
+  'grid grid-cols-[88px_minmax(0,1fr)_32px] items-center gap-1.5 [&>span]:min-w-0 [&>span]:overflow-hidden [&>span]:text-ellipsis [&>span]:whitespace-nowrap [&>span]:text-(--text) [&>input]:h-6 [&>input]:min-w-0 [&>input]:border [&>input]:border-(--line-strong) [&>input]:bg-(--surface-inset-bg) [&>input]:px-1.5 [&>input]:text-(--ink) [&>textarea]:min-w-0 [&>textarea]:border [&>textarea]:border-(--line-strong) [&>textarea]:bg-(--surface-inset-bg) [&>textarea]:px-1.5 [&>textarea]:text-(--ink)';
+const translationHintClass = 'h-5 text-[10px] leading-5 text-(--muted)';
+const translationCheckClass = 'grid min-h-6 grid-cols-[18px_minmax(0,1fr)] items-center gap-1.5 border border-(--line) bg-(--panel) px-2 text-[11px]';
+const translationFooterClass = 'grid grid-cols-[minmax(0,1fr)_58px_70px] items-center border-t border-(--line) bg-(--surface-bg)';
+const translationFooterTextClass = 'min-w-0 overflow-hidden px-2 leading-[31px] text-ellipsis whitespace-nowrap text-(--muted)';
+const translationButtonClass = 'h-8 border-0 border-l border-(--line) bg-(--panel-strong) px-2 text-[11px] text-(--ink)';
 
 export function TagTranslationWindow(): JSX.Element {
   const [settings, setSettings] = useState<TagTranslationSettings>(fallbackSettings);
@@ -81,13 +81,13 @@ export function TagTranslationWindow(): JSX.Element {
         <label className={translationFieldClass}>
           <span>翻译文件</span>
           <input
-            className="h-6 min-w-0 border border-[var(--line-strong)] bg-[var(--surface-inset-bg)] px-1.5 text-[var(--ink)]"
+            className="h-6 min-w-0 border border-(--line-strong) bg-(--surface-inset-bg) px-1.5 text-(--ink)"
             aria-label="标签翻译 CSV 路径"
             placeholder="输入标签翻译 CSV 路径"
             value={settings.csvPath}
             onChange={(event) => setSettings({ ...settings, csvPath: event.target.value })}
           />
-          <button className="h-6 cursor-default border border-[var(--line-strong)] bg-[var(--panel-strong)] px-2 text-[11px] text-[var(--ink)]" type="button" onClick={() => void selectCsvPath()}>
+          <button className="h-6 cursor-default border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px] text-(--ink)" type="button" onClick={() => void selectCsvPath()}>
             ...
           </button>
         </label>

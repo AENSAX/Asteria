@@ -15,11 +15,11 @@ interface BatchTagManagerWindowProps {
   fileIds: number[];
 }
 
-const batchRootClass = 'grid h-full min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_auto_24px] border border-[var(--line)] bg-[var(--panel)]';
-const batchListClass = 'relative flex min-h-0 flex-wrap content-start gap-1 overflow-auto bg-[var(--surface-bg)] p-1.5';
+const batchRootClass = 'grid h-full min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_auto_24px] border border-(--line) bg-(--panel)';
+const batchListClass = 'relative flex min-h-0 flex-wrap content-start gap-1 overflow-auto bg-(--surface-bg) p-1.5';
 const batchTagItemClass =
-  'inline-grid min-h-5 max-w-full grid-cols-[minmax(0,1fr)_auto] items-center border border-[var(--line-strong)] bg-[var(--tag-bg)] text-[11px] text-[var(--ink)]';
-const batchTagPendingClass = 'border-[var(--danger)]';
+  'inline-grid min-h-5 max-w-full grid-cols-[minmax(0,1fr)_auto] items-center border border-(--line-strong) bg-(--tag-bg) text-[11px] text-(--ink)';
+const batchTagPendingClass = 'border-(--danger)';
 
 export function BatchTagManagerWindow({ fileIds }: BatchTagManagerWindowProps): JSX.Element {
   const [fileTags, setFileTags] = useState<BatchFileTagRecord[]>([]);
@@ -154,14 +154,14 @@ export function BatchTagManagerWindow({ fileIds }: BatchTagManagerWindowProps): 
               onMouseDown={(event) => handleTagMouseDown(event, tag, index)}
             >
               <span className="min-w-0 overflow-hidden px-1.5 text-ellipsis whitespace-nowrap">{formatTagLabel(tag)}</span>
-              <span className="border-l border-[var(--line)] px-1.5 text-[var(--muted)]">{tag.fileCount}</span>
+              <span className="border-l border-(--line) px-1.5 text-(--muted)">{tag.fileCount}</span>
             </button>
           ))
         ) : (
-          <div className="p-2 text-[var(--muted)]">没有标签</div>
+          <div className="p-2 text-(--muted)">没有标签</div>
         )}
         {boxSelection.selectionBox ? (
-          <div className="absolute z-40 border border-[var(--accent)] bg-[var(--accent-overlay)] pointer-events-none" style={boxSelection.selectionBox} />
+          <div className="absolute z-40 border border-(--accent) bg-(--accent-overlay) pointer-events-none" style={boxSelection.selectionBox} />
         ) : null}
       </div>
 
@@ -176,7 +176,7 @@ export function BatchTagManagerWindow({ fileIds }: BatchTagManagerWindowProps): 
         onPickSuggestion={tagInput.addTokenFromSuggestion}
         onTextChange={tagInput.setText}
       />
-      <footer className="flex h-6 items-center border-t border-[var(--line)] px-2 text-[var(--muted)]">{message}</footer>
+      <footer className="flex h-6 items-center border-t border-(--line) px-2 text-(--muted)">{message}</footer>
     </section>
   );
 }

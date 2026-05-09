@@ -8,8 +8,8 @@ export function FavoriteButton({ active, onToggle }: FavoriteButtonProps): JSX.E
     <button
       aria-label={active ? '取消喜欢' : '喜欢'}
       className={[
-        'absolute right-1 top-1 z-[2] grid h-5 w-5 place-items-center border border-[var(--line-strong)] bg-[var(--surface-inset-bg)] text-[12px] leading-none text-[var(--favorite)]',
-        active ? 'border-[var(--favorite)] text-[var(--favorite)]' : ''
+        'absolute right-1 top-1 z-[2] grid h-5 w-5 place-items-center border border-(--line-strong) bg-(--surface-inset-bg) text-[12px] leading-none text-(--favorite)',
+        active ? 'border-(--favorite) text-(--favorite)' : ''
       ]
         .filter(Boolean)
         .join(' ')}

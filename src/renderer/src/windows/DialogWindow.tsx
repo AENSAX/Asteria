@@ -63,7 +63,7 @@ export function DialogWindow({ dialogId }: DialogWindowProps): JSX.Element {
   }, [dialogId, state]);
 
   if (!state) {
-    return <section className="grid w-fit min-w-[280px] overflow-hidden bg-[var(--bg)] text-[11px] text-[var(--ink)]" ref={rootRef}>加载中</section>;
+    return <section className="grid w-fit min-w-[280px] overflow-hidden bg-(--bg) text-[11px] text-(--ink)" ref={rootRef}>加载中</section>;
   }
 
   const percent = state.progress && state.progress.total > 0
@@ -71,29 +71,29 @@ export function DialogWindow({ dialogId }: DialogWindowProps): JSX.Element {
     : 0;
 
   return (
-    <section className="grid w-fit min-w-[280px] max-w-[900px] overflow-hidden bg-[var(--bg)] text-[11px] text-[var(--ink)]" ref={rootRef}>
+    <section className="grid w-fit min-w-[280px] max-w-[900px] overflow-hidden bg-(--bg) text-[11px] text-(--ink)" ref={rootRef}>
       <main className="min-w-0 min-h-0 p-3">
         <div className="max-w-[860px]">{state.message}</div>
         {state.kind === 'progress' && state.progress ? (
           <div className="mt-3 grid gap-2">
             <div className="grid grid-cols-[minmax(0,1fr)_42px] items-center gap-2">
               <progress max={100} value={percent} />
-              <span className="text-right text-[var(--muted)]">{percent}%</span>
+              <span className="text-right text-(--muted)">{percent}%</span>
             </div>
-            <footer className="text-[var(--muted)]">
+            <footer className="text-(--muted)">
               {state.progress.processed} / {state.progress.total}
             </footer>
           </div>
         ) : null}
       </main>
       {state.kind === 'confirm' || state.kind === 'alert' ? (
-        <footer className="flex justify-end gap-1 border-t border-[var(--line)] bg-[var(--surface-bg)] p-2">
+        <footer className="flex justify-end gap-1 border-t border-(--line) bg-(--surface-bg) p-2">
           {state.kind === 'confirm' ? (
-            <button className="h-6 min-w-[58px] border border-[var(--line-strong)] bg-[var(--panel-strong)] px-2 text-[11px] text-[var(--ink)]" type="button" onClick={() => void resolve(false)}>
+            <button className="h-6 min-w-14.5 border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px] text-(--ink)" type="button" onClick={() => void resolve(false)}>
               {state.cancelText}
             </button>
           ) : null}
-          <button className="h-6 min-w-[58px] border border-[var(--line-strong)] bg-[var(--panel-strong)] px-2 text-[11px] text-[var(--ink)]" type="button" onClick={() => void resolve(true)}>
+          <button className="h-6 min-w-[58px] border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px] text-(--ink)" type="button" onClick={() => void resolve(true)}>
             {state.confirmText}
           </button>
         </footer>

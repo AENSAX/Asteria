@@ -15,7 +15,7 @@ const feedbackLabels: Record<FeedbackKind, string> = {
   save: '√已保存'
 };
 const successClass =
-  'border border-[var(--success)] bg-[var(--success-weak)] text-[var(--success-feedback-ink)] hover:border-[var(--success)] hover:bg-[var(--success-weak)] active:border-[var(--success)] active:bg-[var(--success-weak)] active:text-[var(--success-feedback-ink)]';
+  'border border-(--success) bg-(--success-weak) text-(--success-feedback-ink) hover:border-(--success) hover:bg-(--success-weak) active:border-(--success) active:bg-(--success-weak) active:text-(--success-feedback-ink)';
 
 export function ActionFeedbackButton({
   afterFeedback,

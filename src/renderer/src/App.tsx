@@ -117,24 +117,24 @@ const idleWorkStatus: WorkStatus = {
   completed: 0
 };
 
-const standaloneWindowClass = 'h-full min-h-0 min-w-0 bg-[var(--bg)]';
-const emptyPageClass = 'grid h-full min-h-0 min-w-0 place-items-center bg-[var(--panel)] text-[var(--muted)]';
+const standaloneWindowClass = 'h-full min-h-0 min-w-0 bg-(--bg)';
+const emptyPageClass = 'grid h-full min-h-0 min-w-0 place-items-center bg-(--panel) text-(--muted)';
 const menuButtonClass =
-  'h-full min-w-12 cursor-default border-0 bg-transparent px-3 text-[11px] hover:bg-[var(--panel-strong)]';
-const activeMenuButtonClass = `${menuButtonClass} bg-[var(--panel-strong)]`;
+  'h-full min-w-12 cursor-default border-0 bg-transparent px-3 text-[11px] hover:bg-(--panel-strong)';
+const activeMenuButtonClass = `${menuButtonClass} bg-(--panel-strong)`;
 const menuDropdownClass =
-  'absolute left-0 top-full z-10 min-w-[132px] border border-[var(--line-strong)] bg-[var(--panel)] p-1 [&>button]:h-[26px] [&>button]:w-full [&>button]:cursor-default [&>button]:border-0 [&>button]:bg-transparent [&>button]:px-2.5 [&>button]:text-left [&>button]:text-[11px] [&>button:disabled]:text-[var(--disabled-ink)] [&>button:hover:not(:disabled)]:bg-[var(--accent-weak)]';
+  'absolute left-0 top-full z-10 min-w-[132px] border border-(--line-strong) bg-(--panel) p-1 [&>button]:h-[26px] [&>button]:w-full [&>button]:cursor-default [&>button]:border-0 [&>button]:bg-transparent [&>button]:px-2.5 [&>button]:text-left [&>button]:text-[11px] [&>button:disabled]:text-(--disabled-ink) [&>button:hover:not(:disabled)]:bg-(--accent-weak)';
 const pageTabClass =
-  'grid h-[30px] min-w-[132px] max-w-[220px] grid-cols-[minmax(0,1fr)_22px] items-stretch border-r border-[var(--line)] bg-transparent text-[var(--muted)]';
-const activePageTabClass = `${pageTabClass} bg-[var(--panel)] text-[var(--ink)]`;
+  'grid h-[30px] min-w-[132px] max-w-[220px] grid-cols-[minmax(0,1fr)_22px] items-stretch border-r border-(--line) bg-transparent text-(--muted)';
+const activePageTabClass = `group bg-(--panel) text-(--ink) grid h-[30px] min-w-[132px] max-w-[220px] grid-cols-[minmax(0,1fr)_22px] items-stretch border-r border-(--line)`;
 const pageTabTitleClass =
-  'min-w-0 cursor-default overflow-hidden text-ellipsis whitespace-nowrap border-0 bg-transparent px-2 text-left text-[11px] text-inherit';
+  'group min-w-0 cursor-default overflow-hidden text-ellipsis whitespace-nowrap border-0 bg-transparent px-2 text-left text-[11px] text-inherit';
 const pageTabCloseClass =
-  'w-[22px] cursor-default border-0 bg-transparent p-0 text-[11px] text-inherit hover:bg-[var(--button-hover)]';
+  'w-[22px] cursor-default border-0 bg-transparent p-0 text-[11px] text-inherit group-hover:bg-(--button-hover)';
 const contextMenuClass =
-  'fixed z-30 w-[142px] border border-[var(--line-strong)] bg-[var(--panel)] p-1 [&>button]:block [&>button]:h-6 [&>button]:w-full [&>button]:cursor-default [&>button]:border-0 [&>button]:bg-transparent [&>button]:px-2 [&>button]:text-left [&>button]:text-[11px] [&>button]:text-[var(--ink)] [&>button:hover]:bg-[var(--accent-weak)]';
+  'fixed z-30 w-[142px] border border-(--line-strong) bg-(--panel) p-1 [&>button]:block [&>button]:h-6 [&>button]:w-full [&>button]:cursor-default [&>button]:border-0 [&>button]:bg-transparent [&>button]:px-2 [&>button]:text-left [&>button]:text-[11px] [&>button]:text-(--ink) [&>button:hover]:bg-(--accent-weak)';
 const contextMenuRenameClass =
-  'grid grid-cols-[minmax(0,1fr)_48px] gap-1 [&>input]:h-6 [&>input]:min-w-0 [&>input]:border [&>input]:border-[var(--line-strong)] [&>input]:bg-[var(--surface-inset-bg)] [&>input]:px-1.5 [&>input]:text-[var(--ink)] [&>input]:outline-0 [&>input::placeholder]:text-[var(--disabled-ink)]';
+  'grid grid-cols-[minmax(0,1fr)_48px] gap-1 [&>input]:h-6 [&>input]:min-w-0 [&>input]:border [&>input]:border-(--line-strong) [&>input]:bg-(--surface-inset-bg) [&>input]:px-1.5 [&>input]:text-(--ink) [&>input]:outline-0 [&>input::placeholder]:text-(--disabled-ink)';
 
 function cx(...classes: Array<string | false | null | undefined>): string {
   return classes.filter(Boolean).join(' ');
@@ -1460,12 +1460,12 @@ function WorkbenchApp(): JSX.Element {
       );
     }
 
-    return <div className="grid h-full place-items-center text-[var(--muted)]">未知视图</div>;
+    return <div className="grid h-full place-items-center text-(--muted)">未知视图</div>;
   }
 
   return (
     <div className="grid h-full min-h-[620px] min-w-[920px] grid-rows-[28px_30px_minmax(0,1fr)_20px]">
-      <header className="flex items-stretch border-b border-[var(--line)] bg-[var(--app-bar-bg)]">
+      <header className="flex items-stretch border-b border-(--line) bg-(--app-bar-bg)">
         <div className="flex" ref={menuRef}>
           <div className="relative">
             <button
@@ -1629,7 +1629,7 @@ function WorkbenchApp(): JSX.Element {
         </div>
       </header>
 
-      <nav className="flex min-w-0 items-stretch border-b border-[var(--line)] bg-[var(--page-tabbar-bg)]" aria-label="页面列表">
+      <nav className="flex min-w-0 items-stretch border-b border-(--line) bg-(--page-tabbar-bg)" aria-label="页面列表">
         {pages.map((page) => (
           <div
             className={page.id === activePageId ? activePageTabClass : pageTabClass}
@@ -1649,8 +1649,8 @@ function WorkbenchApp(): JSX.Element {
 
       <main
         className={cx(
-          'relative min-h-0 min-w-0 bg-[var(--bg)] p-2',
-          dragActive && 'bg-[var(--selection-bg)] [&_.module-view]:border-[var(--accent)]'
+          'relative min-h-0 min-w-0 bg-(--bg) p-2',
+          dragActive && 'bg-(--selection-bg) [&_.module-view]:border-(--accent)'
         )}
         onDragLeave={handleDragLeave}
         onDragOver={handleDragOver}
@@ -1733,7 +1733,7 @@ function WorkbenchApp(): JSX.Element {
           )}
         </div>
       ) : null}
-      <footer className="flex h-5 min-w-0 items-center border-t border-[var(--line)] bg-[var(--statusbar-bg)] px-2 text-[10px] text-[var(--muted)]">
+      <footer className="flex h-5 min-w-0 items-center border-t border-(--line) bg-(--statusbar-bg) px-2 text-[10px] text-(--muted)">
         <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{formatWorkStatus(workStatus)}</span>
       </footer>
     </div>

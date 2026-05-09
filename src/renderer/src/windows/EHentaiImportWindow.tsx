@@ -18,25 +18,25 @@ const idleProgress: EHentaiImportProgress = {
   currentFile: null,
   message: '未开始'
 };
-const importShellClass = 'grid h-full min-h-0 min-w-0 grid-cols-[280px_minmax(0,1fr)] overflow-hidden bg-[var(--bg)] text-[var(--ink)]';
-const sidebarClass = 'grid auto-rows-min gap-2 min-h-0 min-w-0 border-r border-[var(--line)] bg-[var(--panel)] p-2';
+const importShellClass = 'grid h-full min-h-0 min-w-0 grid-cols-[280px_minmax(0,1fr)] overflow-hidden bg-(--bg) text-(--ink)';
+const sidebarClass = 'grid auto-rows-min gap-2 min-h-0 min-w-0 border-r border-(--line) bg-(--panel) p-2';
 const fieldClass =
-  'grid gap-1.5 text-[11px] text-[var(--muted)] [&>input]:h-6 [&>input]:min-w-0 [&>input]:border [&>input]:border-[var(--line-strong)] [&>input]:bg-[var(--surface-media-bg)] [&>input]:px-1.5 [&>input]:text-[var(--ink)] [&>textarea]:min-w-0 [&>textarea]:resize-none [&>textarea]:border [&>textarea]:border-[var(--line-strong)] [&>textarea]:bg-[var(--surface-media-bg)] [&>textarea]:p-1.5 [&>textarea]:text-[var(--ink)] [&>small]:text-[10px] [&>small]:leading-[14px] [&>small]:text-[var(--disabled-strong-ink)]';
-const checkClass = 'grid grid-cols-[14px_1fr] items-center gap-1.5 text-[11px] text-[var(--ink)]';
+  'grid gap-1.5 text-[11px] text-(--muted) [&>input]:h-6 [&>input]:min-w-0 [&>input]:border [&>input]:border-(--line-strong) [&>input]:bg-(--surface-media-bg) [&>input]:px-1.5 [&>input]:text-(--ink) [&>textarea]:min-w-0 [&>textarea]:resize-none [&>textarea]:border [&>textarea]:border-(--line-strong) [&>textarea]:bg-(--surface-media-bg) [&>textarea]:p-1.5 [&>textarea]:text-(--ink) [&>small]:text-[10px] [&>small]:leading-[14px] [&>small]:text-(--disabled-strong-ink)';
+const checkClass = 'grid grid-cols-[14px_1fr] items-center gap-1.5 text-[11px] text-(--ink)';
 const contentClass = 'grid min-h-0 min-w-0 grid-rows-[auto_auto_auto_auto_auto_minmax(0,1fr)] gap-2 overflow-hidden p-2';
 const toolbarClass = 'flex h-6 items-center gap-1.5';
-const buttonClass = 'h-6 cursor-default border border-[var(--line-strong)] bg-[var(--surface-raised-bg)] px-2 text-[11px] text-[var(--ink)]';
+const buttonClass = 'h-6 cursor-default border border-(--line-strong) bg-(--surface-raised-bg) px-2 text-[11px] text-(--ink)';
 const progressClass = 'grid h-5 grid-cols-[minmax(0,1fr)_42px] items-center gap-1.5';
 const statsClass = 'grid grid-cols-[repeat(6,minmax(54px,1fr))] gap-1 text-[11px]';
-const statClass = 'grid h-6 grid-cols-[44px_minmax(0,1fr)] border border-[var(--line)]';
-const statLabelClass = 'truncate border-r border-[var(--line)] px-1.5 leading-5 text-[var(--muted)]';
+const statClass = 'grid h-6 grid-cols-[44px_minmax(0,1fr)] border border-(--line)';
+const statLabelClass = 'truncate border-r border-(--line) px-1.5 leading-5 text-(--muted)';
 const statValueClass = 'truncate px-1.5 leading-5';
-const panelClass = 'grid min-h-0 min-w-0 overflow-hidden border border-[var(--line)]';
-const panelHeaderClass = 'h-6 border-b border-[var(--line)] bg-[var(--surface-raised-bg)] px-1.5 leading-6';
-const statusClass = 'grid grid-cols-4 gap-0 text-[var(--muted)]';
-const debugClass = 'grid min-h-0 min-w-0 grid-rows-[24px_minmax(0,1fr)] border border-[var(--line)] overflow-hidden';
-const debugHeaderClass = 'grid grid-cols-[minmax(0,1fr)_48px] border-b border-[var(--line)] bg-[var(--surface-raised-bg)] px-1.5';
-const debugListClass = 'min-h-0 overflow-auto bg-[var(--surface-deep-bg)]';
+const panelClass = 'grid min-h-0 min-w-0 overflow-hidden border border-(--line)';
+const panelHeaderClass = 'h-6 border-b border-(--line) bg-(--surface-raised-bg) px-1.5 leading-6';
+const statusClass = 'grid grid-cols-4 gap-0 text-(--muted)';
+const debugClass = 'grid min-h-0 min-w-0 grid-rows-[24px_minmax(0,1fr)] border border-(--line) overflow-hidden';
+const debugHeaderClass = 'grid grid-cols-[minmax(0,1fr)_48px] border-b border-(--line) bg-(--surface-raised-bg) px-1.5';
+const debugListClass = 'min-h-0 overflow-auto bg-(--surface-deep-bg)';
 
 export function EHentaiImportWindow(): JSX.Element {
   const [galleryUrl, setGalleryUrl] = useState('');
@@ -283,12 +283,12 @@ export function EHentaiImportWindow(): JSX.Element {
             <button className={buttonClass} disabled={!importing} type="button" onClick={() => void cancelImport()}>
               取消
             </button>
-            <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[var(--muted)]">{progress.message}</span>
+            <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-(--muted)">{progress.message}</span>
           </div>
 
           <div className={progressClass}>
             <progress max={100} value={percent} />
-            <span className="text-right text-[var(--muted)]">{percent}%</span>
+            <span className="text-right text-(--muted)">{percent}%</span>
           </div>
 
           <dl className={statsClass}>
@@ -325,7 +325,7 @@ export function EHentaiImportWindow(): JSX.Element {
           <section className={panelClass}>
             <header className={panelHeaderClass}>Gallery 状态</header>
             {status ? (
-              <div className={`${statusClass} ${status.ok ? 'text-[var(--success-ink)]' : ''}`}>
+              <div className={`${statusClass} ${status.ok ? 'text-(--success-ink)' : ''}`}>
                 <span>{status.message}</span>
                 <span title={status.galleryTitle}>{status.galleryTitle || '-'}</span>
                 <span>首页: {status.imageCount}</span>
@@ -338,7 +338,7 @@ export function EHentaiImportWindow(): JSX.Element {
 
           <section className={panelClass}>
             <header className={panelHeaderClass}>导入规则</header>
-            <div className="p-1.5 leading-[18px] text-[var(--muted)]">
+            <div className="p-1.5 leading-[18px] text-(--muted)">
               默认写入 e-hentai 风格标签 gallery:gallery名字；勾选导入 gallery 标签后，会同时写入页面中的标签。重复文件默认跳过，勾选重复文件创建新对象后会复用物理文件。请求冷却固定为 10000ms。
             </div>
           </section>
@@ -353,10 +353,10 @@ export function EHentaiImportWindow(): JSX.Element {
             <div className={debugListClass}>
               {logs.length > 0 ? (
                 logs.map((line, index) => (
-                  <div className="min-h-5 border-b border-[var(--splitter-hover-bg)] px-1.5 leading-5 text-[var(--muted)]" key={`${index}:${line}`}>{line}</div>
+                  <div className="min-h-5 border-b border-(--splitter-hover-bg) px-1.5 leading-5 text-(--muted)" key={`${index}:${line}`}>{line}</div>
                 ))
               ) : (
-                <div className="px-1.5 text-[var(--muted)]">没有日志</div>
+                <div className="px-1.5 text-(--muted)">没有日志</div>
               )}
             </div>
           </section>

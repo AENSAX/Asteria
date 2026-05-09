@@ -85,7 +85,7 @@ export function ResizableColumns({
       <div
         aria-label="调整宽度"
         aria-orientation="vertical"
-        className="h-full min-w-[5px] cursor-col-resize border-x border-[var(--line)] bg-[var(--statusbar-bg)] hover:bg-[var(--splitter-hover-bg)]"
+        className="h-full min-w-[5px] cursor-col-resize border-x border-(--line) bg-(--statusbar-bg) hover:bg-(--splitter-hover-bg)"
         role="separator"
         onPointerDown={startResize}
       />

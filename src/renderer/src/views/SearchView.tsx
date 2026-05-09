@@ -41,24 +41,24 @@ export interface SearchAppendTagRequest {
   tag: TagRecord;
 }
 
-const searchRootClass = 'grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_auto_minmax(0,1fr)] bg-[var(--panel)]';
-const lockMessageClass = 'h-6 px-2 leading-6 text-[var(--muted)]';
+const searchRootClass = 'grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_auto_minmax(0,1fr)] bg-(--panel)';
+const lockMessageClass = 'h-6 px-2 leading-6 text-(--muted)';
 const searchInputWrapClass = 'relative min-w-0';
 const tokenInputClass =
-  'flex min-h-[30px] flex-wrap items-center gap-1 p-1 border border-[var(--line-strong)] bg-[var(--surface-inset-bg)] [&>input]:h-5 [&>input]:min-w-[96px] [&>input]:flex-1 [&>input]:border-0 [&>input]:bg-transparent [&>input]:p-0 [&>input]:text-[var(--ink)] [&>input]:outline-0 [&>input::placeholder]:text-[var(--disabled-ink)]';
+  'flex min-h-[30px] flex-wrap items-center gap-1 p-1 border border-(--line-strong) bg-(--surface-inset-bg) [&>input]:h-5 [&>input]:min-w-[96px] [&>input]:flex-1 [&>input]:border-0 [&>input]:bg-transparent [&>input]:p-0 [&>input]:text-(--ink) [&>input]:outline-0 [&>input::placeholder]:text-(--disabled-ink)';
 const operatorTokenClass =
-  'inline-flex h-[18px] min-w-[18px] items-center justify-center border border-[var(--line-strong)] bg-[var(--surface-bg)] text-[var(--muted)]';
+  'inline-flex h-[18px] min-w-[18px] items-center justify-center border border-(--line-strong) bg-(--surface-bg) text-(--muted)';
 const suggestionListClass =
-  'absolute left-0 top-full z-[4] border border-[var(--line-strong)] bg-[var(--panel)] [&>button]:block [&>button]:h-6 [&>button]:w-full [&>button]:cursor-default [&>button]:border-0 [&>button]:border-b [&>button]:border-[var(--line)] [&>button]:bg-transparent [&>button]:px-1.5 [&>button]:text-left [&>button]:text-[11px] [&>button:last-child]:border-b-0 [&>button:hover]:bg-[var(--accent-weak)]';
-const selectedSuggestionClass = 'bg-[var(--accent-weak)]';
-const suggestionItemClass = 'text-[var(--ink)]';
+  'absolute left-0 top-full z-[4] border border-(--line-strong) bg-(--panel) [&>button]:block [&>button]:h-6 [&>button]:w-full [&>button]:cursor-default [&>button]:border-0 [&>button]:border-b [&>button]:border-(--line) [&>button]:bg-transparent [&>button]:px-1.5 [&>button]:text-left [&>button]:text-[11px] [&>button:last-child]:border-b-0 [&>button:hover]:bg-(--accent-weak)';
+const selectedSuggestionClass = 'bg-(--accent-weak)';
+const suggestionItemClass = 'text-(--ink)';
 const tagTokenClass =
-  'inline-flex min-h-[18px] max-w-full overflow-hidden border border-[var(--line-strong)] bg-[var(--tag-bg)] px-1.5 text-[11px] text-[var(--ink)]';
-const pendingTagTokenClass = 'border-[var(--danger)]';
+  'inline-flex min-h-[18px] max-w-full overflow-hidden border border-(--line-strong) bg-(--tag-bg) px-1.5 text-[11px] text-(--ink)';
+const pendingTagTokenClass = 'border-(--danger)';
 const filterListClass =
-  'min-h-0 overflow-auto border border-[var(--line)] bg-[var(--surface-bg)] [&>div]:flex [&>div]:min-h-[26px] [&>div]:w-full [&>div]:flex-wrap [&>div]:items-center [&>div]:gap-1 [&>div]:border-0 [&>div]:border-b [&>div]:border-[var(--line)] [&>div]:px-1.5 [&>div]:text-[11px] [&>div]:last:border-b-0 [&>div:hover]:bg-[var(--button-hover)]';
-const pendingFilterClass = 'border-[var(--danger)] bg-[var(--danger-bg)]';
-const searchFilterEmptyClass = 'h-6 px-2 leading-6 text-[var(--muted)]';
+  'min-h-0 overflow-auto border border-(--line) bg-(--surface-bg) [&>div]:flex [&>div]:min-h-[26px] [&>div]:w-full [&>div]:flex-wrap [&>div]:items-center [&>div]:gap-1 [&>div]:border-0 [&>div]:border-b [&>div]:border-(--line) [&>div]:px-1.5 [&>div]:text-[11px] [&>div]:last:border-b-0 [&>div:hover]:bg-(--button-hover)';
+const pendingFilterClass = 'border-(--danger) bg-(--danger-bg)';
+const searchFilterEmptyClass = 'h-6 px-2 leading-6 text-(--muted)';
 const searchFilterTokenClass = 'max-w-full';
 
 export function SearchView({
