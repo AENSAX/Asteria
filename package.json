@@ -9,9 +9,9 @@
   "scripts": {
     "dev": "electron-vite dev",
     "start": "electron-vite dev",
-    "build": "tsc --noEmit && electron-vite build",
+    "build": "tsc -b --noEmit && electron-vite build",
     "preview": "electron-vite preview",
-    "check": "tsc --noEmit",
+    "check": "tsc -b --noEmit",
     "rebuild:native": "electron-rebuild -f -w better-sqlite3",
     "prepare": "husky"
   },
