@@ -16,6 +16,7 @@ import {
   loadInterfaceSettings,
 } from "../utils/interfaceSettings";
 import { isImageExtension, isVideoExtension } from "../utils/media";
+import { useLanguage } from "../utils/language";
 
 interface FileBrowserViewProps {
   searchQuery: string;
@@ -62,8 +63,8 @@ const browserRootClass =
 const browserGridClass =
   "relative grid min-h-0 auto-rows-[128px] grid-cols-[repeat(auto-fill,128px)] content-start justify-start gap-2 overflow-auto p-2";
 const browserCellClass =
-  "relative grid h-32 w-32 overflow-hidden border border-(--line) bg-(--surface-bg) cursor-default";
-const browserCellPendingClass = "border-(--accent) bg-(--selection-bg)";
+  "browser-file-cell relative grid h-32 w-32 overflow-hidden border border-(--line) bg-(--surface-bg) cursor-default";
+const browserCellPendingClass = "pending";
 const importBadgeClass =
   "absolute right-1 bottom-1 z-[2] border border-(--line-strong) bg-(--surface-bg) px-1.5 leading-5 text-[10px] text-(--muted)";
 const importBadgeDuplicateClass = "border-(--warning) text-(--warning-ink)";
@@ -90,12 +91,13 @@ export function FileBrowserView({
   searchQuery,
   state,
 }: FileBrowserViewProps): JSX.Element {
+  const { t } = useLanguage();
   const [files, setFiles] = useState<BrowserDisplayFile[]>([]);
   const [aiSettings, setAiSettings] = useState<AiSettings>(defaultAiSettings);
   const [activeRatingGroups, setActiveRatingGroups] = useState<
     RatingGroupRecord[]
   >([]);
-  const [message, setMessage] = useState("未加载");
+  const [message, setMessage] = useState(() => t("common.loading"));
   const [pendingFileIds, setPendingFileIds] = useState<number[]>([]);
   const [lastPendingFileId, setLastPendingFileId] = useState<number | null>(
     null,
@@ -328,11 +330,11 @@ export function FileBrowserView({
 
   async function loadBrowserFiles(): Promise<void> {
     if (!window.asteria) {
-      setMessage("preload unavailable");
+      setMessage(t("app.status.preloadUnavailable"));
       return;
     }
 
-    setMessage("加载中");
+    setMessage(t("window.browser.loading"));
 
     try {
       const nextFiles = importQueueMode
@@ -355,15 +357,17 @@ export function FileBrowserView({
       );
       setMessage(
         importQueueMode
-          ? `${nextFiles.length} 个待导入文件`
+          ? t("window.browser.pendingCount", { count: nextFiles.length })
           : searchQuery
-            ? `${nextFiles.length} 个结果`
-            : `${nextFiles.length} 个文件`,
+            ? t("window.browser.resultCount", { count: nextFiles.length })
+            : t("window.browser.fileCount", { count: nextFiles.length }),
       );
     } catch (error) {
       setFiles([]);
       setVisiblePreviewIds([]);
-      setMessage(error instanceof Error ? error.message : "加载失败");
+      setMessage(
+        error instanceof Error ? error.message : t("window.browser.loadFailed"),
+      );
     }
   }
 
@@ -394,7 +398,11 @@ export function FileBrowserView({
       setFiles((currentFiles) =>
         patchFileFavorite(currentFiles, file.id, Boolean(file.isFavorite)),
       );
-      setMessage(error instanceof Error ? error.message : "收藏更新失败");
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : t("window.browser.favoriteFailed"),
+      );
     }
   }
 
@@ -649,8 +657,10 @@ export function FileBrowserView({
       }
 
       const confirmed = await window.asteria.confirmDialog({
-        title: "确认重复导入",
-        message: `这个文件与 ${file.duplicate.domainName} 中的文件相同，确定要重复导入吗，这不会创建一个新的文件，只会创建一条新的数据库记录`,
+        title: t("app.status.duplicateConfirmTitle"),
+        message: t("app.status.duplicateConfirmMessage", {
+          domainName: file.duplicate.domainName,
+        }),
       });
 
       if (confirmed) {
@@ -726,10 +736,10 @@ export function FileBrowserView({
                   className={`${importBadgeClass} ${file.duplicate ? importBadgeDuplicateClass : ""}`}
                 >
                   {file.duplicate
-                    ? "重复"
+                    ? t("window.import.duplicate")
                     : file.status === "failed"
-                      ? "失败"
-                      : "待导入"}
+                      ? t("window.import.failed")
+                      : t("window.browser.pending")}
                 </div>
               ) : (
                 <>
@@ -750,7 +760,7 @@ export function FileBrowserView({
             </article>
           ))
         ) : (
-          <div className="text-(--muted)">没有文件记录</div>
+          <div className="text-(--muted)">{t("window.browser.noRecords")}</div>
         )}
         {boxSelection.selectionBox ? (
           <div
@@ -762,10 +772,10 @@ export function FileBrowserView({
 
       <footer className={browserStatusClass}>
         <label className="inline-flex min-w-0 items-center gap-1">
-          <span>排序</span>
+          <span>{t("window.browser.sort")}</span>
           <select
             className={browserSelectClass}
-            aria-label="浏览排序字段"
+            aria-label={t("window.browser.sortField")}
             disabled={importQueueMode}
             value={state.sortKey}
             onChange={(event) =>
@@ -775,13 +785,13 @@ export function FileBrowserView({
               })
             }
           >
-            <option value="importedAt">导入日期</option>
-            <option value="updatedAt">修改日期</option>
+            <option value="importedAt">{t("window.browser.importedAt")}</option>
+            <option value="updatedAt">{t("window.browser.updatedAt")}</option>
           </select>
         </label>
         <select
           className={browserSelectClass}
-          aria-label="浏览排序方向"
+          aria-label={t("window.browser.sortDirection")}
           disabled={importQueueMode}
           value={state.sortDirection}
           onChange={(event) =>
@@ -791,8 +801,8 @@ export function FileBrowserView({
             })
           }
         >
-          <option value="desc">降序</option>
-          <option value="asc">升序</option>
+          <option value="desc">{t("window.browser.desc")}</option>
+          <option value="asc">{t("window.browser.asc")}</option>
         </select>
         <div className={browserPagerClass}>
           <button
@@ -801,7 +811,7 @@ export function FileBrowserView({
             type="button"
             onClick={() => setCurrentPage(1)}
           >
-            首页
+            {t("window.browser.firstPage")}
           </button>
           <button
             className={browserPagerButtonClass}
@@ -809,11 +819,11 @@ export function FileBrowserView({
             type="button"
             onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
           >
-            上页
+            {t("window.browser.previousPage")}
           </button>
           <input
             className={browserPagerInputClass}
-            aria-label="浏览页码"
+            aria-label={t("window.browser.pageInput")}
             max={totalPages}
             min={1}
             type="number"
@@ -831,7 +841,7 @@ export function FileBrowserView({
               setCurrentPage((page) => Math.min(totalPages, page + 1))
             }
           >
-            下页
+            {t("window.browser.nextPage")}
           </button>
           <button
             className={browserPagerButtonClass}
@@ -839,7 +849,7 @@ export function FileBrowserView({
             type="button"
             onClick={() => setCurrentPage(totalPages)}
           >
-            末页
+            {t("window.browser.lastPage")}
           </button>
         </div>
         <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
@@ -863,7 +873,7 @@ export function FileBrowserView({
               void loadBrowserFiles();
             }}
           >
-            刷新
+            {t("common.refresh")}
           </button>
         </div>
       ) : null}
@@ -878,13 +888,13 @@ export function FileBrowserView({
             type="button"
             onClick={() => void commitQueueFiles(contextMenu.fileIds)}
           >
-            导入
+            {t("app.action.import")}
           </button>
           <button
             type="button"
             onClick={() => void removeQueueFiles(contextMenu.fileIds)}
           >
-            删除
+            {t("common.delete")}
           </button>
         </div>
       ) : null}

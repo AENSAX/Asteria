@@ -9,6 +9,7 @@ import {
   type TagToken,
 } from "../utils/tags";
 import { mergeIds } from "../utils/ids";
+import { useLanguage } from "../utils/language";
 
 export type SearchOperator = "+" | "-" | "/" | "(" | ")";
 
@@ -55,10 +56,10 @@ const selectedSuggestionClass = "bg-(--accent-weak)";
 const suggestionItemClass = "text-(--ink)";
 const tagTokenClass =
   "inline-flex min-h-[18px] max-w-full overflow-hidden border border-(--line-strong) bg-(--tag-bg) px-1.5 text-[11px] text-(--ink)";
-const pendingTagTokenClass = "border-(--danger)";
+const pendingTagTokenClass = "pending";
 const filterListClass =
   "min-h-0 overflow-auto border border-(--line) bg-(--surface-bg) [&>div]:flex [&>div]:min-h-[26px] [&>div]:w-full [&>div]:flex-wrap [&>div]:items-center [&>div]:gap-1 [&>div]:border-0 [&>div]:border-b [&>div]:border-(--line) [&>div]:px-1.5 [&>div]:text-[11px] [&>div]:last:border-b-0 [&>div:hover]:bg-(--button-hover)";
-const pendingFilterClass = "border-(--danger) bg-(--danger-bg)";
+const pendingFilterClass = "pending";
 const searchFilterEmptyClass = "h-6 px-2 leading-6 text-(--muted)";
 const searchFilterTokenClass = "max-w-full";
 
@@ -72,6 +73,7 @@ export function SearchView({
   onRemoveFilters,
   onInputStateChange,
 }: SearchViewProps): JSX.Element {
+  const { t } = useLanguage();
   const [tokens, setTokens] = useState<SearchInputToken[]>(inputState.tokens);
   const [text, setText] = useState(inputState.text);
   const [suggestions, setSuggestions] = useState<SearchHintRecord[]>([]);
@@ -421,7 +423,7 @@ export function SearchView({
   return (
     <section className={searchRootClass}>
       {locked ? (
-        <div className={lockMessageClass}>不可操作，因为正在导入文件</div>
+        <div className={lockMessageClass}>{t("window.search.locked")}</div>
       ) : null}
       <div className={searchInputWrapClass}>
         {suggestions.length > 0 ? (
@@ -474,9 +476,9 @@ export function SearchView({
             ),
           )}
           <input
-            aria-label="搜索"
+            aria-label={t("window.search.input")}
             disabled={locked}
-            placeholder="输入标签以搜索"
+            placeholder={t("window.search.placeholder")}
             value={text}
             onChange={(event) => setText(event.target.value)}
             onKeyDown={handleKeyDown}
@@ -517,7 +519,7 @@ export function SearchView({
             </div>
           ))
         ) : (
-          <div className={searchFilterEmptyClass}>没有筛选项</div>
+          <div className={searchFilterEmptyClass}>{t("window.search.noFilters")}</div>
         )}
       </div>
     </section>

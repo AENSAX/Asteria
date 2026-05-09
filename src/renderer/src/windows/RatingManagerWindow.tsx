@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { RatingEntryRecord, RatingGroupRecord } from "../../../shared/ipc";
 import { ActionFeedbackButton } from "../components/ActionFeedbackButton";
 import { ResizableColumns } from "../components/ResizableColumns";
+import { useLanguage } from "../utils/language";
 
 const defaultEntryColor = "#d9dde1";
 const managerShellClass =
@@ -26,10 +27,8 @@ const toolbarClass = "grid gap-1 border-b border-(--line) bg-(--panel) p-2";
 const groupEditRowClass =
   "grid grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-1.5";
 const entryCreateRowClass =
-  "grid grid-cols-[minmax(0,1fr)_auto_24px_auto] gap-1.5 items-center";
-const selectClass =
-  "h-6 min-w-0 border border-(--line-strong) bg-(--surface-inset-bg) px-1.5 text-(--ink)";
-const messageClass =
+  "grid grid-cols-[minmax(0,1fr)_24px_minmax(72px,auto)_minmax(0,1fr)] gap-1.5 items-center";
+const entryCountClass =
   "min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-(--muted)";
 const entryListClass = "min-h-0 overflow-auto bg-(--surface-bg) p-2";
 const emptyClass = "p-2 text-(--muted)";
@@ -42,6 +41,7 @@ const entryActionClass =
   "h-6 min-w-[56px] cursor-default border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px] text-(--ink)";
 
 export function RatingManagerWindow(): JSX.Element {
+  const { t } = useLanguage();
   const [groups, setGroups] = useState<RatingGroupRecord[]>([]);
   const [entries, setEntries] = useState<RatingEntryRecord[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
@@ -50,7 +50,6 @@ export function RatingManagerWindow(): JSX.Element {
   const [entryInput, setEntryInput] = useState("");
   const [entryColor, setEntryColor] = useState(defaultEntryColor);
   const [draggingEntryId, setDraggingEntryId] = useState<number | null>(null);
-  const [message, setMessage] = useState("未加载");
   const selectedGroup =
     groups.find((group) => group.id === selectedGroupId) ?? null;
 
@@ -65,7 +64,6 @@ export function RatingManagerWindow(): JSX.Element {
 
   async function loadGroups(nextSelectedGroupId?: number): Promise<void> {
     if (!window.asteria) {
-      setMessage("preload unavailable");
       return;
     }
 
@@ -79,7 +77,6 @@ export function RatingManagerWindow(): JSX.Element {
 
     setGroups(nextGroups);
     setSelectedGroupId(nextSelectedId);
-    setMessage(`${nextGroups.length} 个分级`);
   }
 
   async function loadEntries(): Promise<void> {
@@ -119,7 +116,6 @@ export function RatingManagerWindow(): JSX.Element {
       selectedGroupName,
     );
     setGroups(nextGroups);
-    setMessage("已重命名");
   }
 
   async function toggleGroupActive(group: RatingGroupRecord): Promise<void> {
@@ -142,7 +138,6 @@ export function RatingManagerWindow(): JSX.Element {
     const nextGroups = await window.asteria.deleteRatingGroup(selectedGroupId);
     setGroups(nextGroups);
     setSelectedGroupId(nextGroups[0]?.id ?? null);
-    setMessage("已删除分级");
   }
 
   async function createEntry(): Promise<void> {
@@ -158,7 +153,6 @@ export function RatingManagerWindow(): JSX.Element {
     setEntries(nextEntries);
     setEntryInput("");
     setEntryColor(defaultEntryColor);
-    setMessage("已新建条目");
     await loadGroups(selectedGroupId);
   }
 
@@ -226,7 +220,6 @@ export function RatingManagerWindow(): JSX.Element {
         nextEntries.map((entry) => entry.id),
       ),
     );
-    setMessage("已调整顺序");
     setDraggingEntryId(null);
   }
 
@@ -239,7 +232,7 @@ export function RatingManagerWindow(): JSX.Element {
       storageKey="asteria:rating-manager-sidebar-width"
       left={
         <aside className={sidebarClass}>
-          <header className={sidebarHeaderClass}>分级</header>
+          <header className={sidebarHeaderClass}>{t("window.rating.group")}</header>
           <div className={listClass}>
             {groups.map((group) => (
               <button
@@ -263,8 +256,8 @@ export function RatingManagerWindow(): JSX.Element {
           <div className={createRowClass}>
             <input
               className={inputClass}
-              aria-label="新建分级"
-              placeholder="输入分级以新建"
+              aria-label={t("window.rating.createInput")}
+              placeholder={t("window.rating.createPlaceholder")}
               value={groupInput}
               onChange={(event) => setGroupInput(event.target.value)}
               onKeyDown={(event) => {
@@ -274,7 +267,7 @@ export function RatingManagerWindow(): JSX.Element {
               }}
             />
             <button type="button" onClick={() => void createGroup()}>
-              新建
+              {t("window.rating.create")}
             </button>
           </div>
         </aside>
@@ -285,8 +278,8 @@ export function RatingManagerWindow(): JSX.Element {
             <div className={groupEditRowClass}>
               <input
                 className={inputClass}
-                aria-label="分级名称"
-                placeholder="输入分级名称"
+                aria-label={t("window.rating.name")}
+                placeholder={t("window.rating.namePlaceholder")}
                 value={selectedGroupName}
                 onChange={(event) => setSelectedGroupName(event.target.value)}
               />
@@ -295,7 +288,7 @@ export function RatingManagerWindow(): JSX.Element {
                 type="button"
                 onClick={() => void renameGroup()}
               >
-                重命名
+                {t("window.rating.rename")}
               </button>
               <button
                 disabled={!selectedGroup}
@@ -304,22 +297,22 @@ export function RatingManagerWindow(): JSX.Element {
                   selectedGroup && void toggleGroupActive(selectedGroup)
                 }
               >
-                {selectedGroup?.isActive ? "停用" : "激活"}
+                {selectedGroup?.isActive ? t("window.rating.deactivate") : t("window.rating.activate")}
               </button>
               <button
                 disabled={!selectedGroup}
                 type="button"
                 onClick={() => void deleteGroup()}
               >
-                删除
+                {t("window.rating.delete")}
               </button>
             </div>
 
             <div className={entryCreateRowClass}>
               <input
                 className={inputClass}
-                aria-label="新建条目"
-                placeholder="输入分级条目"
+                aria-label={t("window.rating.entryInput")}
+                placeholder={t("window.rating.entryPlaceholder")}
                 value={entryInput}
                 onChange={(event) => setEntryInput(event.target.value)}
                 onKeyDown={(event) => {
@@ -330,19 +323,22 @@ export function RatingManagerWindow(): JSX.Element {
               />
               <input
                 className="h-6 w-6 border border-(--line-strong) bg-(--surface-inset-bg) p-0"
-                aria-label="条目颜色"
+                aria-label={t("window.rating.entryColor")}
                 type="color"
                 value={entryColor}
                 onChange={(event) => setEntryColor(event.target.value)}
               />
               <button
+                className={buttonClass}
                 disabled={!selectedGroup}
                 type="button"
                 onClick={() => void createEntry()}
               >
-                新建条目
+                {t("window.rating.entryCreate")}
               </button>
-              <span className={messageClass}>{message}</span>
+              <span className={`${entryCountClass} justify-self-end`}>
+                {t("window.rating.entryCount", { count: entries.length })}
+              </span>
             </div>
           </header>
 
@@ -362,7 +358,7 @@ export function RatingManagerWindow(): JSX.Element {
                 />
               ))
             ) : (
-              <div className={emptyClass}>没有条目</div>
+              <div className={emptyClass}>{t("common.noEntries")}</div>
             )}
           </div>
         </main>
@@ -396,6 +392,7 @@ function RatingEntryRow({
   onDrop,
   onDragEnd,
 }: RatingEntryRowProps): JSX.Element {
+  const { t } = useLanguage();
   const [label, setLabel] = useState(entry.label);
   const [color, setColor] = useState(entry.color);
 
@@ -414,7 +411,7 @@ function RatingEntryRow({
       <span
         className={dragHandleClass}
         draggable
-        title="拖动调整顺序"
+        title={t("window.rating.dragHint")}
         onDragStart={(event) => {
           event.dataTransfer.effectAllowed = "move";
           onDragStart();
@@ -425,21 +422,21 @@ function RatingEntryRow({
       <span className={swatchClass} style={{ background: entry.color }} />
       <input
         className={inputClass}
-        aria-label="条目文字"
-        placeholder="输入条目文字"
+        aria-label={t("window.rating.entryInput")}
+        placeholder={t("window.rating.entryPlaceholder")}
         value={label}
         onChange={(event) => setLabel(event.target.value)}
       />
       <input
         className="h-6 w-6 border border-(--line-strong) bg-(--surface-inset-bg) p-0"
-        aria-label="条目颜色"
+        aria-label={t("window.rating.entryColor")}
         type="color"
         value={color}
         onChange={(event) => setColor(event.target.value)}
       />
       <ActionFeedbackButton
         className={entryActionClass}
-        label="保存"
+        label={t("common.save")}
         onAction={() => onUpdate(entry, label, color)}
       />
       <button
@@ -447,7 +444,7 @@ function RatingEntryRow({
         type="button"
         onClick={() => void onDelete(entry.id)}
       >
-        删除
+        {t("window.rating.delete")}
       </button>
     </div>
   );

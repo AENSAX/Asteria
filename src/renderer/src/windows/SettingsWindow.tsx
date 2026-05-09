@@ -13,6 +13,15 @@ import {
   saveInterfaceSettings,
 } from "../utils/interfaceSettings";
 import {
+  languageOptions,
+  loadLanguageSettings,
+  listenLanguageSettingsChanged,
+  saveLanguageSettings,
+  useLanguage,
+  type LanguageId,
+  type LanguageSettings,
+} from "../utils/language";
+import {
   loadThemeSettings,
   saveThemeSettings,
   themeOptions,
@@ -40,7 +49,8 @@ type SettingsCategory =
 
 const navItemClass =
   "block h-7 w-full cursor-default border-0 border-b border-(--line) bg-transparent px-2 text-left text-[11px]";
-const activeNavItemClass = `${navItemClass} bg-(--panel-strong)`;
+const activeNavItemClass =
+  "block h-7 w-full cursor-default border-0 border-b border-l-2 border-b-(--line) border-l-(--accent) bg-(--panel-strong) px-[7px] text-left text-[11px] font-semibold text-(--ink)";
 const panelClass = "border border-(--line) bg-(--panel)";
 const titleClass =
   "h-7 border-b border-(--line) bg-(--panel-strong) px-2 font-semibold leading-7";
@@ -55,6 +65,7 @@ const smallInputButtonClass =
   "[&>input]:h-6 [&>input]:min-w-0 [&>input]:border [&>input]:border-(--line-strong) [&>input]:bg-(--surface-inset-bg) [&>input]:px-1.5 [&>input]:text-(--ink) [&>input::placeholder]:text-(--disabled-ink) [&>button]:h-6 [&>button]:min-w-0 [&>button]:cursor-default [&>button]:border [&>button]:border-(--line-strong) [&>button]:bg-(--panel-strong) [&>button]:px-1.5 [&>button]:text-(--ink) [&>button:disabled]:text-(--disabled-ink)";
 
 export function SettingsWindow(): JSX.Element {
+  const { languageId, t } = useLanguage();
   const [category, setCategory] = useState<SettingsCategory>("file");
   const [settings, setSettings] = useState<StorageSettings | null>(null);
   const [fileStoragePath, setFileStoragePath] = useState("");
@@ -80,11 +91,16 @@ export function SettingsWindow(): JSX.Element {
     string | null
   >(null);
   const [layoutConfigName, setLayoutConfigName] = useState("");
-  const [layoutMessage, setLayoutMessage] = useState("未加载");
+  const [layoutMessage, setLayoutMessage] = useState(() =>
+    t("settings.interface.layoutConfigNotLoaded"),
+  );
   const [savingStoragePath, setSavingStoragePath] = useState(false);
   const [savingThumbnailPath, setSavingThumbnailPath] = useState(false);
   const [browserPageSize, setBrowserPageSize] = useState(() =>
     String(loadInterfaceSettings().browserPageSize),
+  );
+  const [languageSettings, setLanguageSettings] = useState<LanguageSettings>(
+    () => loadLanguageSettings(),
   );
   const [themeId, setThemeId] = useState<ThemeId>(
     () => loadThemeSettings().themeId,
@@ -101,12 +117,30 @@ export function SettingsWindow(): JSX.Element {
     void loadSettings();
   }, []);
 
+  useEffect(
+    () =>
+      listenLanguageSettingsChanged((settings) => {
+        setLanguageSettings(settings);
+      }),
+    [],
+  );
+
   useEffect(() => {
     setLayoutConfigName(
       layoutConfigs.find((config) => config.id === selectedLayoutConfigId)
         ?.name ?? "",
     );
   }, [layoutConfigs, selectedLayoutConfigId]);
+
+  useEffect(() => {
+    setLayoutMessage(
+      layoutConfigs.length > 0
+        ? t("settings.interface.layoutConfigCount", {
+            count: layoutConfigs.length,
+          })
+        : t("settings.interface.layoutConfigNotLoaded"),
+    );
+  }, [languageId, layoutConfigs, t]);
 
   useEffect(() => {
     if (!recordingShortcut) {
@@ -175,8 +209,13 @@ export function SettingsWindow(): JSX.Element {
     setSelectedLayoutConfigId(
       (currentId) => currentId ?? nextLayoutConfigs[0]?.id ?? null,
     );
-    setLayoutMessage(`${nextLayoutConfigs.length} 个配置`);
+    setLayoutMessage(
+      t("settings.interface.layoutConfigCount", {
+        count: nextLayoutConfigs.length,
+      }),
+    );
     setBrowserPageSize(String(loadInterfaceSettings().browserPageSize));
+    setLanguageSettings(loadLanguageSettings());
     setThemeId(loadThemeSettings().themeId);
     setShortcutSettings(loadShortcutSettings());
   }
@@ -251,7 +290,9 @@ export function SettingsWindow(): JSX.Element {
     const configs = await window.asteria.createPageLayoutConfig();
     setLayoutConfigs(configs);
     setSelectedLayoutConfigId(configs[0]?.id ?? null);
-    setLayoutMessage(`${configs.length} 个配置`);
+    setLayoutMessage(
+      t("settings.interface.layoutConfigCount", { count: configs.length }),
+    );
   }
 
   async function renameSelectedLayoutConfig(): Promise<void> {
@@ -273,7 +314,9 @@ export function SettingsWindow(): JSX.Element {
         configs[0]?.id ??
         null,
     );
-    setLayoutMessage(`${configs.length} 个配置`);
+    setLayoutMessage(
+      t("settings.interface.layoutConfigCount", { count: configs.length }),
+    );
   }
 
   async function deleteSelectedLayoutConfig(): Promise<void> {
@@ -287,7 +330,9 @@ export function SettingsWindow(): JSX.Element {
     setLayoutConfigs(configs);
     setSelectedLayoutConfigId(configs[0]?.id ?? null);
     setLayoutSettings(await window.asteria.getPageLayoutSettings());
-    setLayoutMessage(`${configs.length} 个配置`);
+    setLayoutMessage(
+      t("settings.interface.layoutConfigCount", { count: configs.length }),
+    );
   }
 
   async function openSelectedLayoutConfig(): Promise<void> {
@@ -337,6 +382,10 @@ export function SettingsWindow(): JSX.Element {
     setThemeId(saveThemeSettings({ themeId }).themeId);
   }
 
+  function saveLanguage(): void {
+    setLanguageSettings(saveLanguageSettings(languageSettings));
+  }
+
   async function saveNetworkSettings(): Promise<void> {
     if (!window.asteria) {
       return;
@@ -375,6 +424,8 @@ export function SettingsWindow(): JSX.Element {
   const convertImportedImagesChanged = settings
     ? settings.convertImportedImagesToPng !== convertImportedImagesToPng
     : false;
+  const languageChanged =
+    loadLanguageSettings().languageId !== languageSettings.languageId;
   const networkChanged =
     networkSettings.proxyEnabled !== proxyEnabled ||
     networkSettings.proxyHost !== proxyHost ||
@@ -397,7 +448,7 @@ export function SettingsWindow(): JSX.Element {
             type="button"
             onClick={() => setCategory("file")}
           >
-            文件
+            {t("settings.category.file")}
           </button>
           <button
             className={
@@ -406,7 +457,7 @@ export function SettingsWindow(): JSX.Element {
             type="button"
             onClick={() => setCategory("interface")}
           >
-            界面
+            {t("settings.category.interface")}
           </button>
           <button
             className={
@@ -415,7 +466,7 @@ export function SettingsWindow(): JSX.Element {
             type="button"
             onClick={() => setCategory("appearance")}
           >
-            外观
+            {t("settings.category.appearance")}
           </button>
           <button
             className={
@@ -424,7 +475,7 @@ export function SettingsWindow(): JSX.Element {
             type="button"
             onClick={() => setCategory("network")}
           >
-            网络
+            {t("settings.category.network")}
           </button>
           <button
             className={
@@ -433,7 +484,7 @@ export function SettingsWindow(): JSX.Element {
             type="button"
             onClick={() => setCategory("shortcut")}
           >
-            快捷键
+            {t("settings.category.shortcut")}
           </button>
         </aside>
       }
@@ -441,13 +492,12 @@ export function SettingsWindow(): JSX.Element {
         <main className="min-h-0 min-w-0 bg-(--bg) p-2">
           {category === "file" ? (
             <section className={panelClass}>
-              <header className={titleClass}>文件</header>
               <div className={pathListClass}>
                 <label className={pathRowClass}>
-                  <span>文件存储位置</span>
+                  <span>{t("settings.file.fileStoragePath")}</span>
                   <input
-                    aria-label="文件存储位置"
-                    placeholder="输入文件存储位置"
+                    aria-label={t("settings.file.fileStoragePath")}
+                    placeholder={t("settings.file.fileStoragePlaceholder")}
                     value={fileStoragePath}
                     onChange={(event) => setFileStoragePath(event.target.value)}
                   />
@@ -459,15 +509,17 @@ export function SettingsWindow(): JSX.Element {
                   </button>
                   <ActionFeedbackButton
                     disabled={!filePathChanged || savingStoragePath}
-                    label="保存"
+                    label={t("common.save")}
                     onAction={saveStoragePath}
                   />
                 </label>
                 <label className={pathRowClass}>
-                  <span>缩略图缓存位置</span>
+                  <span>{t("settings.file.thumbnailStoragePath")}</span>
                   <input
-                    aria-label="缩略图缓存位置"
-                    placeholder="输入缩略图缓存位置"
+                    aria-label={t("settings.file.thumbnailStoragePath")}
+                    placeholder={t(
+                      "settings.file.thumbnailStoragePlaceholder",
+                    )}
                     value={thumbnailStoragePath}
                     onChange={(event) =>
                       setThumbnailStoragePath(event.target.value)
@@ -481,7 +533,7 @@ export function SettingsWindow(): JSX.Element {
                   </button>
                   <ActionFeedbackButton
                     disabled={!thumbnailPathChanged || savingThumbnailPath}
-                    label="保存"
+                    label={t("common.save")}
                     onAction={saveThumbnailPath}
                   />
                 </label>
@@ -493,187 +545,230 @@ export function SettingsWindow(): JSX.Element {
                       setConvertImportedImagesToPng(event.target.checked)
                     }
                   />
-                  <span>导入图片转为 PNG</span>
+                  <span>{t("settings.file.convertImportedImagesToPng")}</span>
                   <ActionFeedbackButton
                     disabled={!convertImportedImagesChanged}
                     feedbackKind="apply"
-                    label="应用"
+                    label={t("common.apply")}
                     onAction={saveConvertImportedImagesToPng}
                   />
                 </label>
               </div>
             </section>
           ) : category === "interface" ? (
-            <section
-              className={`${panelClass} grid min-h-0 grid-rows-[28px_auto_24px_minmax(0,1fr)]`}
-            >
-              <header className={titleClass}>界面</header>
-              <div className="grid gap-1.5 border-b border-(--line) bg-(--surface-bg) p-2">
-                <div className={configTitleClass}>浏览</div>
-                <label
-                  className={`grid grid-cols-[104px_120px_58px_minmax(0,1fr)] items-center gap-1.5 [&>span]:text-[11px] [&>span]:text-(--text) ${smallInputButtonClass}`}
-                >
-                  <span>单页文件数</span>
-                  <input
-                    aria-label="文件浏览器单页文件数"
-                    min={20}
-                    placeholder="输入单页文件数"
-                    type="number"
-                    value={browserPageSize}
-                    onChange={(event) => setBrowserPageSize(event.target.value)}
-                  />
-                  <ActionFeedbackButton
-                    label="保存"
-                    onAction={saveBrowserPageSize}
-                  />
-                </label>
-              </div>
-              <div className={configTitleClass}>
-                <span>页面配置</span>
-                <span className="text-[11px] font-normal text-(--muted)">
-                  {layoutMessage}
-                </span>
-              </div>
-              <div className="grid min-h-0 grid-cols-[260px_minmax(0,1fr)]">
-                <div className="flex min-h-0 flex-col border-r border-(--line) bg-(--surface-bg)">
-                  <div className="min-h-0 flex-1 overflow-auto">
-                    {layoutConfigs.length > 0 ? (
-                      layoutConfigs.map((config) => (
-                        <div
-                          className={`grid min-h-[26px] w-full grid-cols-[minmax(0,1fr)] border-0 border-b border-l-[3px] border-b-(--line) p-0 text-[11px] text-(--ink) ${config.id === selectedLayoutConfigId ? "border-l-(--accent) bg-(--surface-raised-bg)" : "border-l-transparent bg-transparent"}`}
-                          key={config.id}
-                        >
-                          <button
-                            className="min-w-0 cursor-pointer overflow-hidden text-ellipsis whitespace-nowrap border-0 bg-transparent px-1.5 text-left text-(--ink)"
-                            title={config.path}
-                            type="button"
-                            onClick={() => setSelectedLayoutConfigId(config.id)}
-                          >
-                            <span className="block overflow-hidden text-ellipsis whitespace-nowrap leading-[26px]">
-                              {config.name}
-                            </span>
-                          </button>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="px-2 py-1.5 text-(--muted)">没有配置</div>
-                    )}
-                  </div>
-                  <div
-                    className={`border-t border-(--line) p-2 ${smallInputButtonClass}`}
+            <div className="grid min-h-0 content-start gap-2">
+              <section className={panelClass}>
+                <header className={titleClass}>
+                  {t("settings.interface.browser")}
+                </header>
+                <div className="grid gap-1.5 bg-(--surface-bg) p-2">
+                  <label
+                    className={`grid grid-cols-[104px_120px_58px_minmax(0,1fr)] items-center gap-1.5 [&>span]:text-[11px] [&>span]:text-(--text) ${smallInputButtonClass}`}
                   >
-                    <button
-                      type="button"
-                      onClick={() => void createLayoutConfig()}
-                    >
-                      新建配置
-                    </button>
-                  </div>
-                </div>
-
-                <div className="grid min-w-0 content-start gap-1.5 p-2">
-                  <div
-                    className={`grid grid-cols-[minmax(0,1fr)_72px] gap-1.5 ${smallInputButtonClass}`}
-                  >
+                    <span>{t("settings.interface.browserPageSize")}</span>
                     <input
-                      aria-label="配置名称"
-                      placeholder="输入配置名称"
-                      value={layoutConfigName}
+                      aria-label={t("settings.interface.browserPageSize")}
+                      min={20}
+                      placeholder={t(
+                        "settings.interface.browserPageSizePlaceholder",
+                      )}
+                      type="number"
+                      value={browserPageSize}
                       onChange={(event) =>
-                        setLayoutConfigName(event.target.value)
-                      }
-                      onFocus={() =>
-                        setLayoutConfigName(selectedLayoutConfig?.name ?? "")
+                        setBrowserPageSize(event.target.value)
                       }
                     />
-                    <button
-                      disabled={!selectedLayoutConfig}
-                      type="button"
-                      onClick={() => void renameSelectedLayoutConfig()}
+                    <ActionFeedbackButton
+                      label={t("common.save")}
+                      onAction={saveBrowserPageSize}
+                    />
+                  </label>
+                </div>
+              </section>
+
+              <section className={panelClass}>
+                <header className={`${titleClass} flex items-center justify-between`}>
+                  <span>{t("settings.interface.pageLayout")}</span>
+                  <span className="text-[11px] font-normal text-(--muted)">
+                    {layoutMessage}
+                  </span>
+                </header>
+                <div className="grid min-h-0 grid-cols-[260px_minmax(0,1fr)]">
+                  <div className="flex min-h-0 flex-col border-r border-(--line) bg-(--surface-bg)">
+                    <div className="min-h-0 flex-1 overflow-auto">
+                      {layoutConfigs.length > 0 ? (
+                        layoutConfigs.map((config) => (
+                          <div
+                            className={`grid min-h-[26px] w-full grid-cols-[minmax(0,1fr)] border-0 border-b border-l-[3px] border-b-(--line) p-0 text-[11px] text-(--ink) ${config.id === selectedLayoutConfigId ? "border-l-(--accent) bg-(--surface-raised-bg)" : "border-l-transparent bg-transparent"}`}
+                            key={config.id}
+                          >
+                            <button
+                              className="min-w-0 cursor-pointer overflow-hidden text-ellipsis whitespace-nowrap border-0 bg-transparent px-1.5 text-left text-(--ink)"
+                              title={config.path}
+                              type="button"
+                              onClick={() => setSelectedLayoutConfigId(config.id)}
+                            >
+                              <span className="block overflow-hidden text-ellipsis whitespace-nowrap leading-[26px]">
+                                {config.name}
+                              </span>
+                            </button>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="px-2 py-1.5 text-(--muted)">
+                          {t("common.noConfig")}
+                        </div>
+                      )}
+                    </div>
+                    <div
+                      className={`border-t border-(--line) p-2 ${smallInputButtonClass}`}
                     >
-                      重命名
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => void createLayoutConfig()}
+                      >
+                        {t("settings.interface.newConfig")}
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-3">
-                    <label className="flex min-w-0 cursor-pointer items-center justify-start gap-1 border-0 bg-transparent p-0 text-[11px] text-(--ink)">
+                  <div className="grid min-w-0 content-start gap-1.5 p-2">
+                    <div
+                      className={`grid grid-cols-[minmax(0,1fr)_72px] gap-1.5 ${smallInputButtonClass}`}
+                    >
                       <input
-                        checked={
-                          selectedLayoutConfig
-                            ? selectedLayoutConfig.id ===
-                              layoutSettings.defaultConfigId
-                            : false
-                        }
-                        disabled={!selectedLayoutConfig}
-                        type="checkbox"
+                        aria-label={t("settings.interface.configName")}
+                        placeholder={t(
+                          "settings.interface.configNamePlaceholder",
+                        )}
+                        value={layoutConfigName}
                         onChange={(event) =>
-                          selectedLayoutConfig
-                            ? void updateLayoutSetting(
-                                "default",
-                                event.target.checked,
-                                selectedLayoutConfig.id,
-                              )
-                            : undefined
+                          setLayoutConfigName(event.target.value)
+                        }
+                        onFocus={() =>
+                          setLayoutConfigName(selectedLayoutConfig?.name ?? "")
                         }
                       />
-                      <span>默认导入页</span>
-                    </label>
-                    <label className="flex min-w-0 cursor-pointer items-center justify-start gap-1 border-0 bg-transparent p-0 text-[11px] text-(--ink)">
-                      <input
-                        checked={
-                          selectedLayoutConfig
-                            ? selectedLayoutConfig.id ===
-                              layoutSettings.newPageConfigId
-                            : false
-                        }
+                      <button
                         disabled={!selectedLayoutConfig}
-                        type="checkbox"
-                        onChange={(event) =>
-                          selectedLayoutConfig
-                            ? void updateLayoutSetting(
-                                "newPage",
-                                event.target.checked,
-                                selectedLayoutConfig.id,
-                              )
-                            : undefined
-                        }
-                      />
-                      <span>默认新标签页</span>
-                    </label>
-                  </div>
+                        type="button"
+                        onClick={() => void renameSelectedLayoutConfig()}
+                      >
+                        {t("common.rename")}
+                      </button>
+                    </div>
 
-                  <div
-                    className={`grid grid-cols-[repeat(3,minmax(82px,1fr))] gap-1.5 ${smallInputButtonClass}`}
-                  >
-                    <button
-                      disabled={!selectedLayoutConfig}
-                      type="button"
-                      onClick={() => void openSelectedLayoutConfig()}
+                    <div className="flex items-center gap-3">
+                      <label className="flex min-w-0 cursor-pointer items-center justify-start gap-1 border-0 bg-transparent p-0 text-[11px] text-(--ink)">
+                        <input
+                          checked={
+                            selectedLayoutConfig
+                              ? selectedLayoutConfig.id ===
+                                layoutSettings.defaultConfigId
+                              : false
+                          }
+                          disabled={!selectedLayoutConfig}
+                          type="checkbox"
+                          onChange={(event) =>
+                            selectedLayoutConfig
+                              ? void updateLayoutSetting(
+                                  "default",
+                                  event.target.checked,
+                                  selectedLayoutConfig.id,
+                                )
+                              : undefined
+                          }
+                        />
+                        <span>{t("settings.interface.defaultImportPage")}</span>
+                      </label>
+                      <label className="flex min-w-0 cursor-pointer items-center justify-start gap-1 border-0 bg-transparent p-0 text-[11px] text-(--ink)">
+                        <input
+                          checked={
+                            selectedLayoutConfig
+                              ? selectedLayoutConfig.id ===
+                                layoutSettings.newPageConfigId
+                              : false
+                          }
+                          disabled={!selectedLayoutConfig}
+                          type="checkbox"
+                          onChange={(event) =>
+                            selectedLayoutConfig
+                              ? void updateLayoutSetting(
+                                  "newPage",
+                                  event.target.checked,
+                                  selectedLayoutConfig.id,
+                                )
+                              : undefined
+                          }
+                        />
+                        <span>{t("settings.interface.defaultNewPage")}</span>
+                      </label>
+                    </div>
+
+                    <div
+                      className={`grid grid-cols-[repeat(3,minmax(82px,1fr))] gap-1.5 ${smallInputButtonClass}`}
                     >
-                      打开配置文件
-                    </button>
-                    <button
-                      disabled={!selectedLayoutConfig}
-                      type="button"
-                      onClick={() => void deleteSelectedLayoutConfig()}
-                    >
-                      删除配置
-                    </button>
+                      <button
+                        disabled={!selectedLayoutConfig}
+                        type="button"
+                        onClick={() => void openSelectedLayoutConfig()}
+                      >
+                        {t("common.openConfigFile")}
+                      </button>
+                      <button
+                        disabled={!selectedLayoutConfig}
+                        type="button"
+                        onClick={() => void deleteSelectedLayoutConfig()}
+                      >
+                        {t("settings.interface.deleteConfig")}
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </section>
+              </section>
+
+              <section className={panelClass}>
+                <header className={titleClass}>
+                  {t("settings.language.languageSettings")}
+                </header>
+                <div className="grid gap-1.5 bg-(--surface-bg) p-2">
+                  <label className="grid grid-cols-[104px_160px_58px_minmax(0,1fr)] items-center gap-1.5 [&>span]:text-[11px] [&>span]:text-(--text) [&>select]:h-6 [&>select]:min-w-0 [&>select]:border [&>select]:border-(--line-strong) [&>select]:bg-(--surface-inset-bg) [&>select]:px-1.5 [&>select]:text-(--ink) [&>button]:h-6 [&>button]:min-w-0 [&>button]:cursor-default [&>button]:border [&>button]:border-(--line-strong) [&>button]:bg-(--panel-strong)">
+                    <span>{t("settings.language.interfaceLanguage")}</span>
+                    <select
+                      aria-label={t("settings.language.interfaceLanguage")}
+                      value={languageSettings.languageId}
+                      onChange={(event) =>
+                        setLanguageSettings({
+                          languageId: event.target.value as LanguageId,
+                        })
+                      }
+                    >
+                      {languageOptions.map((language) => (
+                        <option key={language.id} value={language.id}>
+                          {language.name}
+                        </option>
+                      ))}
+                    </select>
+                    <ActionFeedbackButton
+                      feedbackKind="apply"
+                      disabled={!languageChanged}
+                      label={t("common.apply")}
+                      onAction={saveLanguage}
+                    />
+                  </label>
+                </div>
+              </section>
+            </div>
           ) : category === "appearance" ? (
-            <section
-              className={`${panelClass} grid min-h-0 grid-rows-[28px_auto_minmax(0,1fr)]`}
-            >
-              <header className={titleClass}>外观</header>
-              <div className="grid gap-1.5 border-b border-(--line) bg-(--surface-bg) p-2">
-                <div className={configTitleClass}>主题设置</div>
+            <section className={panelClass}>
+              <header className={titleClass}>
+                {t("settings.theme.themeSettings")}
+              </header>
+              <div className="grid gap-1.5 bg-(--surface-bg) p-2">
                 <label className="grid grid-cols-[104px_160px_58px_minmax(0,1fr)] items-center gap-1.5 [&>span]:text-[11px] [&>span]:text-(--text) [&>select]:h-6 [&>select]:min-w-0 [&>select]:border [&>select]:border-(--line-strong) [&>select]:bg-(--surface-inset-bg) [&>select]:px-1.5 [&>select]:text-(--ink) [&>button]:h-6 [&>button]:min-w-0 [&>button]:cursor-default [&>button]:border [&>button]:border-(--line-strong) [&>button]:bg-(--panel-strong)">
-                  <span>主题</span>
+                  <span>{t("settings.theme.theme")}</span>
                   <select
-                    aria-label="主题"
+                    aria-label={t("settings.theme.theme")}
                     value={themeId}
                     onChange={(event) =>
                       setThemeId(event.target.value as ThemeId)
@@ -681,13 +776,13 @@ export function SettingsWindow(): JSX.Element {
                   >
                     {themeOptions.map((theme) => (
                       <option key={theme.id} value={theme.id}>
-                        {theme.name}
+                        {t(theme.nameKey)}
                       </option>
                     ))}
                   </select>
                   <ActionFeedbackButton
                     feedbackKind="apply"
-                    label="应用"
+                    label={t("common.apply")}
                     onAction={saveTheme}
                   />
                 </label>
@@ -695,21 +790,20 @@ export function SettingsWindow(): JSX.Element {
             </section>
           ) : category === "network" ? (
             <section className={panelClass}>
-              <header className={titleClass}>网络</header>
               <label className="grid min-h-7 grid-cols-[18px_minmax(0,1fr)] items-center gap-1.5 border-b border-(--line) bg-(--surface-bg) px-2 text-[11px]">
                 <input
                   checked={proxyEnabled}
                   type="checkbox"
                   onChange={(event) => setProxyEnabled(event.target.checked)}
                 />
-                <span>启用代理</span>
+                <span>{t("settings.network.enableProxy")}</span>
               </label>
               <div className={pathListClass}>
                 <label className={pathRowClass}>
-                  <span>代理地址</span>
+                  <span>{t("settings.network.proxyAddress")}</span>
                   <input
-                    aria-label="代理地址"
-                    placeholder="输入代理地址，例如 127.0.0.1"
+                    aria-label={t("settings.network.proxyAddress")}
+                    placeholder={t("settings.network.proxyAddressPlaceholder")}
                     value={proxyHost}
                     onChange={(event) => setProxyHost(event.target.value)}
                   />
@@ -717,12 +811,12 @@ export function SettingsWindow(): JSX.Element {
                 <label
                   className={`${pathRowClass} grid-cols-[104px_minmax(0,1fr)_70px]`}
                 >
-                  <span>代理端口</span>
+                  <span>{t("settings.network.proxyPort")}</span>
                   <input
-                    aria-label="代理端口"
+                    aria-label={t("settings.network.proxyPort")}
                     max={65535}
                     min={1}
-                    placeholder="输入代理端口"
+                    placeholder={t("settings.network.proxyPortPlaceholder")}
                     type="number"
                     value={proxyPort}
                     onChange={(event) => setProxyPort(event.target.value)}
@@ -730,7 +824,7 @@ export function SettingsWindow(): JSX.Element {
                   <ActionFeedbackButton
                     className="min-w-[70px]"
                     disabled={!networkChanged}
-                    label="保存"
+                    label={t("common.save")}
                     onAction={saveNetworkSettings}
                   />
                 </label>
@@ -738,9 +832,8 @@ export function SettingsWindow(): JSX.Element {
             </section>
           ) : (
             <section
-              className={`${panelClass} grid min-h-0 grid-rows-[28px_minmax(0,1fr)_32px]`}
+              className={`${panelClass} grid min-h-0 grid-rows-[minmax(0,1fr)_32px]`}
             >
-              <header className={titleClass}>快捷键</header>
               <div className="min-h-0 overflow-auto bg-(--surface-bg)">
                 {shortcutActionConfigs.map((config) => {
                   const definitions = shortcutSettings[config.action] ?? [];
@@ -751,10 +844,10 @@ export function SettingsWindow(): JSX.Element {
                       key={config.action}
                     >
                       <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
-                        {config.label}
+                        {t(config.labelKey)}
                       </span>
                       <small className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-(--muted)">
-                        {config.description}
+                        {t(config.descriptionKey)}
                       </small>
                       <div className="flex min-w-0 flex-wrap gap-1 [&_button]:h-[22px] [&_button]:cursor-default [&_button]:border [&_button]:border-(--line-strong) [&_button]:bg-(--surface-inset-bg) [&_button]:px-1.5 [&_button]:leading-5 [&_button]:text-(--ink) [&_button:disabled]:text-(--disabled-ink)">
                         {definitions.map((definition, index) => (
@@ -779,11 +872,11 @@ export function SettingsWindow(): JSX.Element {
                             >
                               {recordingShortcut?.action === config.action &&
                               recordingShortcut.index === index
-                                ? "按键..."
+                                ? t("settings.shortcut.recording")
                                 : formatShortcutDefinition(definition)}
                             </button>
                             <button
-                              aria-label="删除快捷键"
+                              aria-label={t("settings.shortcut.deleteShortcut")}
                               disabled={definitions.length <= 1}
                               type="button"
                               onClick={() =>
@@ -811,8 +904,8 @@ export function SettingsWindow(): JSX.Element {
                         >
                           {recordingShortcut?.action === config.action &&
                           recordingShortcut.index === definitions.length
-                            ? "按键..."
-                            : "添加"}
+                            ? t("settings.shortcut.recording")
+                            : t("common.add")}
                         </button>
                       </div>
                     </div>
@@ -820,9 +913,12 @@ export function SettingsWindow(): JSX.Element {
                 })}
               </div>
               <div className="grid grid-cols-[72px_72px_minmax(0,1fr)] items-center gap-1.5 border-t border-(--line) bg-(--panel) px-2 py-1 [&>button]:h-[22px] [&>button]:cursor-default [&>button]:border [&>button]:border-(--line-strong) [&>button]:bg-(--panel-strong) [&>button]:text-(--ink)">
-                <ActionFeedbackButton label="保存" onAction={saveShortcuts} />
+                <ActionFeedbackButton
+                  label={t("common.save")}
+                  onAction={saveShortcuts}
+                />
                 <button type="button" onClick={resetShortcuts}>
-                  恢复默认
+                  {t("settings.shortcut.resetDefaults")}
                 </button>
               </div>
             </section>

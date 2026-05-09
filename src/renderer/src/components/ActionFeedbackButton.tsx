@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ButtonHTMLAttributes } from "react";
+import { useLanguage } from "../utils/language";
 
 type FeedbackKind = "save" | "apply";
 
@@ -12,12 +13,8 @@ interface ActionFeedbackButtonProps extends Omit<
   onAction?: () => Promise<void> | void;
 }
 
-const feedbackLabels: Record<FeedbackKind, string> = {
-  apply: "√已应用",
-  save: "√已保存",
-};
 const successClass =
-  "border border-(--success) bg-(--success-weak) text-(--success-feedback-ink) hover:border-(--success) hover:bg-(--success-weak) active:border-(--success) active:bg-(--success-weak) active:text-(--success-feedback-ink)";
+  "!border !border-(--success) !bg-(--success-weak) !text-(--success-feedback-ink) hover:!border-(--success) hover:!bg-(--success-weak) active:!border-(--success) active:!bg-(--success-weak) active:!text-(--success-feedback-ink)";
 
 export function ActionFeedbackButton({
   afterFeedback,
@@ -29,6 +26,7 @@ export function ActionFeedbackButton({
   type = "button",
   ...buttonProps
 }: ActionFeedbackButtonProps): JSX.Element {
+  const { t } = useLanguage();
   const [responded, setResponded] = useState(false);
   const timerRef = useRef<number | null>(null);
 
@@ -74,7 +72,11 @@ export function ActionFeedbackButton({
       type={type}
       onClick={() => void handleClick()}
     >
-      {responded ? feedbackLabels[feedbackKind] : label}
+      {responded
+        ? feedbackKind === "apply"
+          ? t("common.appliedFeedback")
+          : t("common.savedFeedback")
+        : label}
     </button>
   );
 }

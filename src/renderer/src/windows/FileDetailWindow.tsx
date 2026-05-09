@@ -24,6 +24,7 @@ import {
   getTagNamespaceClassName,
   getTagNamespaceStyle,
 } from "../utils/tags";
+import { useLanguage } from "../utils/language";
 
 interface FileDetailWindowProps {
   fileId: number;
@@ -39,8 +40,8 @@ const fileTagHeaderClass =
   "mb-1.5 grid h-6 grid-cols-[minmax(0,1fr)_auto] border-y border-(--border-dark) border-t-(--line-strong) bg-(--group-header-bg) px-1.5 leading-[22px] font-semibold text-(--group-header-ink)";
 const fileTagGroupBodyClass = "flex flex-wrap content-start gap-1";
 const fileTagItemClass =
-  "inline-flex max-w-full min-h-[18px] cursor-default overflow-hidden border border-(--line-strong) bg-(--tag-bg) px-1.5 text-[11px] text-(--ink)";
-const fileTagPendingClass = "border-(--danger)";
+  "file-tag-item inline-flex max-w-full min-h-[18px] cursor-default overflow-hidden border border-(--line-strong) bg-(--tag-bg) px-1.5 text-[11px] text-(--ink)";
+const fileTagPendingClass = "pending";
 const detailContentClass =
   "relative grid min-h-0 min-w-0 place-items-center overflow-hidden bg-(--surface-media-bg)";
 const detailMessageClass = "text-(--muted)";
@@ -55,6 +56,7 @@ const screeningStatusClass =
 export function FileDetailWindow({
   fileId,
 }: FileDetailWindowProps): JSX.Element {
+  const { t } = useLanguage();
   const [currentFileId, setCurrentFileId] = useState(fileId);
   const [file, setFile] = useState<FileDetailRecord | null>(null);
   const [orderedFileIds, setOrderedFileIds] = useState<number[]>([]);
@@ -140,12 +142,12 @@ export function FileDetailWindow({
 
   async function loadFileDetail(): Promise<void> {
     if (!Number.isInteger(currentFileId) || currentFileId <= 0) {
-      setMessage("文件无效");
+      setMessage(t("window.fileDetail.invalid"));
       return;
     }
 
     if (!window.asteria) {
-      setMessage("preload unavailable");
+      setMessage(t("app.status.preloadUnavailable"));
       return;
     }
 
@@ -166,10 +168,10 @@ export function FileDetailWindow({
       );
       setActiveRatingGroups(nextRatingGroups.filter((group) => group.isActive));
       resetImageViewport();
-      setMessage(nextFile ? "" : "文件不存在");
+      setMessage(nextFile ? "" : t("window.fileDetail.notFound"));
     } catch (error) {
       setFile(null);
-      setMessage(error instanceof Error ? error.message : "加载失败");
+      setMessage(error instanceof Error ? error.message : t("window.fileDetail.loadFailed"));
     }
   }
 
@@ -185,7 +187,11 @@ export function FileDetailWindow({
       await window.asteria.setFileFavorite(file.id, nextFavorite);
     } catch (error) {
       setFile({ ...file, isFavorite: file.isFavorite });
-      setMessage(error instanceof Error ? error.message : "收藏更新失败");
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : t("window.fileDetail.favoriteUpdateFailed"),
+      );
     }
   }
 
@@ -295,7 +301,7 @@ export function FileDetailWindow({
 
     if (remainingFileIds.length === 0) {
       setFile(null);
-      setMessage("文件已放入回收站");
+      setMessage(t("window.fileDetail.movedToRecycleBin"));
       return;
     }
 
@@ -474,6 +480,7 @@ interface ScreeningDetailWindowProps {
 export function ScreeningDetailWindow({
   fileIds,
 }: ScreeningDetailWindowProps): JSX.Element {
+  const { t } = useLanguage();
   const [index, setIndex] = useState(0);
   const [file, setFile] = useState<FileDetailRecord | null>(null);
   const currentFileId = fileIds[index] ?? null;
@@ -516,7 +523,9 @@ export function ScreeningDetailWindow({
   if (index >= fileIds.length) {
     return (
       <section className="relative">
-        <div className={detailMessageClass}>筛选完成</div>
+        <div className={detailMessageClass}>
+          {t("window.fileDetail.filterComplete")}
+        </div>
       </section>
     );
   }
@@ -552,7 +561,9 @@ export function ScreeningDetailWindow({
           {file ? (
             <ScreeningMedia file={file} />
           ) : (
-            <div className={detailMessageClass}>文件不存在</div>
+            <div className={detailMessageClass}>
+              {t("window.fileDetail.notFound")}
+            </div>
           )}
           <div className={screeningStatusClass}>
             {index + 1} / {fileIds.length}
@@ -564,6 +575,7 @@ export function ScreeningDetailWindow({
 }
 
 function ScreeningMedia({ file }: { file: FileDetailRecord }): JSX.Element {
+  const { t } = useLanguage();
   const extension = file.extension?.toLowerCase() ?? "";
 
   if (isImageExtension(extension)) {
@@ -578,7 +590,7 @@ function ScreeningMedia({ file }: { file: FileDetailRecord }): JSX.Element {
     return <audio className={detailAudioClass} controls src={file.mediaUrl} />;
   }
 
-  return <div className={detailMessageClass}>无法预览</div>;
+  return <div className={detailMessageClass}>{t("window.fileDetail.cannotPreview")}</div>;
 }
 
 interface FileDetailTagColumnProps {
@@ -588,6 +600,7 @@ interface FileDetailTagColumnProps {
 function FileDetailTagColumn({
   fileId,
 }: FileDetailTagColumnProps): JSX.Element {
+  const { t } = useLanguage();
   const [fileTags, setFileTags] = useState<FileTagRecord[]>([]);
   const [tagStyles, setTagStyles] = useState<TagStyleRecord[]>([]);
   const [pendingTagIds, setPendingTagIds] = useState<number[]>([]);
@@ -726,7 +739,7 @@ function FileDetailTagColumn({
   }
 
   return (
-    <aside className={detailTagsClass} aria-label="文件标签">
+    <aside className={detailTagsClass} aria-label={t("window.fileDetail.tags")}>
       <div
         className={tagListClass}
         ref={tagListRef}
@@ -779,8 +792,8 @@ function FileDetailTagColumn({
       </div>
 
       <TagTokenInput
-        ariaLabel="输入标签"
-        placeholder="输入标签以增加"
+        ariaLabel={t("window.fileDetail.tags")}
+        placeholder={t("window.fileDetail.addTags")}
         selectedSuggestionIndex={tagInput.selectedSuggestionIndex}
         suggestions={tagInput.suggestions}
         text={tagInput.text}
@@ -861,6 +874,7 @@ function DetailMedia({
   onImagePointerMove,
   onImagePointerUp,
 }: DetailMediaProps): JSX.Element {
+  const { t } = useLanguage();
   const extension = file.extension?.toLowerCase() ?? "";
 
   if (isImageExtension(extension)) {
@@ -897,7 +911,7 @@ function DetailMedia({
     return <audio className={detailAudioClass} controls src={file.mediaUrl} />;
   }
 
-  return <div className={detailMessageClass}>无法预览</div>;
+  return <div className={detailMessageClass}>{t("window.fileDetail.cannotPreview")}</div>;
 }
 
 interface DetailVideoProps {
