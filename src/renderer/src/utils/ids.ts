@@ -6,7 +6,7 @@ export function parseIdList(value: string | null): number[] {
   const seen = new Set<number>();
   const ids: number[] = [];
 
-  for (const part of value.split(',')) {
+  for (const part of value.split(",")) {
     const id = Number(part);
 
     if (Number.isInteger(id) && id > 0 && !seen.has(id)) {

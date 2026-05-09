@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react';
-import type { DatabaseFilePage } from '../../../shared/ipc';
-import { formatBytes } from '../utils/format';
+import { useEffect, useState } from "react";
+import type { DatabaseFilePage } from "../../../shared/ipc";
+import { formatBytes } from "../utils/format";
 
 export function DatabaseManagerView(): JSX.Element {
-  const [databasePage, setDatabasePage] = useState<DatabaseFilePage | null>(null);
+  const [databasePage, setDatabasePage] = useState<DatabaseFilePage | null>(
+    null,
+  );
   const [databasePageNumber, setDatabasePageNumber] = useState(1);
-  const [message, setMessage] = useState('未加载');
+  const [message, setMessage] = useState("未加载");
   const databaseTotalPages = databasePage
     ? Math.max(1, Math.ceil(databasePage.total / databasePage.pageSize))
     : 1;
@@ -16,19 +18,19 @@ export function DatabaseManagerView(): JSX.Element {
 
   async function loadDatabasePage(page: number): Promise<void> {
     if (!window.asteria) {
-      setMessage('preload unavailable');
+      setMessage("preload unavailable");
       return;
     }
 
-    setMessage('加载中');
+    setMessage("加载中");
 
     try {
       const nextPage = await window.asteria.listDatabaseFiles(page);
       setDatabasePage(nextPage);
-      setMessage('只读');
+      setMessage("只读");
     } catch (error) {
       setDatabasePage(null);
-      setMessage(error instanceof Error ? error.message : '加载失败');
+      setMessage(error instanceof Error ? error.message : "加载失败");
     }
   }
 
@@ -46,27 +48,52 @@ export function DatabaseManagerView(): JSX.Element {
         <table className="w-full table-fixed border-collapse text-[11px]">
           <thead>
             <tr>
-              <th className="h-[26px] border-b border-r border-(--line) bg-(--surface-bg) px-2 text-left font-medium text-(--muted)">ID</th>
-              <th className="h-[26px] border-b border-r border-(--line) bg-(--surface-bg) px-2 text-left font-medium text-(--muted)">扩展名</th>
-              <th className="h-[26px] border-b border-r border-(--line) bg-(--surface-bg) px-2 text-left font-medium text-(--muted)">大小</th>
-              <th className="h-[26px] border-b border-r border-(--line) bg-(--surface-bg) px-2 text-left font-medium text-(--muted)">导入时间</th>
-              <th className="h-[26px] border-b border-r border-(--line) bg-(--surface-bg) px-2 text-left font-medium text-(--muted)">SHA256</th>
+              <th className="h-[26px] border-b border-r border-(--line) bg-(--surface-bg) px-2 text-left font-medium text-(--muted)">
+                ID
+              </th>
+              <th className="h-[26px] border-b border-r border-(--line) bg-(--surface-bg) px-2 text-left font-medium text-(--muted)">
+                扩展名
+              </th>
+              <th className="h-[26px] border-b border-r border-(--line) bg-(--surface-bg) px-2 text-left font-medium text-(--muted)">
+                大小
+              </th>
+              <th className="h-[26px] border-b border-r border-(--line) bg-(--surface-bg) px-2 text-left font-medium text-(--muted)">
+                导入时间
+              </th>
+              <th className="h-[26px] border-b border-r border-(--line) bg-(--surface-bg) px-2 text-left font-medium text-(--muted)">
+                SHA256
+              </th>
             </tr>
           </thead>
           <tbody>
             {databasePage?.files.length ? (
               databasePage.files.map((file) => (
                 <tr key={file.id}>
-                  <td className="h-[26px] overflow-hidden border-b border-r border-(--line) px-2 text-left text-(--ink)">{file.id}</td>
-                  <td className="h-[26px] overflow-hidden border-b border-r border-(--line) px-2 text-left text-(--ink)">{file.extension ?? '-'}</td>
-                  <td className="h-[26px] overflow-hidden border-b border-r border-(--line) px-2 text-left text-(--ink)">{formatBytes(file.sizeBytes)}</td>
-                  <td className="h-[26px] overflow-hidden border-b border-r border-(--line) px-2 text-left text-(--ink)">{file.importedAt}</td>
-                  <td className="h-[26px] overflow-hidden border-b border-r border-(--line) px-2 text-left text-(--ink)" title={file.sha256}>{file.sha256}</td>
+                  <td className="h-[26px] overflow-hidden border-b border-r border-(--line) px-2 text-left text-(--ink)">
+                    {file.id}
+                  </td>
+                  <td className="h-[26px] overflow-hidden border-b border-r border-(--line) px-2 text-left text-(--ink)">
+                    {file.extension ?? "-"}
+                  </td>
+                  <td className="h-[26px] overflow-hidden border-b border-r border-(--line) px-2 text-left text-(--ink)">
+                    {formatBytes(file.sizeBytes)}
+                  </td>
+                  <td className="h-[26px] overflow-hidden border-b border-r border-(--line) px-2 text-left text-(--ink)">
+                    {file.importedAt}
+                  </td>
+                  <td
+                    className="h-[26px] overflow-hidden border-b border-r border-(--line) px-2 text-left text-(--ink)"
+                    title={file.sha256}
+                  >
+                    {file.sha256}
+                  </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td className="h-[26px] px-2 text-(--muted)" colSpan={5}>没有文件记录</td>
+                <td className="h-[26px] px-2 text-(--muted)" colSpan={5}>
+                  没有文件记录
+                </td>
               </tr>
             )}
           </tbody>
@@ -75,10 +102,16 @@ export function DatabaseManagerView(): JSX.Element {
 
       <footer className="flex h-8 items-center justify-between border-t border-(--line) px-2 text-(--muted)">
         <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
-          第 {databasePage?.page ?? 1} / {databaseTotalPages} 页，总计 {databasePage?.total ?? 0} 个文件，{message}
+          第 {databasePage?.page ?? 1} / {databaseTotalPages} 页，总计{" "}
+          {databasePage?.total ?? 0} 个文件，{message}
         </span>
         <div className="flex gap-1.5">
-          <button className="h-6 min-w-[58px] cursor-default border border-(--line-strong) bg-(--panel-strong)" disabled={!databasePage || databasePage.page <= 1} type="button" onClick={goToPreviousDatabasePage}>
+          <button
+            className="h-6 min-w-[58px] cursor-default border border-(--line-strong) bg-(--panel-strong)"
+            disabled={!databasePage || databasePage.page <= 1}
+            type="button"
+            onClick={goToPreviousDatabasePage}
+          >
             上一页
           </button>
           <button

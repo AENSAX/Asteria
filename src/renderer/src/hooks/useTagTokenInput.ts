@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
-import type { TagRecord } from '../../../shared/ipc';
-import { createTagToken, parseTagText, type TagToken } from '../utils/tags';
+import { useEffect, useState } from "react";
+import type { TagRecord } from "../../../shared/ipc";
+import { createTagToken, parseTagText, type TagToken } from "../utils/tags";
 
 interface UseTagTokenInputOptions {
   onCommit: (tokens: TagToken[]) => Promise<void> | void;
@@ -18,7 +18,7 @@ export function useTagTokenInput({ onCommit }: UseTagTokenInputOptions): {
   handleKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void;
 } {
   const [tokens, setTokens] = useState<TagToken[]>([]);
-  const [text, setText] = useState('');
+  const [text, setText] = useState("");
   const [suggestions, setSuggestions] = useState<TagRecord[]>([]);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(0);
 
@@ -43,31 +43,35 @@ export function useTagTokenInput({ onCommit }: UseTagTokenInputOptions): {
       return;
     }
 
-    if (event.key === 'ArrowDown' && suggestions.length > 0) {
+    if (event.key === "ArrowDown" && suggestions.length > 0) {
       event.preventDefault();
-      setSelectedSuggestionIndex((index) => Math.min(index + 1, suggestions.length - 1));
+      setSelectedSuggestionIndex((index) =>
+        Math.min(index + 1, suggestions.length - 1),
+      );
       return;
     }
 
-    if (event.key === 'ArrowUp' && suggestions.length > 0) {
+    if (event.key === "ArrowUp" && suggestions.length > 0) {
       event.preventDefault();
       setSelectedSuggestionIndex((index) => Math.max(index - 1, 0));
       return;
     }
 
-    if (event.key === 'Backspace' && text.length === 0 && tokens.length > 0) {
+    if (event.key === "Backspace" && text.length === 0 && tokens.length > 0) {
       setTokens((currentTokens) => currentTokens.slice(0, -1));
       return;
     }
 
-    if (event.key !== 'Enter') {
+    if (event.key !== "Enter") {
       return;
     }
 
     event.preventDefault();
 
     if (text.trim().length > 0 && suggestions.length > 0) {
-      addTokenFromSuggestion(suggestions[selectedSuggestionIndex] ?? suggestions[0]);
+      addTokenFromSuggestion(
+        suggestions[selectedSuggestionIndex] ?? suggestions[0],
+      );
       return;
     }
 
@@ -87,8 +91,8 @@ export function useTagTokenInput({ onCommit }: UseTagTokenInputOptions): {
         id: tag.id,
         namespace: tag.namespace,
         name: tag.name,
-        styleName: tag.styleName
-      })
+        styleName: tag.styleName,
+      }),
     );
   }
 
@@ -102,13 +106,15 @@ export function useTagTokenInput({ onCommit }: UseTagTokenInputOptions): {
 
   function addToken(token: TagToken): void {
     setTokens((currentTokens) => {
-      if (currentTokens.some((currentToken) => currentToken.key === token.key)) {
+      if (
+        currentTokens.some((currentToken) => currentToken.key === token.key)
+      ) {
         return currentTokens;
       }
 
       return [...currentTokens, token];
     });
-    setText('');
+    setText("");
     setSuggestions([]);
     setSelectedSuggestionIndex(0);
   }
@@ -124,7 +130,7 @@ export function useTagTokenInput({ onCommit }: UseTagTokenInputOptions): {
 
   function reset(): void {
     setTokens([]);
-    setText('');
+    setText("");
     setSuggestions([]);
     setSelectedSuggestionIndex(0);
   }
@@ -138,6 +144,6 @@ export function useTagTokenInput({ onCommit }: UseTagTokenInputOptions): {
     setTokens,
     reset,
     addTokenFromSuggestion,
-    handleKeyDown
+    handleKeyDown,
   };
 }

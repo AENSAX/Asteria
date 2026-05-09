@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-import type { AsteriaApi } from '../../shared/ipc';
+import type { AsteriaApi } from "../../shared/ipc";
 
 declare global {
   interface Window {

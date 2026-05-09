@@ -3,11 +3,7 @@
     "composite": true,
     "target": "ES2020",
     "useDefineForClassFields": true,
-    "lib": [
-      "DOM",
-      "DOM.Iterable",
-      "ES2020"
-    ],
+    "lib": ["DOM", "DOM.Iterable", "ES2020"],
     "allowJs": false,
     "skipLibCheck": true,
     "esModuleInterop": true,
@@ -23,9 +19,7 @@
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
     "paths": {
-      "@renderer/*": [
-        "./src/renderer/src/*"
-      ]
+      "@renderer/*": ["./src/renderer/src/*"]
     }
   },
   "include": [

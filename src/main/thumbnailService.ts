@@ -1,16 +1,16 @@
-import { nativeImage } from 'electron';
-import { mkdir, stat, unlink, writeFile } from 'node:fs/promises';
-import { extname, join } from 'node:path';
+import { nativeImage } from "electron";
+import { mkdir, stat, unlink, writeFile } from "node:fs/promises";
+import { extname, join } from "node:path";
 import {
   getFileOriginalPath,
   getFileThumbnailSource,
   getThumbnailStoragePath,
-  listBrowserFiles
-} from './database.js';
-import { IMAGE_EXTENSIONS, VIDEO_EXTENSIONS } from '../shared/media.js';
-import type { WorkStatus } from '../shared/ipc.js';
+  listBrowserFiles,
+} from "./database.js";
+import { IMAGE_EXTENSIONS, VIDEO_EXTENSIONS } from "../shared/media.js";
+import type { WorkStatus } from "../shared/ipc.js";
 
-type ThumbnailPriority = 'high' | 'normal' | 'low';
+type ThumbnailPriority = "high" | "normal" | "low";
 interface ThumbnailJob {
   fileId: number;
   cacheKey: string;
@@ -19,11 +19,11 @@ interface ThumbnailJob {
 
 const THUMBNAIL_MAX_SIZE = 256;
 const THUMBNAIL_CONCURRENCY = 2;
-const priorityOrder: ThumbnailPriority[] = ['high', 'normal', 'low'];
+const priorityOrder: ThumbnailPriority[] = ["high", "normal", "low"];
 const queues: Record<ThumbnailPriority, ThumbnailJob[]> = {
   high: [],
   normal: [],
-  low: []
+  low: [],
 };
 const queuedKeys = new Set<string>();
 const inFlightThumbnails = new Map<string, Promise<string | null>>();
@@ -40,7 +40,9 @@ let activeWorkers = 0;
 let completedCount = 0;
 let statusListener: ((status: WorkStatus) => void) | null = null;
 
-export function setThumbnailStatusListener(listener: (status: WorkStatus) => void): void {
+export function setThumbnailStatusListener(
+  listener: (status: WorkStatus) => void,
+): void {
   statusListener = listener;
   emitThumbnailStatus();
 }
@@ -49,7 +51,10 @@ export function getThumbnailWorkStatus(): WorkStatus {
   return buildThumbnailStatus();
 }
 
-export function queueThumbnailPreload(fileIds: number[], priority: ThumbnailPriority): void {
+export function queueThumbnailPreload(
+  fileIds: number[],
+  priority: ThumbnailPriority,
+): void {
   const normalizedFileIds = normalizeFileIds(fileIds);
 
   if (normalizedFileIds.length === 0) {
@@ -82,13 +87,18 @@ export function queueThumbnailPreload(fileIds: number[], priority: ThumbnailPrio
 export function queueAllMissingThumbnails(priority: ThumbnailPriority): void {
   queueThumbnailPreload(
     listBrowserFiles()
-      .filter((file) => isThumbnailExtension(file.extension ?? file.originalPath))
+      .filter((file) =>
+        isThumbnailExtension(file.extension ?? file.originalPath),
+      )
       .map((file) => file.id),
-    priority
+    priority,
   );
 }
 
-export async function ensureThumbnailForFile(fileId: number, expectedSha256?: string | null): Promise<string | null> {
+export async function ensureThumbnailForFile(
+  fileId: number,
+  expectedSha256?: string | null,
+): Promise<string | null> {
   const source = getFileThumbnailSource(fileId);
 
   if (!source || (expectedSha256 && source.sha256 !== expectedSha256)) {
@@ -102,12 +112,18 @@ export async function ensureThumbnailForFile(fileId: number, expectedSha256?: st
     return currentJob;
   }
 
-  queueThumbnailPreload([fileId], 'high');
+  queueThumbnailPreload([fileId], "high");
 
-  return thumbnailPromises.get(cacheKey) ?? createThumbnailForFile(fileId, source.sha256);
+  return (
+    thumbnailPromises.get(cacheKey) ??
+    createThumbnailForFile(fileId, source.sha256)
+  );
 }
 
-export function getThumbnailFallbackPath(fileId: number, expectedSha256?: string | null): string | null {
+export function getThumbnailFallbackPath(
+  fileId: number,
+  expectedSha256?: string | null,
+): string | null {
   const source = getFileThumbnailSource(fileId);
 
   if (!source || (expectedSha256 && source.sha256 !== expectedSha256)) {
@@ -157,9 +173,11 @@ async function startThumbnailWorkers(): Promise<void> {
 }
 
 async function runThumbnailJob(job: ThumbnailJob): Promise<void> {
-  const thumbnailJob = createThumbnailForFile(job.fileId, job.sha256).finally(() => {
-    inFlightThumbnails.delete(job.cacheKey);
-  });
+  const thumbnailJob = createThumbnailForFile(job.fileId, job.sha256).finally(
+    () => {
+      inFlightThumbnails.delete(job.cacheKey);
+    },
+  );
   inFlightThumbnails.set(job.cacheKey, thumbnailJob);
 
   try {
@@ -173,7 +191,10 @@ async function runThumbnailJob(job: ThumbnailJob): Promise<void> {
   }
 }
 
-async function createThumbnailForFile(fileId: number, expectedSha256?: string): Promise<string | null> {
+async function createThumbnailForFile(
+  fileId: number,
+  expectedSha256?: string,
+): Promise<string | null> {
   const source = getFileThumbnailSource(fileId);
 
   if (!source || (expectedSha256 && source.sha256 !== expectedSha256)) {
@@ -203,13 +224,17 @@ async function createThumbnailForFile(fileId: number, expectedSha256?: string): 
   try {
     image = await nativeImage.createThumbnailFromPath(source.sourcePath, {
       width: THUMBNAIL_MAX_SIZE,
-      height: THUMBNAIL_MAX_SIZE
+      height: THUMBNAIL_MAX_SIZE,
     });
   } catch {
     return null;
   }
 
-  if (image.isEmpty() && IMAGE_EXTENSIONS.has(extension) && extension !== 'svg') {
+  if (
+    image.isEmpty() &&
+    IMAGE_EXTENSIONS.has(extension) &&
+    extension !== "svg"
+  ) {
     image = nativeImage.createFromPath(source.sourcePath);
   }
 
@@ -223,16 +248,22 @@ async function createThumbnailForFile(fileId: number, expectedSha256?: string): 
     return null;
   }
 
-  const scale = Math.min(1, THUMBNAIL_MAX_SIZE / size.width, THUMBNAIL_MAX_SIZE / size.height);
+  const scale = Math.min(
+    1,
+    THUMBNAIL_MAX_SIZE / size.width,
+    THUMBNAIL_MAX_SIZE / size.height,
+  );
   const width = Math.max(1, Math.round(size.width * scale));
   const height = Math.max(1, Math.round(size.height * scale));
-  const thumbnail = image.resize({ width, height, quality: 'good' });
+  const thumbnail = image.resize({ width, height, quality: "good" });
 
   if (deletingThumbnailHashes.has(source.sha256)) {
     return null;
   }
 
-  await mkdir(join(getThumbnailStoragePath(), source.sha256.slice(0, 2)), { recursive: true });
+  await mkdir(join(getThumbnailStoragePath(), source.sha256.slice(0, 2)), {
+    recursive: true,
+  });
   await writeFile(thumbnailPath, thumbnail.toPNG());
   return thumbnailPath;
 }
@@ -250,13 +281,18 @@ function shiftNextThumbnailJob(): ThumbnailJob | null {
   return null;
 }
 
-function promoteQueuedThumbnail(cacheKey: string, priority: ThumbnailPriority): void {
-  if (priority !== 'high') {
+function promoteQueuedThumbnail(
+  cacheKey: string,
+  priority: ThumbnailPriority,
+): void {
+  if (priority !== "high") {
     return;
   }
 
   for (const queuePriority of priorityOrder) {
-    const index = queues[queuePriority].findIndex((job) => job.cacheKey === cacheKey);
+    const index = queues[queuePriority].findIndex(
+      (job) => job.cacheKey === cacheKey,
+    );
 
     if (index >= 0) {
       const [job] = queues[queuePriority].splice(index, 1);
@@ -270,7 +306,9 @@ function promoteQueuedThumbnail(cacheKey: string, priority: ThumbnailPriority): 
   }
 }
 
-function ensureQueuedThumbnailPromise(cacheKey: string): Promise<string | null> {
+function ensureQueuedThumbnailPromise(
+  cacheKey: string,
+): Promise<string | null> {
   const currentPromise = thumbnailPromises.get(cacheKey);
 
   if (currentPromise) {
@@ -298,10 +336,10 @@ function buildThumbnailStatus(): WorkStatus {
 
   return {
     active,
-    message: active ? '正在生成缩略图' : '缓存就绪',
+    message: active ? "正在生成缩略图" : "缓存就绪",
     queued,
     processing: activeWorkers,
-    completed: completedCount
+    completed: completedCount,
   };
 }
 
@@ -314,8 +352,8 @@ function createThumbnailCacheKey(fileId: number, sha256: string): string {
 }
 
 function normalizeExtension(value: string): string {
-  const extension = value.includes('.') ? extname(value) : value;
-  return extension.replace(/^\./, '').toLowerCase();
+  const extension = value.includes(".") ? extname(value) : value;
+  return extension.replace(/^\./, "").toLowerCase();
 }
 
 function isThumbnailExtension(value: string): boolean {
@@ -324,5 +362,7 @@ function isThumbnailExtension(value: string): boolean {
 }
 
 function normalizeFileIds(fileIds: number[]): number[] {
-  return Array.from(new Set(fileIds.filter((fileId) => Number.isInteger(fileId) && fileId > 0)));
+  return Array.from(
+    new Set(fileIds.filter((fileId) => Number.isInteger(fileId) && fileId > 0)),
+  );
 }

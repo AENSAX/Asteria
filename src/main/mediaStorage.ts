@@ -1,12 +1,12 @@
-import { copyFile, mkdir, stat } from 'node:fs/promises';
-import { basename, dirname, join, resolve } from 'node:path';
-import sharp from 'sharp';
+import { copyFile, mkdir, stat } from "node:fs/promises";
+import { basename, dirname, join, resolve } from "node:path";
+import sharp from "sharp";
 import {
   getConvertImportedImagesToPng,
-  getFileStoragePath
-} from './database.js';
-import { IMAGE_EXTENSIONS } from '../shared/media.js';
-import type { WorkStatus } from '../shared/ipc.js';
+  getFileStoragePath,
+} from "./database.js";
+import { IMAGE_EXTENSIONS } from "../shared/media.js";
+import type { WorkStatus } from "../shared/ipc.js";
 
 interface StoreMediaFileInput {
   sourcePath: string;
@@ -26,7 +26,9 @@ export interface StoredMediaFile {
   sizeBytes: number;
 }
 
-export function setImageConversionStatusListener(listener: (status: WorkStatus) => void): void {
+export function setImageConversionStatusListener(
+  listener: (status: WorkStatus) => void,
+): void {
   imageConversionStatusListener = listener;
   emitImageConversionStatus();
 }
@@ -35,9 +37,11 @@ export function getImageConversionWorkStatus(): WorkStatus {
   return imageConversionStatus;
 }
 
-export async function storeNewMediaFile(input: StoreMediaFileInput): Promise<StoredMediaFile> {
+export async function storeNewMediaFile(
+  input: StoreMediaFileInput,
+): Promise<StoredMediaFile> {
   const shouldConvert = shouldConvertImageToPng(input.extension);
-  const extension = shouldConvert ? 'png' : input.extension;
+  const extension = shouldConvert ? "png" : input.extension;
   const fileName = buildStoredFileName(input.sha256, extension);
   const storageDirectory = getFileStoragePath();
   const storagePath = join(storageDirectory, fileName);
@@ -60,7 +64,7 @@ export async function storeNewMediaFile(input: StoreMediaFileInput): Promise<Sto
       storagePath,
       fileName,
       extension,
-      sizeBytes: convertedStat.size
+      sizeBytes: convertedStat.size,
     };
   }
 
@@ -72,26 +76,32 @@ export async function storeNewMediaFile(input: StoreMediaFileInput): Promise<Sto
     storagePath,
     fileName,
     extension,
-    sizeBytes: input.sizeBytes
+    sizeBytes: input.sizeBytes,
   };
 }
 
-export function buildStoredFileName(sha256: string, extension: string | null): string {
+export function buildStoredFileName(
+  sha256: string,
+  extension: string | null,
+): string {
   return extension ? `${sha256}.${extension}` : sha256;
 }
 
 function shouldConvertImageToPng(extension: string | null): boolean {
-  const normalizedExtension = extension?.toLowerCase() ?? '';
+  const normalizedExtension = extension?.toLowerCase() ?? "";
 
   return (
     getConvertImportedImagesToPng() &&
-    normalizedExtension !== 'png' &&
-    normalizedExtension !== 'svg' &&
+    normalizedExtension !== "png" &&
+    normalizedExtension !== "svg" &&
     IMAGE_EXTENSIONS.has(normalizedExtension)
   );
 }
 
-async function convertImageToPng(sourcePath: string, targetPath: string): Promise<void> {
+async function convertImageToPng(
+  sourcePath: string,
+  targetPath: string,
+): Promise<void> {
   await mkdir(dirname(targetPath), { recursive: true });
 
   try {
@@ -108,7 +118,7 @@ function beginImageConversion(sourcePath: string): void {
     message: `正在转换图片为 PNG: ${basename(sourcePath)}`,
     queued: 1,
     processing: 1,
-    completed: imageConversionCompletedCount
+    completed: imageConversionCompletedCount,
   };
   emitImageConversionStatus();
 }
@@ -129,9 +139,9 @@ function emitImageConversionStatus(): void {
 function createIdleImageConversionWorkStatus(): WorkStatus {
   return {
     active: false,
-    message: '图片转换空闲',
+    message: "图片转换空闲",
     queued: 0,
     processing: 0,
-    completed: imageConversionCompletedCount
+    completed: imageConversionCompletedCount,
   };
 }

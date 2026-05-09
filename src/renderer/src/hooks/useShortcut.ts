@@ -1,10 +1,10 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef } from "react";
 import {
   getShortcutDefinitions,
   isShortcutRecordingActive,
   matchesShortcutDefinition,
-  type ShortcutAction
-} from '../utils/shortcuts';
+  type ShortcutAction,
+} from "../utils/shortcuts";
 
 interface UseShortcutOptions {
   enabled?: boolean;
@@ -14,7 +14,7 @@ interface UseShortcutOptions {
 export function useShortcut(
   action: ShortcutAction,
   handler: (event: KeyboardEvent) => void,
-  options: UseShortcutOptions = {}
+  options: UseShortcutOptions = {},
 ): void {
   const handlerRef = useRef(handler);
   const enabled = options.enabled ?? true;
@@ -34,7 +34,10 @@ export function useShortcut(
         return;
       }
 
-      if (event.defaultPrevented || (!allowInEditable && isEditableTarget(event.target))) {
+      if (
+        event.defaultPrevented ||
+        (!allowInEditable && isEditableTarget(event.target))
+      ) {
         return;
       }
 
@@ -47,16 +50,21 @@ export function useShortcut(
       handlerRef.current(event);
     }
 
-    window.addEventListener('keydown', handleKeyDown, true);
+    window.addEventListener("keydown", handleKeyDown, true);
 
     return () => {
-      window.removeEventListener('keydown', handleKeyDown, true);
+      window.removeEventListener("keydown", handleKeyDown, true);
     };
   }, [action, allowInEditable, enabled]);
 }
 
-function matchesShortcut(action: ShortcutAction, event: KeyboardEvent): boolean {
-  return getShortcutDefinitions(action).some((shortcut) => matchesShortcutDefinition(shortcut, event));
+function matchesShortcut(
+  action: ShortcutAction,
+  event: KeyboardEvent,
+): boolean {
+  return getShortcutDefinitions(action).some((shortcut) =>
+    matchesShortcutDefinition(shortcut, event),
+  );
 }
 
 function isEditableTarget(target: EventTarget | null): boolean {
@@ -66,5 +74,7 @@ function isEditableTarget(target: EventTarget | null): boolean {
     return false;
   }
 
-  return Boolean(element.closest('input, textarea, select, [contenteditable="true"]'));
+  return Boolean(
+    element.closest('input, textarea, select, [contenteditable="true"]'),
+  );
 }

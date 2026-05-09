@@ -34,12 +34,12 @@ Authorization: Bearer <token>
 
 当前权限：
 
-| 权限 ID | 显示名称 | 对应接口 |
-| --- | --- | --- |
-| `status.read` | 读取状态 | `GET /api/status` |
-| `files.read` | 读取文件 | `GET /api/files`、`GET /api/files/:identifier`、`POST /api/files/duplicates` |
-| `files.write` | 写入文件信息 | `PUT /api/files/:identifier/metadata` |
-| `files.upload` | 上传文件 | `POST /api/upload/file`、`POST /api/upload/batch/*` |
+| 权限 ID        | 显示名称     | 对应接口                                                                     |
+| -------------- | ------------ | ---------------------------------------------------------------------------- |
+| `status.read`  | 读取状态     | `GET /api/status`                                                            |
+| `files.read`   | 读取文件     | `GET /api/files`、`GET /api/files/:identifier`、`POST /api/files/duplicates` |
+| `files.write`  | 写入文件信息 | `PUT /api/files/:identifier/metadata`                                        |
+| `files.upload` | 上传文件     | `POST /api/upload/file`、`POST /api/upload/batch/*`                          |
 
 ### 通用错误响应
 
@@ -103,9 +103,9 @@ API 管理窗口中必须勾选 `读取状态`。
 
 请求头：
 
-| 参数 | 必填 | 说明 |
-| --- | --- | --- |
-| `Authorization` | 是 | Bearer token，例如 `Bearer my-token` |
+| 参数            | 必填 | 说明                                 |
+| --------------- | ---- | ------------------------------------ |
+| `Authorization` | 是   | Bearer token，例如 `Bearer my-token` |
 
 ### 命令行调用
 
@@ -130,11 +130,11 @@ JavaScript / TypeScript：
 
 ```ts
 async function readAsteriaStatus(): Promise<unknown> {
-  const response = await fetch('http://127.0.0.1:17321/api/status', {
-    method: 'GET',
+  const response = await fetch("http://127.0.0.1:17321/api/status", {
+    method: "GET",
     headers: {
-      Authorization: 'Bearer my-token'
-    }
+      Authorization: "Bearer my-token",
+    },
   });
 
   if (!response.ok) {
@@ -148,10 +148,10 @@ async function readAsteriaStatus(): Promise<unknown> {
 Node.js：
 
 ```js
-const response = await fetch('http://127.0.0.1:17321/api/status', {
+const response = await fetch("http://127.0.0.1:17321/api/status", {
   headers: {
-    Authorization: 'Bearer my-token'
-  }
+    Authorization: "Bearer my-token",
+  },
 });
 
 const status = await response.json();
@@ -186,9 +186,7 @@ print(response.json())
     "name": "本地 API",
     "address": "127.0.0.1",
     "port": 17321,
-    "permissions": [
-      "status.read"
-    ]
+    "permissions": ["status.read"]
   },
   "database": {
     "schemaVersion": 8,
@@ -203,22 +201,22 @@ print(response.json())
 
 ### 响应字段
 
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| `ok` | `boolean` | 请求是否成功 |
-| `app.name` | `string` | 应用名称 |
-| `app.version` | `string` | 应用版本 |
-| `service.id` | `number` | API 服务 ID |
-| `service.name` | `string` | API 服务名称 |
-| `service.address` | `string` | API 服务监听地址 |
-| `service.port` | `number` | API 服务监听端口 |
-| `service.permissions` | `string[]` | 当前 API 服务已启用权限 |
-| `database.schemaVersion` | `number` | 当前数据库 schema 版本 |
-| `database.fileCount` | `number` | `files` 表文件对象数量 |
-| `database.importBatchCount` | `number` | 导入批次数量 |
-| `database.tagCount` | `number` | tag 数量 |
-| `uptimeSeconds` | `number` | 当前应用进程运行秒数 |
-| `currentTime` | `string` | 服务端当前 ISO 时间 |
+| 字段                        | 类型       | 说明                    |
+| --------------------------- | ---------- | ----------------------- |
+| `ok`                        | `boolean`  | 请求是否成功            |
+| `app.name`                  | `string`   | 应用名称                |
+| `app.version`               | `string`   | 应用版本                |
+| `service.id`                | `number`   | API 服务 ID             |
+| `service.name`              | `string`   | API 服务名称            |
+| `service.address`           | `string`   | API 服务监听地址        |
+| `service.port`              | `number`   | API 服务监听端口        |
+| `service.permissions`       | `string[]` | 当前 API 服务已启用权限 |
+| `database.schemaVersion`    | `number`   | 当前数据库 schema 版本  |
+| `database.fileCount`        | `number`   | `files` 表文件对象数量  |
+| `database.importBatchCount` | `number`   | 导入批次数量            |
+| `database.tagCount`         | `number`   | tag 数量                |
+| `uptimeSeconds`             | `number`   | 当前应用进程运行秒数    |
+| `currentTime`               | `string`   | 服务端当前 ISO 时间     |
 
 ## 使用流程
 
@@ -261,9 +259,9 @@ API 管理窗口中必须勾选 `读取文件`。
 
 请求头：
 
-| 参数 | 必填 | 说明 |
-| --- | --- | --- |
-| `Authorization` | 是 | Bearer token，例如 `Bearer my-token` |
+| 参数            | 必填 | 说明                                 |
+| --------------- | ---- | ------------------------------------ |
+| `Authorization` | 是   | Bearer token，例如 `Bearer my-token` |
 
 ### 命令行调用
 
@@ -294,17 +292,17 @@ interface FileIdentifierListResponse {
 }
 
 async function listAsteriaFileIdentifiers(): Promise<string[]> {
-  const response = await fetch('http://127.0.0.1:17321/api/files', {
+  const response = await fetch("http://127.0.0.1:17321/api/files", {
     headers: {
-      Authorization: 'Bearer my-token'
-    }
+      Authorization: "Bearer my-token",
+    },
   });
 
   if (!response.ok) {
     throw new Error(`API 请求失败: ${response.status}`);
   }
 
-  const body = await response.json() as FileIdentifierListResponse;
+  const body = (await response.json()) as FileIdentifierListResponse;
   return body.identifiers;
 }
 ```
@@ -340,11 +338,11 @@ print(identifiers)
 
 ### 响应字段
 
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| `ok` | `boolean` | 请求是否成功 |
+| 字段          | 类型       | 说明                            |
+| ------------- | ---------- | ------------------------------- |
+| `ok`          | `boolean`  | 请求是否成功                    |
 | `identifiers` | `string[]` | 文件数据库对象 API 唯一标识列表 |
-| `total` | `number` | 返回的标识数量 |
+| `total`       | `number`   | 返回的标识数量                  |
 
 ## 获取单个文件对象详情
 
@@ -374,15 +372,15 @@ API 管理窗口中必须勾选 `读取文件`。
 
 路径参数：
 
-| 参数 | 必填 | 说明 |
-| --- | --- | --- |
-| `identifier` | 是 | 文件数据库对象 API 唯一标识，即 `GET /api/files` 返回的 `identifiers` 中的值 |
+| 参数         | 必填 | 说明                                                                         |
+| ------------ | ---- | ---------------------------------------------------------------------------- |
+| `identifier` | 是   | 文件数据库对象 API 唯一标识，即 `GET /api/files` 返回的 `identifiers` 中的值 |
 
 请求头：
 
-| 参数 | 必填 | 说明 |
-| --- | --- | --- |
-| `Authorization` | 是 | Bearer token，例如 `Bearer my-token` |
+| 参数            | 必填 | 说明                                 |
+| --------------- | ---- | ------------------------------------ |
+| `Authorization` | 是   | Bearer token，例如 `Bearer my-token` |
 
 ### 命令行调用
 
@@ -407,11 +405,14 @@ JavaScript / TypeScript：
 
 ```ts
 async function getAsteriaFile(identifier: string): Promise<unknown> {
-  const response = await fetch(`http://127.0.0.1:17321/api/files/${encodeURIComponent(identifier)}`, {
-    headers: {
-      Authorization: 'Bearer my-token'
-    }
-  });
+  const response = await fetch(
+    `http://127.0.0.1:17321/api/files/${encodeURIComponent(identifier)}`,
+    {
+      headers: {
+        Authorization: "Bearer my-token",
+      },
+    },
+  );
 
   if (!response.ok) {
     throw new Error(`API 请求失败: ${response.status}`);
@@ -483,22 +484,22 @@ print(response.json())
 
 ### 响应字段
 
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| `ok` | `boolean` | 请求是否成功 |
-| `file.apiIdentifier` | `string` | 文件数据库对象 API 唯一标识 |
-| `file.sha256` | `string` | 物理文件 SHA256 |
-| `file.extension` | `string \| null` | 文件扩展名 |
-| `file.sizeBytes` | `number` | 文件大小，单位字节 |
-| `file.importedAt` | `string` | 导入时间 |
-| `file.updatedAt` | `string` | 最后更新时间 |
-| `file.deletedAt` | `string \| null` | 进入回收站时间；为空表示未进入回收站 |
-| `file.domain` | `"pending" \| "library" \| "trash"` | 文件对象所在域 |
-| `file.domainName` | `string` | 文件对象所在域显示名称 |
-| `file.isFavorite` | `boolean` | 是否喜欢 |
-| `file.urls` | `FileUrl[]` | 文件对象关联 URL，不包含内部文件 ID |
-| `file.tags` | `FileTag[]` | 文件对象关联标签，不包含内部 tag ID |
-| `file.ratings` | `FileRating[]` | 文件对象关联分级，不包含内部分级 ID |
+| 字段                 | 类型                                | 说明                                 |
+| -------------------- | ----------------------------------- | ------------------------------------ |
+| `ok`                 | `boolean`                           | 请求是否成功                         |
+| `file.apiIdentifier` | `string`                            | 文件数据库对象 API 唯一标识          |
+| `file.sha256`        | `string`                            | 物理文件 SHA256                      |
+| `file.extension`     | `string \| null`                    | 文件扩展名                           |
+| `file.sizeBytes`     | `number`                            | 文件大小，单位字节                   |
+| `file.importedAt`    | `string`                            | 导入时间                             |
+| `file.updatedAt`     | `string`                            | 最后更新时间                         |
+| `file.deletedAt`     | `string \| null`                    | 进入回收站时间；为空表示未进入回收站 |
+| `file.domain`        | `"pending" \| "library" \| "trash"` | 文件对象所在域                       |
+| `file.domainName`    | `string`                            | 文件对象所在域显示名称               |
+| `file.isFavorite`    | `boolean`                           | 是否喜欢                             |
+| `file.urls`          | `FileUrl[]`                         | 文件对象关联 URL，不包含内部文件 ID  |
+| `file.tags`          | `FileTag[]`                         | 文件对象关联标签，不包含内部 tag ID  |
+| `file.ratings`       | `FileRating[]`                      | 文件对象关联分级，不包含内部分级 ID  |
 
 文件不存在时：
 
@@ -539,15 +540,15 @@ multipart/form-data
 
 表单字段：
 
-| 参数 | 必填 | 说明 |
-| --- | --- | --- |
-| `file` | 是 | 用于查重的文件对象 |
+| 参数   | 必填 | 说明               |
+| ------ | ---- | ------------------ |
+| `file` | 是   | 用于查重的文件对象 |
 
 请求头：
 
-| 参数 | 必填 | 说明 |
-| --- | --- | --- |
-| `Authorization` | 是 | Bearer token，例如 `Bearer my-token` |
+| 参数            | 必填 | 说明                                 |
+| --------------- | ---- | ------------------------------------ |
+| `Authorization` | 是   | Bearer token，例如 `Bearer my-token` |
 
 ### 命令行调用
 
@@ -579,21 +580,21 @@ JavaScript / TypeScript：
 ```ts
 async function findDuplicateFiles(file: File): Promise<string[]> {
   const form = new FormData();
-  form.append('file', file);
+  form.append("file", file);
 
-  const response = await fetch('http://127.0.0.1:17321/api/files/duplicates', {
-    method: 'POST',
+  const response = await fetch("http://127.0.0.1:17321/api/files/duplicates", {
+    method: "POST",
     headers: {
-      Authorization: 'Bearer my-token'
+      Authorization: "Bearer my-token",
     },
-    body: form
+    body: form,
   });
 
   if (!response.ok) {
     throw new Error(`API 请求失败: ${response.status}`);
   }
 
-  const body = await response.json() as { identifiers: string[] };
+  const body = (await response.json()) as { identifiers: string[] };
   return body.identifiers;
 }
 ```
@@ -627,13 +628,13 @@ async function findDuplicateFiles(file: File): Promise<string[]> {
 
 ### 响应字段
 
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| `ok` | `boolean` | 请求是否成功 |
-| `sha256` | `string` | 上传文件计算得到的 SHA256 |
-| `duplicate` | `boolean` | 是否存在同 SHA256 文件对象 |
+| 字段          | 类型       | 说明                                      |
+| ------------- | ---------- | ----------------------------------------- |
+| `ok`          | `boolean`  | 请求是否成功                              |
+| `sha256`      | `string`   | 上传文件计算得到的 SHA256                 |
+| `duplicate`   | `boolean`  | 是否存在同 SHA256 文件对象                |
 | `identifiers` | `string[]` | 同 SHA256 文件数据库对象 API 唯一标识列表 |
-| `total` | `number` | 返回的标识数量 |
+| `total`       | `number`   | 返回的标识数量                            |
 
 ## 覆盖更新文件信息
 
@@ -671,25 +672,25 @@ application/json
 
 路径参数：
 
-| 参数 | 必填 | 说明 |
-| --- | --- | --- |
-| `identifier` | 是 | 文件数据库对象 API 唯一标识 |
+| 参数         | 必填 | 说明                        |
+| ------------ | ---- | --------------------------- |
+| `identifier` | 是   | 文件数据库对象 API 唯一标识 |
 
 JSON 字段：
 
-| 参数 | 必填 | 说明 |
-| --- | --- | --- |
-| `tags` | 否 | 标签数组。元素可以是 `"namespace:name"` 字符串，也可以是 `{ "namespace": "...", "name": "..." }` |
-| `tagStyle` | 否 | 标签风格名称；不存在时会自动创建；不传时使用当前启用的默认标签风格 |
-| `urls` | 否 | URL 字符串数组 |
-| `url` | 否 | 单个 URL 字符串，作为 `urls` 的便捷写法 |
+| 参数       | 必填 | 说明                                                                                             |
+| ---------- | ---- | ------------------------------------------------------------------------------------------------ |
+| `tags`     | 否   | 标签数组。元素可以是 `"namespace:name"` 字符串，也可以是 `{ "namespace": "...", "name": "..." }` |
+| `tagStyle` | 否   | 标签风格名称；不存在时会自动创建；不传时使用当前启用的默认标签风格                               |
+| `urls`     | 否   | URL 字符串数组                                                                                   |
+| `url`      | 否   | 单个 URL 字符串，作为 `urls` 的便捷写法                                                          |
 
 请求头：
 
-| 参数 | 必填 | 说明 |
-| --- | --- | --- |
-| `Authorization` | 是 | Bearer token，例如 `Bearer my-token` |
-| `Content-Type` | 是 | `application/json` |
+| 参数            | 必填 | 说明                                 |
+| --------------- | ---- | ------------------------------------ |
+| `Authorization` | 是   | Bearer token，例如 `Bearer my-token` |
+| `Content-Type`  | 是   | `application/json`                   |
 
 ### 命令行调用
 
@@ -729,22 +730,20 @@ async function replaceFileMetadata(identifier: string): Promise<unknown> {
   const response = await fetch(
     `http://127.0.0.1:17321/api/files/${encodeURIComponent(identifier)}/metadata`,
     {
-      method: 'PUT',
+      method: "PUT",
       headers: {
-        Authorization: 'Bearer my-token',
-        'Content-Type': 'application/json'
+        Authorization: "Bearer my-token",
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        tagStyle: 'danbooru',
+        tagStyle: "danbooru",
         tags: [
-          'character:kirara_(genshin_impact)',
-          { namespace: 'rating', name: 'safe' }
+          "character:kirara_(genshin_impact)",
+          { namespace: "rating", name: "safe" },
         ],
-        urls: [
-          'https://danbooru.donmai.us/posts/123456'
-        ]
-      })
-    }
+        urls: ["https://danbooru.donmai.us/posts/123456"],
+      }),
+    },
   );
 
   if (!response.ok) {
@@ -842,20 +841,20 @@ multipart/form-data
 
 表单字段：
 
-| 参数 | 必填 | 说明 |
-| --- | --- | --- |
-| `file` | 是 | 文件对象 |
-| `tags` | 否 | JSON 数组。元素可以是 `"namespace:name"` 字符串，也可以是 `{ "namespace": "...", "name": "..." }` |
-| `tagStyle` | 否 | 标签风格名称；不存在时会自动创建；不传时使用当前启用的默认标签风格 |
-| `url` | 否 | 单个 URL 字符串，或 JSON 字符串数组 |
-| `urls` | 否 | URL JSON 字符串数组 |
-| `forceDuplicate` | 否 | 是否强制创建重复数据库对象。可用值：`true`、`1`、`yes` |
+| 参数             | 必填 | 说明                                                                                              |
+| ---------------- | ---- | ------------------------------------------------------------------------------------------------- |
+| `file`           | 是   | 文件对象                                                                                          |
+| `tags`           | 否   | JSON 数组。元素可以是 `"namespace:name"` 字符串，也可以是 `{ "namespace": "...", "name": "..." }` |
+| `tagStyle`       | 否   | 标签风格名称；不存在时会自动创建；不传时使用当前启用的默认标签风格                                |
+| `url`            | 否   | 单个 URL 字符串，或 JSON 字符串数组                                                               |
+| `urls`           | 否   | URL JSON 字符串数组                                                                               |
+| `forceDuplicate` | 否   | 是否强制创建重复数据库对象。可用值：`true`、`1`、`yes`                                            |
 
 请求头：
 
-| 参数 | 必填 | 说明 |
-| --- | --- | --- |
-| `Authorization` | 是 | Bearer token，例如 `Bearer my-token` |
+| 参数            | 必填 | 说明                                 |
+| --------------- | ---- | ------------------------------------ |
+| `Authorization` | 是   | Bearer token，例如 `Bearer my-token` |
 
 ### 命令行调用
 
@@ -895,21 +894,24 @@ JavaScript / TypeScript：
 ```ts
 async function uploadAsteriaFile(file: File): Promise<unknown> {
   const form = new FormData();
-  form.append('file', file);
-  form.append('tags', JSON.stringify([
-    { namespace: '作品', name: '原神' },
-    { namespace: '', name: '1girl' }
-  ]));
-  form.append('tagStyle', 'default tag style');
-  form.append('urls', JSON.stringify(['https://example.com/post/100']));
-  form.append('forceDuplicate', 'false');
+  form.append("file", file);
+  form.append(
+    "tags",
+    JSON.stringify([
+      { namespace: "作品", name: "原神" },
+      { namespace: "", name: "1girl" },
+    ]),
+  );
+  form.append("tagStyle", "default tag style");
+  form.append("urls", JSON.stringify(["https://example.com/post/100"]));
+  form.append("forceDuplicate", "false");
 
-  const response = await fetch('http://127.0.0.1:17321/api/upload/file', {
-    method: 'POST',
+  const response = await fetch("http://127.0.0.1:17321/api/upload/file", {
+    method: "POST",
     headers: {
-      Authorization: 'Bearer my-token'
+      Authorization: "Bearer my-token",
     },
-    body: form
+    body: form,
   });
 
   if (!response.ok) {
@@ -923,20 +925,20 @@ async function uploadAsteriaFile(file: File): Promise<unknown> {
 Node.js：
 
 ```js
-import { openAsBlob } from 'node:fs';
+import { openAsBlob } from "node:fs";
 
-const file = await openAsBlob('E:/Images/a.jpg');
+const file = await openAsBlob("E:/Images/a.jpg");
 const form = new FormData();
-form.append('file', file, 'a.jpg');
-form.append('tags', JSON.stringify([{ namespace: '作品', name: '原神' }]));
-form.append('urls', JSON.stringify(['https://example.com/post/100']));
+form.append("file", file, "a.jpg");
+form.append("tags", JSON.stringify([{ namespace: "作品", name: "原神" }]));
+form.append("urls", JSON.stringify(["https://example.com/post/100"]));
 
-const response = await fetch('http://127.0.0.1:17321/api/upload/file', {
-  method: 'POST',
+const response = await fetch("http://127.0.0.1:17321/api/upload/file", {
+  method: "POST",
   headers: {
-    Authorization: 'Bearer my-token'
+    Authorization: "Bearer my-token",
   },
-  body: form
+  body: form,
 });
 
 console.log(await response.json());
@@ -1052,9 +1054,7 @@ files.upload
         }
       ],
       "tagStyle": "default tag style",
-      "urls": [
-        "https://example.com/post/100"
-      ],
+      "urls": ["https://example.com/post/100"],
       "forceDuplicate": false
     }
   ]
@@ -1175,28 +1175,31 @@ const chunkSize = 1024 * 1024;
 const file = input.files?.[0];
 
 if (!file) {
-  throw new Error('请选择文件');
+  throw new Error("请选择文件");
 }
 
-const initResponse = await fetch('http://127.0.0.1:17321/api/upload/batch/init', {
-  method: 'POST',
-  headers: {
-    Authorization: 'Bearer my-token',
-    'Content-Type': 'application/json'
+const initResponse = await fetch(
+  "http://127.0.0.1:17321/api/upload/batch/init",
+  {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer my-token",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      files: [
+        {
+          clientFileId: "local-a",
+          fileName: file.name,
+          sizeBytes: file.size,
+          chunkCount: Math.ceil(file.size / chunkSize),
+          tags: [{ namespace: "作品", name: "原神" }],
+          forceDuplicate: false,
+        },
+      ],
+    }),
   },
-  body: JSON.stringify({
-    files: [
-      {
-        clientFileId: 'local-a',
-        fileName: file.name,
-        sizeBytes: file.size,
-        chunkCount: Math.ceil(file.size / chunkSize),
-        tags: [{ namespace: '作品', name: '原神' }],
-        forceDuplicate: false
-      }
-    ]
-  })
-});
+);
 const init = await initResponse.json();
 const uploadFile = init.files[0];
 
@@ -1205,21 +1208,24 @@ for (let index = 0; index < uploadFile.chunkCount; index += 1) {
   await fetch(
     `http://127.0.0.1:17321/api/upload/batch/${init.batchId}/files/${uploadFile.uploadFileId}/chunks/${index}`,
     {
-      method: 'PUT',
+      method: "PUT",
       headers: {
-        Authorization: 'Bearer my-token',
-        'Content-Type': 'application/octet-stream'
+        Authorization: "Bearer my-token",
+        "Content-Type": "application/octet-stream",
       },
-      body: chunk
-    }
+      body: chunk,
+    },
   );
 }
 
-const commitResponse = await fetch(`http://127.0.0.1:17321/api/upload/batch/${init.batchId}/commit`, {
-  method: 'POST',
-  headers: {
-    Authorization: 'Bearer my-token'
-  }
-});
+const commitResponse = await fetch(
+  `http://127.0.0.1:17321/api/upload/batch/${init.batchId}/commit`,
+  {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer my-token",
+    },
+  },
+);
 console.log(await commitResponse.json());
 ```

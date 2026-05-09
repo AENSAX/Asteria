@@ -2,9 +2,9 @@ export interface InterfaceSettings {
   browserPageSize: number;
 }
 
-const INTERFACE_SETTINGS_KEY = 'asteria.interface-settings.v1';
-const INTERFACE_SETTINGS_EVENT = 'asteria:interface-settings-changed';
-const INTERFACE_SETTINGS_CHANNEL = 'asteria-interface-settings';
+const INTERFACE_SETTINGS_KEY = "asteria.interface-settings.v1";
+const INTERFACE_SETTINGS_EVENT = "asteria:interface-settings-changed";
+const INTERFACE_SETTINGS_CHANNEL = "asteria-interface-settings";
 export const DEFAULT_BROWSER_PAGE_SIZE = 100;
 export const MIN_BROWSER_PAGE_SIZE = 20;
 
@@ -22,9 +22,14 @@ export function loadInterfaceSettings(): InterfaceSettings {
   }
 }
 
-export function saveInterfaceSettings(settings: InterfaceSettings): InterfaceSettings {
+export function saveInterfaceSettings(
+  settings: InterfaceSettings,
+): InterfaceSettings {
   const normalizedSettings = normalizeInterfaceSettings(settings);
-  window.localStorage.setItem(INTERFACE_SETTINGS_KEY, JSON.stringify(normalizedSettings));
+  window.localStorage.setItem(
+    INTERFACE_SETTINGS_KEY,
+    JSON.stringify(normalizedSettings),
+  );
   window.dispatchEvent(new CustomEvent(INTERFACE_SETTINGS_EVENT));
 
   try {
@@ -38,7 +43,9 @@ export function saveInterfaceSettings(settings: InterfaceSettings): InterfaceSet
   return normalizedSettings;
 }
 
-export function listenInterfaceSettingsChanged(listener: (settings: InterfaceSettings) => void): () => void {
+export function listenInterfaceSettingsChanged(
+  listener: (settings: InterfaceSettings) => void,
+): () => void {
   const handleChange = (): void => {
     listener(loadInterfaceSettings());
   };
@@ -50,28 +57,28 @@ export function listenInterfaceSettingsChanged(listener: (settings: InterfaceSet
   };
 
   window.addEventListener(INTERFACE_SETTINGS_EVENT, handleChange);
-  window.addEventListener('storage', handleStorage);
+  window.addEventListener("storage", handleStorage);
 
   let channel: BroadcastChannel | null = null;
 
   try {
     channel = new BroadcastChannel(INTERFACE_SETTINGS_CHANNEL);
-    channel.addEventListener('message', handleChange);
+    channel.addEventListener("message", handleChange);
   } catch {
     channel = null;
   }
 
   return () => {
     window.removeEventListener(INTERFACE_SETTINGS_EVENT, handleChange);
-    window.removeEventListener('storage', handleStorage);
-    channel?.removeEventListener('message', handleChange);
+    window.removeEventListener("storage", handleStorage);
+    channel?.removeEventListener("message", handleChange);
     channel?.close();
   };
 }
 
 function createDefaultInterfaceSettings(): InterfaceSettings {
   return {
-    browserPageSize: DEFAULT_BROWSER_PAGE_SIZE
+    browserPageSize: DEFAULT_BROWSER_PAGE_SIZE,
   };
 }
 
@@ -79,7 +86,7 @@ function normalizeInterfaceSettings(value: unknown): InterfaceSettings {
   const settings = value as Partial<InterfaceSettings> | null;
 
   return {
-    browserPageSize: normalizeBrowserPageSize(settings?.browserPageSize)
+    browserPageSize: normalizeBrowserPageSize(settings?.browserPageSize),
   };
 }
 

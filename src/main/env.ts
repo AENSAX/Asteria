@@ -1,19 +1,19 @@
-import { existsSync, mkdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { app } from 'electron';
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { app } from "electron";
 
 export function loadDevelopmentEnv(): void {
-  if (process.defaultApp !== true && process.env.NODE_ENV === 'production') {
+  if (process.defaultApp !== true && process.env.NODE_ENV === "production") {
     return;
   }
 
-  const envPath = join(process.cwd(), '.env');
+  const envPath = join(process.cwd(), ".env");
 
   if (!existsSync(envPath)) {
     return;
   }
 
-  const lines = readFileSync(envPath, 'utf8').split(/\r?\n/);
+  const lines = readFileSync(envPath, "utf8").split(/\r?\n/);
 
   for (const line of lines) {
     const entry = parseEnvLine(line);
@@ -37,18 +37,18 @@ export function configureDevelopmentAppPaths(): void {
     return;
   }
 
-  app.setPath('userData', userDataPath);
+  app.setPath("userData", userDataPath);
   mkdirSync(userDataPath, { recursive: true });
 }
 
 function parseEnvLine(line: string): { key: string; value: string } | null {
   const trimmed = line.trim();
 
-  if (!trimmed || trimmed.startsWith('#')) {
+  if (!trimmed || trimmed.startsWith("#")) {
     return null;
   }
 
-  const separatorIndex = trimmed.indexOf('=');
+  const separatorIndex = trimmed.indexOf("=");
 
   if (separatorIndex <= 0) {
     return null;

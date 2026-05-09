@@ -1,71 +1,81 @@
-import { useEffect, useState } from 'react';
-import type { RatingEntryRecord, RatingGroupRecord } from '../../../shared/ipc';
-import { ActionFeedbackButton } from '../components/ActionFeedbackButton';
-import { ResizableColumns } from '../components/ResizableColumns';
+import { useEffect, useState } from "react";
+import type { RatingEntryRecord, RatingGroupRecord } from "../../../shared/ipc";
+import { ActionFeedbackButton } from "../components/ActionFeedbackButton";
+import { ResizableColumns } from "../components/ResizableColumns";
 
-const defaultEntryColor = '#d9dde1';
-const managerShellClass = 'grid h-full min-h-0 min-w-0 grid-cols-[180px_minmax(0,1fr)] bg-(--panel)';
-const sidebarClass = 'flex min-h-0 min-w-0 flex-col border-r border-(--line) bg-(--surface-bg)';
-const sidebarHeaderClass = 'h-7 border-b border-(--line) bg-(--panel-strong) px-2 leading-7 text-[11px] font-semibold';
-const listClass = 'min-h-0 overflow-auto';
+const defaultEntryColor = "#d9dde1";
+const managerShellClass =
+  "grid h-full min-h-0 min-w-0 grid-cols-[180px_minmax(0,1fr)] bg-(--panel)";
+const sidebarClass =
+  "flex min-h-0 min-w-0 flex-col border-r border-(--line) bg-(--surface-bg)";
+const sidebarHeaderClass =
+  "h-7 border-b border-(--line) bg-(--panel-strong) px-2 leading-7 text-[11px] font-semibold";
+const listClass = "min-h-0 overflow-auto";
 const sidebarItemClass =
-  'grid min-h-[26px] w-full grid-cols-[18px_minmax(0,1fr)_42px] items-center border-0 border-b border-(--line) bg-transparent px-2 text-left text-[11px] text-(--ink)';
-const sidebarItemActiveClass = 'bg-(--surface-raised-bg)';
-const createRowClass = 'grid grid-cols-[minmax(0,1fr)_auto] gap-1.5 border-t border-(--line) p-2';
+  "grid min-h-[26px] w-full grid-cols-[18px_minmax(0,1fr)_42px] items-center border-0 border-b border-(--line) bg-transparent px-2 text-left text-[11px] text-(--ink)";
+const sidebarItemActiveClass = "bg-(--surface-raised-bg)";
+const createRowClass =
+  "grid grid-cols-[minmax(0,1fr)_auto] gap-1.5 border-t border-(--line) p-2";
 const inputClass =
-  'h-6 min-w-0 border border-(--line-strong) bg-(--surface-inset-bg) px-1.5 text-(--ink)';
+  "h-6 min-w-0 border border-(--line-strong) bg-(--surface-inset-bg) px-1.5 text-(--ink)";
 const buttonClass =
-  'h-6 min-w-[72px] cursor-default border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px] text-(--ink)';
-const panelClass = 'grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_minmax(0,1fr)] bg-(--panel)';
-const toolbarClass = 'grid gap-1 border-b border-(--line) bg-(--panel) p-2';
-const groupEditRowClass = 'grid grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-1.5';
-const entryCreateRowClass = 'grid grid-cols-[minmax(0,1fr)_auto_24px_auto] gap-1.5 items-center';
+  "h-6 min-w-[72px] cursor-default border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px] text-(--ink)";
+const panelClass =
+  "grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_minmax(0,1fr)] bg-(--panel)";
+const toolbarClass = "grid gap-1 border-b border-(--line) bg-(--panel) p-2";
+const groupEditRowClass =
+  "grid grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-1.5";
+const entryCreateRowClass =
+  "grid grid-cols-[minmax(0,1fr)_auto_24px_auto] gap-1.5 items-center";
 const selectClass =
-  'h-6 min-w-0 border border-(--line-strong) bg-(--surface-inset-bg) px-1.5 text-(--ink)';
-const messageClass = 'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-(--muted)';
-const entryListClass = 'min-h-0 overflow-auto bg-(--surface-bg) p-2';
-const emptyClass = 'p-2 text-(--muted)';
+  "h-6 min-w-0 border border-(--line-strong) bg-(--surface-inset-bg) px-1.5 text-(--ink)";
+const messageClass =
+  "min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-(--muted)";
+const entryListClass = "min-h-0 overflow-auto bg-(--surface-bg) p-2";
+const emptyClass = "p-2 text-(--muted)";
 const entryRowClass =
-  'grid grid-cols-[18px_18px_minmax(0,1fr)_24px_auto_auto] items-center gap-1.5 border-b border-(--line) px-2 py-1 text-[11px]';
-const entryRowDraggingClass = 'bg-(--selection-bg)';
-const dragHandleClass = 'cursor-grab text-center text-(--muted)';
-const swatchClass = 'h-4 w-4 border border-(--line-strong)';
+  "grid grid-cols-[18px_18px_minmax(0,1fr)_24px_auto_auto] items-center gap-1.5 border-b border-(--line) px-2 py-1 text-[11px]";
+const entryRowDraggingClass = "bg-(--selection-bg)";
+const dragHandleClass = "cursor-grab text-center text-(--muted)";
+const swatchClass = "h-4 w-4 border border-(--line-strong)";
 const entryActionClass =
-  'h-6 min-w-[56px] cursor-default border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px] text-(--ink)';
+  "h-6 min-w-[56px] cursor-default border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px] text-(--ink)";
 
 export function RatingManagerWindow(): JSX.Element {
   const [groups, setGroups] = useState<RatingGroupRecord[]>([]);
   const [entries, setEntries] = useState<RatingEntryRecord[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
-  const [groupInput, setGroupInput] = useState('');
-  const [selectedGroupName, setSelectedGroupName] = useState('');
-  const [entryInput, setEntryInput] = useState('');
+  const [groupInput, setGroupInput] = useState("");
+  const [selectedGroupName, setSelectedGroupName] = useState("");
+  const [entryInput, setEntryInput] = useState("");
   const [entryColor, setEntryColor] = useState(defaultEntryColor);
   const [draggingEntryId, setDraggingEntryId] = useState<number | null>(null);
-  const [message, setMessage] = useState('未加载');
-  const selectedGroup = groups.find((group) => group.id === selectedGroupId) ?? null;
+  const [message, setMessage] = useState("未加载");
+  const selectedGroup =
+    groups.find((group) => group.id === selectedGroupId) ?? null;
 
   useEffect(() => {
     void loadGroups();
   }, []);
 
   useEffect(() => {
-    setSelectedGroupName(selectedGroup?.name ?? '');
+    setSelectedGroupName(selectedGroup?.name ?? "");
     void loadEntries();
   }, [selectedGroupId]);
 
   async function loadGroups(nextSelectedGroupId?: number): Promise<void> {
     if (!window.asteria) {
-      setMessage('preload unavailable');
+      setMessage("preload unavailable");
       return;
     }
 
     const nextGroups = await window.asteria.listRatingGroups();
     const nextSelectedId =
       nextSelectedGroupId ??
-      (selectedGroupId && nextGroups.some((group) => group.id === selectedGroupId)
+      (selectedGroupId &&
+      nextGroups.some((group) => group.id === selectedGroupId)
         ? selectedGroupId
-        : nextGroups[0]?.id ?? null);
+        : (nextGroups[0]?.id ?? null));
 
     setGroups(nextGroups);
     setSelectedGroupId(nextSelectedId);
@@ -87,20 +97,29 @@ export function RatingManagerWindow(): JSX.Element {
     }
 
     const nextGroups = await window.asteria.createRatingGroup(groupInput);
-    const createdGroup = nextGroups.find((group) => group.name === groupInput.trim()) ?? nextGroups[0];
+    const createdGroup =
+      nextGroups.find((group) => group.name === groupInput.trim()) ??
+      nextGroups[0];
     setGroups(nextGroups);
     setSelectedGroupId(createdGroup?.id ?? null);
-    setGroupInput('');
+    setGroupInput("");
   }
 
   async function renameGroup(): Promise<void> {
-    if (!window.asteria || selectedGroupId === null || !selectedGroupName.trim()) {
+    if (
+      !window.asteria ||
+      selectedGroupId === null ||
+      !selectedGroupName.trim()
+    ) {
       return;
     }
 
-    const nextGroups = await window.asteria.renameRatingGroup(selectedGroupId, selectedGroupName);
+    const nextGroups = await window.asteria.renameRatingGroup(
+      selectedGroupId,
+      selectedGroupName,
+    );
     setGroups(nextGroups);
-    setMessage('已重命名');
+    setMessage("已重命名");
   }
 
   async function toggleGroupActive(group: RatingGroupRecord): Promise<void> {
@@ -108,7 +127,10 @@ export function RatingManagerWindow(): JSX.Element {
       return;
     }
 
-    const nextGroups = await window.asteria.setRatingGroupActive(group.id, !group.isActive);
+    const nextGroups = await window.asteria.setRatingGroupActive(
+      group.id,
+      !group.isActive,
+    );
     setGroups(nextGroups);
   }
 
@@ -120,7 +142,7 @@ export function RatingManagerWindow(): JSX.Element {
     const nextGroups = await window.asteria.deleteRatingGroup(selectedGroupId);
     setGroups(nextGroups);
     setSelectedGroupId(nextGroups[0]?.id ?? null);
-    setMessage('已删除分级');
+    setMessage("已删除分级");
   }
 
   async function createEntry(): Promise<void> {
@@ -128,15 +150,23 @@ export function RatingManagerWindow(): JSX.Element {
       return;
     }
 
-    const nextEntries = await window.asteria.createRatingEntry(selectedGroupId, entryInput, entryColor);
+    const nextEntries = await window.asteria.createRatingEntry(
+      selectedGroupId,
+      entryInput,
+      entryColor,
+    );
     setEntries(nextEntries);
-    setEntryInput('');
+    setEntryInput("");
     setEntryColor(defaultEntryColor);
-    setMessage('已新建条目');
+    setMessage("已新建条目");
     await loadGroups(selectedGroupId);
   }
 
-  async function updateEntry(entry: RatingEntryRecord, label: string, color: string): Promise<void> {
+  async function updateEntry(
+    entry: RatingEntryRecord,
+    label: string,
+    color: string,
+  ): Promise<void> {
     if (!window.asteria || !label.trim()) {
       return;
     }
@@ -154,7 +184,12 @@ export function RatingManagerWindow(): JSX.Element {
   }
 
   async function moveEntryBefore(targetEntryId: number): Promise<void> {
-    if (!window.asteria || selectedGroupId === null || draggingEntryId === null || draggingEntryId === targetEntryId) {
+    if (
+      !window.asteria ||
+      selectedGroupId === null ||
+      draggingEntryId === null ||
+      draggingEntryId === targetEntryId
+    ) {
       setDraggingEntryId(null);
       return;
     }
@@ -166,8 +201,12 @@ export function RatingManagerWindow(): JSX.Element {
       return;
     }
 
-    const withoutDragging = entries.filter((entry) => entry.id !== draggingEntryId);
-    const targetIndex = withoutDragging.findIndex((entry) => entry.id === targetEntryId);
+    const withoutDragging = entries.filter(
+      (entry) => entry.id !== draggingEntryId,
+    );
+    const targetIndex = withoutDragging.findIndex(
+      (entry) => entry.id === targetEntryId,
+    );
 
     if (targetIndex < 0) {
       setDraggingEntryId(null);
@@ -177,12 +216,17 @@ export function RatingManagerWindow(): JSX.Element {
     const nextEntries = [
       ...withoutDragging.slice(0, targetIndex),
       draggingEntry,
-      ...withoutDragging.slice(targetIndex)
+      ...withoutDragging.slice(targetIndex),
     ];
 
     setEntries(nextEntries);
-    setEntries(await window.asteria.reorderRatingEntries(selectedGroupId, nextEntries.map((entry) => entry.id)));
-    setMessage('已调整顺序');
+    setEntries(
+      await window.asteria.reorderRatingEntries(
+        selectedGroupId,
+        nextEntries.map((entry) => entry.id),
+      ),
+    );
+    setMessage("已调整顺序");
     setDraggingEntryId(null);
   }
 
@@ -193,112 +237,136 @@ export function RatingManagerWindow(): JSX.Element {
       minLeftWidth={130}
       minRightWidth={380}
       storageKey="asteria:rating-manager-sidebar-width"
-      left={(
+      left={
         <aside className={sidebarClass}>
-        <header className={sidebarHeaderClass}>分级</header>
-        <div className={listClass}>
-          {groups.map((group) => (
-            <button
-              className={`${sidebarItemClass} ${group.id === selectedGroupId ? sidebarItemActiveClass : ''}`}
-              key={group.id}
-              type="button"
-              onClick={() => setSelectedGroupId(group.id)}
-            >
-              <span className="text-center text-(--success-ink)">{group.isActive ? '√' : ''}</span>
-              <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{group.name}</span>
-              <span className="text-right text-(--muted)">{group.entryCount}</span>
-            </button>
-          ))}
-        </div>
-        <div className={createRowClass}>
-          <input
-            className={inputClass}
-            aria-label="新建分级"
-            placeholder="输入分级以新建"
-            value={groupInput}
-            onChange={(event) => setGroupInput(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                void createGroup();
-              }
-            }}
-          />
-          <button type="button" onClick={() => void createGroup()}>
-            新建
-          </button>
-        </div>
-        </aside>
-      )}
-      right={(
-        <main className={panelClass}>
-        <header className={toolbarClass}>
-          <div className={groupEditRowClass}>
-            <input
-              className={inputClass}
-              aria-label="分级名称"
-              placeholder="输入分级名称"
-              value={selectedGroupName}
-              onChange={(event) => setSelectedGroupName(event.target.value)}
-            />
-            <button disabled={!selectedGroup} type="button" onClick={() => void renameGroup()}>
-              重命名
-            </button>
-            <button disabled={!selectedGroup} type="button" onClick={() => selectedGroup && void toggleGroupActive(selectedGroup)}>
-              {selectedGroup?.isActive ? '停用' : '激活'}
-            </button>
-            <button disabled={!selectedGroup} type="button" onClick={() => void deleteGroup()}>
-              删除
-            </button>
+          <header className={sidebarHeaderClass}>分级</header>
+          <div className={listClass}>
+            {groups.map((group) => (
+              <button
+                className={`${sidebarItemClass} ${group.id === selectedGroupId ? sidebarItemActiveClass : ""}`}
+                key={group.id}
+                type="button"
+                onClick={() => setSelectedGroupId(group.id)}
+              >
+                <span className="text-center text-(--success-ink)">
+                  {group.isActive ? "√" : ""}
+                </span>
+                <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
+                  {group.name}
+                </span>
+                <span className="text-right text-(--muted)">
+                  {group.entryCount}
+                </span>
+              </button>
+            ))}
           </div>
-
-          <div className={entryCreateRowClass}>
+          <div className={createRowClass}>
             <input
               className={inputClass}
-              aria-label="新建条目"
-              placeholder="输入分级条目"
-              value={entryInput}
-              onChange={(event) => setEntryInput(event.target.value)}
+              aria-label="新建分级"
+              placeholder="输入分级以新建"
+              value={groupInput}
+              onChange={(event) => setGroupInput(event.target.value)}
               onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  void createEntry();
+                if (event.key === "Enter") {
+                  void createGroup();
                 }
               }}
             />
-            <input
-              className="h-6 w-6 border border-(--line-strong) bg-(--surface-inset-bg) p-0"
-              aria-label="条目颜色"
-              type="color"
-              value={entryColor}
-              onChange={(event) => setEntryColor(event.target.value)}
-            />
-            <button disabled={!selectedGroup} type="button" onClick={() => void createEntry()}>
-              新建条目
+            <button type="button" onClick={() => void createGroup()}>
+              新建
             </button>
-            <span className={messageClass}>{message}</span>
           </div>
-        </header>
-
-        <div className={entryListClass}>
-          {entries.length > 0 ? (
-            entries.map((entry) => (
-              <RatingEntryRow
-                dragging={draggingEntryId === entry.id}
-                entry={entry}
-                key={entry.id}
-                onDelete={deleteEntry}
-                onDragEnd={() => setDraggingEntryId(null)}
-                onDragOver={(event) => event.preventDefault()}
-                onDragStart={() => setDraggingEntryId(entry.id)}
-                onDrop={() => void moveEntryBefore(entry.id)}
-                onUpdate={updateEntry}
+        </aside>
+      }
+      right={
+        <main className={panelClass}>
+          <header className={toolbarClass}>
+            <div className={groupEditRowClass}>
+              <input
+                className={inputClass}
+                aria-label="分级名称"
+                placeholder="输入分级名称"
+                value={selectedGroupName}
+                onChange={(event) => setSelectedGroupName(event.target.value)}
               />
-            ))
-          ) : (
-            <div className={emptyClass}>没有条目</div>
-          )}
-        </div>
+              <button
+                disabled={!selectedGroup}
+                type="button"
+                onClick={() => void renameGroup()}
+              >
+                重命名
+              </button>
+              <button
+                disabled={!selectedGroup}
+                type="button"
+                onClick={() =>
+                  selectedGroup && void toggleGroupActive(selectedGroup)
+                }
+              >
+                {selectedGroup?.isActive ? "停用" : "激活"}
+              </button>
+              <button
+                disabled={!selectedGroup}
+                type="button"
+                onClick={() => void deleteGroup()}
+              >
+                删除
+              </button>
+            </div>
+
+            <div className={entryCreateRowClass}>
+              <input
+                className={inputClass}
+                aria-label="新建条目"
+                placeholder="输入分级条目"
+                value={entryInput}
+                onChange={(event) => setEntryInput(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    void createEntry();
+                  }
+                }}
+              />
+              <input
+                className="h-6 w-6 border border-(--line-strong) bg-(--surface-inset-bg) p-0"
+                aria-label="条目颜色"
+                type="color"
+                value={entryColor}
+                onChange={(event) => setEntryColor(event.target.value)}
+              />
+              <button
+                disabled={!selectedGroup}
+                type="button"
+                onClick={() => void createEntry()}
+              >
+                新建条目
+              </button>
+              <span className={messageClass}>{message}</span>
+            </div>
+          </header>
+
+          <div className={entryListClass}>
+            {entries.length > 0 ? (
+              entries.map((entry) => (
+                <RatingEntryRow
+                  dragging={draggingEntryId === entry.id}
+                  entry={entry}
+                  key={entry.id}
+                  onDelete={deleteEntry}
+                  onDragEnd={() => setDraggingEntryId(null)}
+                  onDragOver={(event) => event.preventDefault()}
+                  onDragStart={() => setDraggingEntryId(entry.id)}
+                  onDrop={() => void moveEntryBefore(entry.id)}
+                  onUpdate={updateEntry}
+                />
+              ))
+            ) : (
+              <div className={emptyClass}>没有条目</div>
+            )}
+          </div>
         </main>
-      )}
+      }
     />
   );
 }
@@ -306,7 +374,11 @@ export function RatingManagerWindow(): JSX.Element {
 interface RatingEntryRowProps {
   entry: RatingEntryRecord;
   dragging: boolean;
-  onUpdate: (entry: RatingEntryRecord, label: string, color: string) => Promise<void>;
+  onUpdate: (
+    entry: RatingEntryRecord,
+    label: string,
+    color: string,
+  ) => Promise<void>;
   onDelete: (entryId: number) => Promise<void>;
   onDragStart: () => void;
   onDragOver: (event: React.DragEvent<HTMLDivElement>) => void;
@@ -322,7 +394,7 @@ function RatingEntryRow({
   onDragStart,
   onDragOver,
   onDrop,
-  onDragEnd
+  onDragEnd,
 }: RatingEntryRowProps): JSX.Element {
   const [label, setLabel] = useState(entry.label);
   const [color, setColor] = useState(entry.color);
@@ -334,7 +406,7 @@ function RatingEntryRow({
 
   return (
     <div
-      className={`${entryRowClass} ${dragging ? entryRowDraggingClass : ''}`}
+      className={`${entryRowClass} ${dragging ? entryRowDraggingClass : ""}`}
       onDragEnd={onDragEnd}
       onDragOver={onDragOver}
       onDrop={onDrop}
@@ -344,7 +416,7 @@ function RatingEntryRow({
         draggable
         title="拖动调整顺序"
         onDragStart={(event) => {
-          event.dataTransfer.effectAllowed = 'move';
+          event.dataTransfer.effectAllowed = "move";
           onDragStart();
         }}
       >
@@ -370,7 +442,11 @@ function RatingEntryRow({
         label="保存"
         onAction={() => onUpdate(entry, label, color)}
       />
-      <button className={entryActionClass} type="button" onClick={() => void onDelete(entry.id)}>
+      <button
+        className={entryActionClass}
+        type="button"
+        onClick={() => void onDelete(entry.id)}
+      >
         删除
       </button>
     </div>

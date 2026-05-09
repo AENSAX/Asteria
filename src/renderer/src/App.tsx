@@ -1,23 +1,34 @@
-import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import { Actions, DockLocation, Layout, Model, type TabNode } from 'flexlayout-react';
-import { parse } from 'jsonc-parser';
-import defaultPageTemplateText from '../../../config/page-templates/default-page.jsonc?raw';
+import { useEffect, useMemo, useReducer, useRef, useState } from "react";
+import {
+  Actions,
+  DockLocation,
+  Layout,
+  Model,
+  type TabNode,
+} from "flexlayout-react";
+import { parse } from "jsonc-parser";
+import defaultPageTemplateText from "../../../config/page-templates/default-page.jsonc?raw";
 import type {
   ImportProgress,
   ImportQueueFileRecord,
   PageLayoutSettings,
   SortDirection,
   TagRecord,
-  WorkStatus
-} from '../../shared/ipc';
-import { ActionFeedbackButton } from './components/ActionFeedbackButton';
-import { useStandaloneWindowShortcuts } from './hooks/useStandaloneWindowShortcuts';
-import { readDroppedImportData } from './utils/dropImport';
-import { parseIdList } from './utils/ids';
-import { applyTheme, listenThemeSettingsChanged } from './utils/themes';
-import { DatabaseManagerView } from './views/DatabaseManagerView';
-import { FileBrowserView, type BrowserSortDirection, type BrowserSortKey, type BrowserViewState } from './views/FileBrowserView';
-import { ImportView } from './views/ImportView';
+  WorkStatus,
+} from "../../shared/ipc";
+import { ActionFeedbackButton } from "./components/ActionFeedbackButton";
+import { useStandaloneWindowShortcuts } from "./hooks/useStandaloneWindowShortcuts";
+import { readDroppedImportData } from "./utils/dropImport";
+import { parseIdList } from "./utils/ids";
+import { applyTheme, listenThemeSettingsChanged } from "./utils/themes";
+import { DatabaseManagerView } from "./views/DatabaseManagerView";
+import {
+  FileBrowserView,
+  type BrowserSortDirection,
+  type BrowserSortKey,
+  type BrowserViewState,
+} from "./views/FileBrowserView";
+import { ImportView } from "./views/ImportView";
 import {
   buildSearchExpression,
   SearchView,
@@ -25,30 +36,42 @@ import {
   type SearchFilter,
   type SearchInputState,
   type SearchInputToken,
-  type SearchOperator
-} from './views/SearchView';
-import { TagListView, type TagListFilterMode, type TagListViewState } from './views/TagListView';
-import { AiManagerWindow } from './windows/AiManagerWindow';
-import { ApiManagerWindow } from './windows/ApiManagerWindow';
-import { BatchTagManagerWindow } from './windows/BatchTagManagerWindow';
-import { DialogWindow } from './windows/DialogWindow';
-import { EHentaiImportWindow } from './windows/EHentaiImportWindow';
-import { ExportWindow } from './windows/ExportWindow';
-import { FavoritesWindow } from './windows/FavoritesWindow';
-import { FileDetailWindow, ScreeningDetailWindow } from './windows/FileDetailWindow';
-import { FileRatingEditorWindow } from './windows/FileRatingEditorWindow';
-import { HydrusImportWindow } from './windows/HydrusImportWindow';
-import { RecycleBinWindow } from './windows/RecycleBinWindow';
-import { RatingManagerWindow } from './windows/RatingManagerWindow';
-import { SettingsWindow } from './windows/SettingsWindow';
-import { TagManagerWindow } from './windows/TagManagerWindow';
-import { TagTranslationWindow } from './windows/TagTranslationWindow';
-import { UrlManagerWindow } from './windows/UrlManagerWindow';
-import 'flexlayout-react/style/dark.css';
+  type SearchOperator,
+} from "./views/SearchView";
+import {
+  TagListView,
+  type TagListFilterMode,
+  type TagListViewState,
+} from "./views/TagListView";
+import { AiManagerWindow } from "./windows/AiManagerWindow";
+import { ApiManagerWindow } from "./windows/ApiManagerWindow";
+import { BatchTagManagerWindow } from "./windows/BatchTagManagerWindow";
+import { DialogWindow } from "./windows/DialogWindow";
+import { EHentaiImportWindow } from "./windows/EHentaiImportWindow";
+import { ExportWindow } from "./windows/ExportWindow";
+import { FavoritesWindow } from "./windows/FavoritesWindow";
+import {
+  FileDetailWindow,
+  ScreeningDetailWindow,
+} from "./windows/FileDetailWindow";
+import { FileRatingEditorWindow } from "./windows/FileRatingEditorWindow";
+import { HydrusImportWindow } from "./windows/HydrusImportWindow";
+import { RecycleBinWindow } from "./windows/RecycleBinWindow";
+import { RatingManagerWindow } from "./windows/RatingManagerWindow";
+import { SettingsWindow } from "./windows/SettingsWindow";
+import { TagManagerWindow } from "./windows/TagManagerWindow";
+import { TagTranslationWindow } from "./windows/TagTranslationWindow";
+import { UrlManagerWindow } from "./windows/UrlManagerWindow";
+import "flexlayout-react/style/dark.css";
 
-type MenuName = 'file' | 'page' | 'view' | 'database' | 'service' | 'extension';
-type ViewComponent = 'empty-page' | 'file-import' | 'file-browser' | 'search' | 'tag-list';
-type OpenableViewComponent = Exclude<ViewComponent, 'empty-page'>;
+type MenuName = "file" | "page" | "view" | "database" | "service" | "extension";
+type ViewComponent =
+  | "empty-page"
+  | "file-import"
+  | "file-browser"
+  | "search"
+  | "tag-list";
+type OpenableViewComponent = Exclude<ViewComponent, "empty-page">;
 
 interface PageItem {
   id: string;
@@ -80,23 +103,23 @@ interface SavedWorkbenchState {
   pages: SavedPageItem[];
 }
 
-const WORKBENCH_STATE_KEY = 'asteria.workbench-state.v1';
+const WORKBENCH_STATE_KEY = "asteria.workbench-state.v1";
 const emptySearchInputState: SearchInputState = {
   tokens: [],
-  text: ''
+  text: "",
 };
 const defaultBrowserViewState: BrowserViewState = {
-  sortKey: 'importedAt',
-  sortDirection: 'desc'
+  sortKey: "importedAt",
+  sortDirection: "desc",
 };
 const defaultTagListViewState: TagListViewState = {
-  direction: 'asc',
+  direction: "asc",
   namespaceFirst: false,
-  filterMode: 'all'
+  filterMode: "all",
 };
 
 const idleProgress: ImportProgress = {
-  phase: 'idle',
+  phase: "idle",
   batchId: null,
   total: 0,
   processed: 0,
@@ -106,38 +129,39 @@ const idleProgress: ImportProgress = {
   chunkIndex: 0,
   chunkTotal: 0,
   currentFile: null,
-  message: '等待导入'
+  message: "等待导入",
 };
 
 const idleWorkStatus: WorkStatus = {
   active: false,
-  message: '就绪',
+  message: "就绪",
   queued: 0,
   processing: 0,
-  completed: 0
+  completed: 0,
 };
 
-const standaloneWindowClass = 'h-full min-h-0 min-w-0 bg-(--bg)';
-const emptyPageClass = 'grid h-full min-h-0 min-w-0 place-items-center bg-(--panel) text-(--muted)';
+const standaloneWindowClass = "h-full min-h-0 min-w-0 bg-(--bg)";
+const emptyPageClass =
+  "grid h-full min-h-0 min-w-0 place-items-center bg-(--panel) text-(--muted)";
 const menuButtonClass =
-  'h-full min-w-12 cursor-default border-0 bg-transparent px-3 text-[11px] hover:bg-(--panel-strong)';
+  "h-full min-w-12 cursor-default border-0 bg-transparent px-3 text-[11px] hover:bg-(--panel-strong)";
 const activeMenuButtonClass = `${menuButtonClass} bg-(--panel-strong)`;
 const menuDropdownClass =
-  'absolute left-0 top-full z-10 min-w-[132px] border border-(--line-strong) bg-(--panel) p-1 [&>button]:h-[26px] [&>button]:w-full [&>button]:cursor-default [&>button]:border-0 [&>button]:bg-transparent [&>button]:px-2.5 [&>button]:text-left [&>button]:text-[11px] [&>button:disabled]:text-(--disabled-ink) [&>button:hover:not(:disabled)]:bg-(--accent-weak)';
+  "absolute left-0 top-full z-10 min-w-[132px] border border-(--line-strong) bg-(--panel) p-1 [&>button]:h-[26px] [&>button]:w-full [&>button]:cursor-default [&>button]:border-0 [&>button]:bg-transparent [&>button]:px-2.5 [&>button]:text-left [&>button]:text-[11px] [&>button:disabled]:text-(--disabled-ink) [&>button:hover:not(:disabled)]:bg-(--accent-weak)";
 const pageTabClass =
-  'grid h-[30px] min-w-[132px] max-w-[220px] grid-cols-[minmax(0,1fr)_22px] items-stretch border-r border-(--line) bg-transparent text-(--muted)';
+  "grid h-[30px] min-w-[132px] max-w-[220px] grid-cols-[minmax(0,1fr)_22px] items-stretch border-r border-(--line) bg-transparent text-(--muted)";
 const activePageTabClass = `group bg-(--panel) text-(--ink) grid h-[30px] min-w-[132px] max-w-[220px] grid-cols-[minmax(0,1fr)_22px] items-stretch border-r border-(--line)`;
 const pageTabTitleClass =
-  'group min-w-0 cursor-default overflow-hidden text-ellipsis whitespace-nowrap border-0 bg-transparent px-2 text-left text-[11px] text-inherit';
+  "group min-w-0 cursor-default overflow-hidden text-ellipsis whitespace-nowrap border-0 bg-transparent px-2 text-left text-[11px] text-inherit";
 const pageTabCloseClass =
-  'w-[22px] cursor-default border-0 bg-transparent p-0 text-[11px] text-inherit group-hover:bg-(--button-hover)';
+  "w-[22px] cursor-default border-0 bg-transparent p-0 text-[11px] text-inherit group-hover:bg-(--button-hover)";
 const contextMenuClass =
-  'fixed z-30 w-[142px] border border-(--line-strong) bg-(--panel) p-1 [&>button]:block [&>button]:h-6 [&>button]:w-full [&>button]:cursor-default [&>button]:border-0 [&>button]:bg-transparent [&>button]:px-2 [&>button]:text-left [&>button]:text-[11px] [&>button]:text-(--ink) [&>button:hover]:bg-(--accent-weak)';
+  "fixed z-30 w-[142px] border border-(--line-strong) bg-(--panel) p-1 [&>button]:block [&>button]:h-6 [&>button]:w-full [&>button]:cursor-default [&>button]:border-0 [&>button]:bg-transparent [&>button]:px-2 [&>button]:text-left [&>button]:text-[11px] [&>button]:text-(--ink) [&>button:hover]:bg-(--accent-weak)";
 const contextMenuRenameClass =
-  'grid grid-cols-[minmax(0,1fr)_48px] gap-1 [&>input]:h-6 [&>input]:min-w-0 [&>input]:border [&>input]:border-(--line-strong) [&>input]:bg-(--surface-inset-bg) [&>input]:px-1.5 [&>input]:text-(--ink) [&>input]:outline-0 [&>input::placeholder]:text-(--disabled-ink)';
+  "grid grid-cols-[minmax(0,1fr)_48px] gap-1 [&>input]:h-6 [&>input]:min-w-0 [&>input]:border [&>input]:border-(--line-strong) [&>input]:bg-(--surface-inset-bg) [&>input]:px-1.5 [&>input]:text-(--ink) [&>input]:outline-0 [&>input::placeholder]:text-(--disabled-ink)";
 
 function cx(...classes: Array<string | false | null | undefined>): string {
-  return classes.filter(Boolean).join(' ');
+  return classes.filter(Boolean).join(" ");
 }
 
 function createPageModel(templateText = defaultPageTemplateText): Model {
@@ -148,19 +172,22 @@ function createPageModel(templateText = defaultPageTemplateText): Model {
   }
 }
 
-function createViewTab(component: OpenableViewComponent, viewId: number): Record<string, string> {
+function createViewTab(
+  component: OpenableViewComponent,
+  viewId: number,
+): Record<string, string> {
   const names: Record<OpenableViewComponent, string> = {
-    'file-import': '导入',
-    'file-browser': '浏览',
-    search: '搜索',
-    'tag-list': '标签'
+    "file-import": "导入",
+    "file-browser": "浏览",
+    search: "搜索",
+    "tag-list": "标签",
   };
 
   return {
-    type: 'tab',
+    type: "tab",
     id: `view-${component}-${viewId}`,
     name: names[component],
-    component
+    component,
   };
 }
 
@@ -168,7 +195,7 @@ function findFirstTabsetId(model: Model): string | null {
   let tabsetId: string | null = null;
 
   model.visitNodes((node) => {
-    if (!tabsetId && node.getType() === 'tabset') {
+    if (!tabsetId && node.getType() === "tabset") {
       tabsetId = node.getId();
     }
   });
@@ -178,10 +205,10 @@ function findFirstTabsetId(model: Model): string | null {
 
 export function App(): JSX.Element {
   const query = new URLSearchParams(window.location.search);
-  const windowMode = query.get('window');
+  const windowMode = query.get("window");
   useStandaloneWindowShortcuts({ enabled: Boolean(windowMode) });
 
-  if (windowMode === 'database-manager') {
+  if (windowMode === "database-manager") {
     return (
       <main className={standaloneWindowClass}>
         <DatabaseManagerView />
@@ -189,23 +216,23 @@ export function App(): JSX.Element {
     );
   }
 
-  if (windowMode === 'file-detail') {
+  if (windowMode === "file-detail") {
     return (
       <main className={standaloneWindowClass}>
-        <FileDetailWindow fileId={Number(query.get('id'))} />
+        <FileDetailWindow fileId={Number(query.get("id"))} />
       </main>
     );
   }
 
-  if (windowMode === 'screening') {
+  if (windowMode === "screening") {
     return (
       <main className={standaloneWindowClass}>
-        <ScreeningDetailWindow fileIds={parseIdList(query.get('ids'))} />
+        <ScreeningDetailWindow fileIds={parseIdList(query.get("ids"))} />
       </main>
     );
   }
 
-  if (windowMode === 'settings') {
+  if (windowMode === "settings") {
     return (
       <main className={standaloneWindowClass}>
         <SettingsWindow />
@@ -213,7 +240,7 @@ export function App(): JSX.Element {
     );
   }
 
-  if (windowMode === 'tag-manager') {
+  if (windowMode === "tag-manager") {
     return (
       <main className={standaloneWindowClass}>
         <TagManagerWindow />
@@ -221,7 +248,7 @@ export function App(): JSX.Element {
     );
   }
 
-  if (windowMode === 'recycle-bin') {
+  if (windowMode === "recycle-bin") {
     return (
       <main className={standaloneWindowClass}>
         <RecycleBinWindow />
@@ -229,7 +256,7 @@ export function App(): JSX.Element {
     );
   }
 
-  if (windowMode === 'rating-manager') {
+  if (windowMode === "rating-manager") {
     return (
       <main className={standaloneWindowClass}>
         <RatingManagerWindow />
@@ -237,7 +264,7 @@ export function App(): JSX.Element {
     );
   }
 
-  if (windowMode === 'api-manager') {
+  if (windowMode === "api-manager") {
     return (
       <main className={standaloneWindowClass}>
         <ApiManagerWindow />
@@ -245,7 +272,7 @@ export function App(): JSX.Element {
     );
   }
 
-  if (windowMode === 'hydrus-import') {
+  if (windowMode === "hydrus-import") {
     return (
       <main className={standaloneWindowClass}>
         <HydrusImportWindow />
@@ -253,7 +280,7 @@ export function App(): JSX.Element {
     );
   }
 
-  if (windowMode === 'ehentai-import') {
+  if (windowMode === "ehentai-import") {
     return (
       <main className={standaloneWindowClass}>
         <EHentaiImportWindow />
@@ -261,7 +288,7 @@ export function App(): JSX.Element {
     );
   }
 
-  if (windowMode === 'ai-manager') {
+  if (windowMode === "ai-manager") {
     return (
       <main className={standaloneWindowClass}>
         <AiManagerWindow />
@@ -269,7 +296,7 @@ export function App(): JSX.Element {
     );
   }
 
-  if (windowMode === 'tag-translation') {
+  if (windowMode === "tag-translation") {
     return (
       <main className={standaloneWindowClass}>
         <TagTranslationWindow />
@@ -277,7 +304,7 @@ export function App(): JSX.Element {
     );
   }
 
-  if (windowMode === 'favorites') {
+  if (windowMode === "favorites") {
     return (
       <main className={standaloneWindowClass}>
         <FavoritesWindow />
@@ -285,45 +312,45 @@ export function App(): JSX.Element {
     );
   }
 
-  if (windowMode === 'url-manager') {
+  if (windowMode === "url-manager") {
     return (
       <main className={standaloneWindowClass}>
-        <UrlManagerWindow fileIds={parseIdList(query.get('ids'))} />
+        <UrlManagerWindow fileIds={parseIdList(query.get("ids"))} />
       </main>
     );
   }
 
-  if (windowMode === 'batch-tag-manager') {
+  if (windowMode === "batch-tag-manager") {
     return (
       <main className={standaloneWindowClass}>
-        <BatchTagManagerWindow fileIds={parseIdList(query.get('ids'))} />
+        <BatchTagManagerWindow fileIds={parseIdList(query.get("ids"))} />
       </main>
     );
   }
 
-  if (windowMode === 'file-rating-editor') {
+  if (windowMode === "file-rating-editor") {
     return (
       <main className={standaloneWindowClass}>
         <FileRatingEditorWindow
-          fileIds={parseIdList(query.get('ids'))}
-          groupId={Number(query.get('groupId'))}
+          fileIds={parseIdList(query.get("ids"))}
+          groupId={Number(query.get("groupId"))}
         />
       </main>
     );
   }
 
-  if (windowMode === 'export') {
+  if (windowMode === "export") {
     return (
       <main className={standaloneWindowClass}>
-        <ExportWindow fileIds={parseIdList(query.get('ids'))} />
+        <ExportWindow fileIds={parseIdList(query.get("ids"))} />
       </main>
     );
   }
 
-  if (windowMode === 'dialog') {
+  if (windowMode === "dialog") {
     return (
       <main className={standaloneWindowClass}>
-        <DialogWindow dialogId={query.get('dialogId') ?? ''} />
+        <DialogWindow dialogId={query.get("dialogId") ?? ""} />
       </main>
     );
   }
@@ -338,8 +365,8 @@ function WorkbenchApp(): JSX.Element {
   const [workStatus, setWorkStatus] = useState<WorkStatus>(idleWorkStatus);
   const [pages, setPages] = useState<PageItem[]>(() => [
     {
-      id: 'page-1',
-      title: '默认页面',
+      id: "page-1",
+      title: "默认页面",
       model: createPageModel(),
       searchFilters: [],
       searchInputState: emptySearchInputState,
@@ -348,17 +375,18 @@ function WorkbenchApp(): JSX.Element {
       importQueueActive: false,
       selectedBrowserFileIds: [],
       browserViewState: defaultBrowserViewState,
-      tagListViewState: defaultTagListViewState
-    }
+      tagListViewState: defaultTagListViewState,
+    },
   ]);
   const [pageTemplateText, setPageTemplateText] = useState({
     default: defaultPageTemplateText,
-    newPage: defaultPageTemplateText
+    newPage: defaultPageTemplateText,
   });
-  const [pageLayoutSettings, setPageLayoutSettings] = useState<PageLayoutSettings>({
-    defaultConfigId: null,
-    newPageConfigId: null
-  });
+  const [pageLayoutSettings, setPageLayoutSettings] =
+    useState<PageLayoutSettings>({
+      defaultConfigId: null,
+      newPageConfigId: null,
+    });
   const [workbenchLoaded, setWorkbenchLoaded] = useState(false);
   const [viewContextMenu, setViewContextMenu] = useState<{
     x: number;
@@ -373,7 +401,7 @@ function WorkbenchApp(): JSX.Element {
     title: string;
     renaming: boolean;
   } | null>(null);
-  const [activePageId, setActivePageId] = useState('page-1');
+  const [activePageId, setActivePageId] = useState("page-1");
   const [, refreshLayout] = useReducer((value: number) => value + 1, 0);
   const pageCounterRef = useRef(2);
   const viewCounterRef = useRef(1);
@@ -391,7 +419,8 @@ function WorkbenchApp(): JSX.Element {
     return Math.floor((progress.processed / progress.total) * 100);
   }, [progress.processed, progress.total]);
 
-  const isImporting = progress.phase === 'selecting' || progress.phase === 'importing';
+  const isImporting =
+    progress.phase === "selecting" || progress.phase === "importing";
 
   useEffect(() => {
     pagesRef.current = pages;
@@ -408,16 +437,20 @@ function WorkbenchApp(): JSX.Element {
       saveWorkbenchState();
     }
 
-    window.addEventListener('beforeunload', saveBeforeClose);
+    window.addEventListener("beforeunload", saveBeforeClose);
 
     return () => {
-      window.removeEventListener('beforeunload', saveBeforeClose);
+      window.removeEventListener("beforeunload", saveBeforeClose);
     };
   }, []);
 
-  useEffect(() => listenThemeSettingsChanged((settings) => {
-    applyTheme(settings.themeId);
-  }), []);
+  useEffect(
+    () =>
+      listenThemeSettingsChanged((settings) => {
+        applyTheme(settings.themeId);
+      }),
+    [],
+  );
 
   useEffect(() => {
     if (workbenchLoaded) {
@@ -427,7 +460,11 @@ function WorkbenchApp(): JSX.Element {
 
   useEffect(() => {
     if (!window.asteria) {
-      setProgress({ ...idleProgress, phase: 'failed', message: 'preload unavailable' });
+      setProgress({
+        ...idleProgress,
+        phase: "failed",
+        message: "preload unavailable",
+      });
       return undefined;
     }
 
@@ -474,19 +511,23 @@ function WorkbenchApp(): JSX.Element {
         setOpenMenu(null);
       }
 
-      if (!(event.target as Element | null)?.closest('.view-tab-context-menu')) {
+      if (
+        !(event.target as Element | null)?.closest(".view-tab-context-menu")
+      ) {
         setViewContextMenu(null);
       }
 
-      if (!(event.target as Element | null)?.closest('.page-tab-context-menu')) {
+      if (
+        !(event.target as Element | null)?.closest(".page-tab-context-menu")
+      ) {
         setPageContextMenu(null);
       }
     }
 
-    window.addEventListener('mousedown', closeMenu);
+    window.addEventListener("mousedown", closeMenu);
 
     return () => {
-      window.removeEventListener('mousedown', closeMenu);
+      window.removeEventListener("mousedown", closeMenu);
     };
   }, []);
 
@@ -511,21 +552,27 @@ function WorkbenchApp(): JSX.Element {
         viewRefreshSequenceByTabId: {},
         importQueueActive:
           page.importQueueActive ||
-          (hasImportQueue && (page.id === savedState.activePageId || (!savedState.activePageId && index === 0))),
+          (hasImportQueue &&
+            (page.id === savedState.activePageId ||
+              (!savedState.activePageId && index === 0))),
         selectedBrowserFileIds: [],
         browserViewState: page.browserViewState,
-        tagListViewState: page.tagListViewState
+        tagListViewState: page.tagListViewState,
       }));
 
       setPages(restoredPages);
       setActivePageId(
         restoredPages.some((page) => page.id === savedState.activePageId)
           ? savedState.activePageId
-          : restoredPages[0]?.id ?? ''
+          : (restoredPages[0]?.id ?? ""),
       );
       syncCountersFromPages(restoredPages);
     } else {
-      const page = createPageItemFromTemplate(1, '默认页面', templateText.default);
+      const page = createPageItemFromTemplate(
+        1,
+        "默认页面",
+        templateText.default,
+      );
       page.importQueueActive = hasImportQueue;
       setPages([page]);
       setActivePageId(page.id);
@@ -550,16 +597,17 @@ function WorkbenchApp(): JSX.Element {
     let newPageTemplate = defaultPageTemplateText;
     let settings: PageLayoutSettings = {
       defaultConfigId: null,
-      newPageConfigId: null
+      newPageConfigId: null,
     };
 
     if (window.asteria) {
       try {
-        const [loadedSettings, loadedDefaultTemplate, loadedNewPageTemplate] = await Promise.all([
-          window.asteria.getPageLayoutSettings(),
-          window.asteria.getPageLayoutTemplate('default'),
-          window.asteria.getPageLayoutTemplate('newPage')
-        ]);
+        const [loadedSettings, loadedDefaultTemplate, loadedNewPageTemplate] =
+          await Promise.all([
+            window.asteria.getPageLayoutSettings(),
+            window.asteria.getPageLayoutTemplate("default"),
+            window.asteria.getPageLayoutTemplate("newPage"),
+          ]);
         settings = loadedSettings;
         defaultTemplate = loadedDefaultTemplate;
         newPageTemplate = loadedNewPageTemplate;
@@ -573,8 +621,8 @@ function WorkbenchApp(): JSX.Element {
       settings,
       templateText: {
         default: defaultTemplate,
-        newPage: newPageTemplate
-      }
+        newPage: newPageTemplate,
+      },
     };
   }
 
@@ -583,10 +631,13 @@ function WorkbenchApp(): JSX.Element {
       return;
     }
 
-    const hasImportQueue = (await window.asteria.listImportQueueFiles()).length > 0;
+    const hasImportQueue =
+      (await window.asteria.listImportQueueFiles()).length > 0;
 
     if (!hasImportQueue) {
-      setPages((currentPages) => currentPages.map((page) => ({ ...page, importQueueActive: false })));
+      setPages((currentPages) =>
+        currentPages.map((page) => ({ ...page, importQueueActive: false })),
+      );
     }
   }
 
@@ -595,7 +646,11 @@ function WorkbenchApp(): JSX.Element {
     const importPage = openImportView();
 
     if (!window.asteria) {
-      setProgress({ ...idleProgress, phase: 'failed', message: 'preload unavailable' });
+      setProgress({
+        ...idleProgress,
+        phase: "failed",
+        message: "preload unavailable",
+      });
       return;
     }
 
@@ -603,7 +658,11 @@ function WorkbenchApp(): JSX.Element {
       return;
     }
 
-    setProgress({ ...idleProgress, phase: 'selecting', message: '等待选择文件' });
+    setProgress({
+      ...idleProgress,
+      phase: "selecting",
+      message: "等待选择文件",
+    });
 
     try {
       const result = await window.asteria.importFiles();
@@ -612,8 +671,8 @@ function WorkbenchApp(): JSX.Element {
     } catch (error) {
       setProgress({
         ...idleProgress,
-        phase: 'failed',
-        message: error instanceof Error ? error.message : '导入失败'
+        phase: "failed",
+        message: error instanceof Error ? error.message : "导入失败",
       });
     }
   }
@@ -623,7 +682,11 @@ function WorkbenchApp(): JSX.Element {
     const importPage = openImportView();
 
     if (!window.asteria) {
-      setProgress({ ...idleProgress, phase: 'failed', message: 'preload unavailable' });
+      setProgress({
+        ...idleProgress,
+        phase: "failed",
+        message: "preload unavailable",
+      });
       return;
     }
 
@@ -631,7 +694,11 @@ function WorkbenchApp(): JSX.Element {
       return;
     }
 
-    setProgress({ ...idleProgress, phase: 'selecting', message: '等待选择文件夹' });
+    setProgress({
+      ...idleProgress,
+      phase: "selecting",
+      message: "等待选择文件夹",
+    });
 
     try {
       const result = await window.asteria.importFolder();
@@ -640,15 +707,22 @@ function WorkbenchApp(): JSX.Element {
     } catch (error) {
       setProgress({
         ...idleProgress,
-        phase: 'failed',
-        message: error instanceof Error ? error.message : '导入失败'
+        phase: "failed",
+        message: error instanceof Error ? error.message : "导入失败",
       });
     }
   }
 
-  async function importDroppedData(dataTransfer: DataTransfer, importPage: PageItem | null): Promise<void> {
+  async function importDroppedData(
+    dataTransfer: DataTransfer,
+    importPage: PageItem | null,
+  ): Promise<void> {
     if (!window.asteria) {
-      setProgress({ ...idleProgress, phase: 'failed', message: 'preload unavailable' });
+      setProgress({
+        ...idleProgress,
+        phase: "failed",
+        message: "preload unavailable",
+      });
       return;
     }
 
@@ -663,11 +737,19 @@ function WorkbenchApp(): JSX.Element {
     const urls = droppedData.urls;
 
     if (paths.length === 0 && urls.length === 0) {
-      setProgress({ ...idleProgress, phase: 'failed', message: '未读取到拖入路径或链接' });
+      setProgress({
+        ...idleProgress,
+        phase: "failed",
+        message: "未读取到拖入路径或链接",
+      });
       return;
     }
 
-    setProgress({ ...idleProgress, phase: 'importing', message: '扫描拖入内容' });
+    setProgress({
+      ...idleProgress,
+      phase: "importing",
+      message: "扫描拖入内容",
+    });
 
     try {
       let result: ImportProgress | null = null;
@@ -689,8 +771,8 @@ function WorkbenchApp(): JSX.Element {
     } catch (error) {
       setProgress({
         ...idleProgress,
-        phase: 'failed',
-        message: error instanceof Error ? error.message : '导入失败'
+        phase: "failed",
+        message: error instanceof Error ? error.message : "导入失败",
       });
     }
   }
@@ -775,17 +857,17 @@ function WorkbenchApp(): JSX.Element {
 
   function openBrowser(): void {
     setOpenMenu(null);
-    openView('file-browser');
+    openView("file-browser");
   }
 
   function openSearch(): void {
     setOpenMenu(null);
-    openView('search');
+    openView("search");
   }
 
   function openTagList(): void {
     setOpenMenu(null);
-    openView('tag-list');
+    openView("tag-list");
   }
 
   function openFileImportView(): void {
@@ -810,7 +892,10 @@ function WorkbenchApp(): JSX.Element {
     await window.asteria.savePageLayoutConfig(activePage.title, layoutJson);
   }
 
-  function closePage(pageId: string, event: React.MouseEvent<HTMLButtonElement>): void {
+  function closePage(
+    pageId: string,
+    event: React.MouseEvent<HTMLButtonElement>,
+  ): void {
     event.stopPropagation();
     closePageById(pageId);
   }
@@ -822,15 +907,19 @@ function WorkbenchApp(): JSX.Element {
       const nextPages = currentPages.filter((page) => page.id !== pageId);
 
       if (activePageId === pageId) {
-        const nextActivePage = nextPages[Math.min(closingIndex, nextPages.length - 1)] ?? null;
-        setActivePageId(nextActivePage?.id ?? '');
+        const nextActivePage =
+          nextPages[Math.min(closingIndex, nextPages.length - 1)] ?? null;
+        setActivePageId(nextActivePage?.id ?? "");
       }
 
       return nextPages;
     });
   }
 
-  function handlePageTabMouseDown(event: React.MouseEvent<HTMLDivElement>, pageId: string): void {
+  function handlePageTabMouseDown(
+    event: React.MouseEvent<HTMLDivElement>,
+    pageId: string,
+  ): void {
     if (event.button !== 1) {
       return;
     }
@@ -840,7 +929,10 @@ function WorkbenchApp(): JSX.Element {
     closePageById(pageId);
   }
 
-  function openPageTabContextMenu(event: React.MouseEvent<HTMLElement>, page: PageItem): void {
+  function openPageTabContextMenu(
+    event: React.MouseEvent<HTMLElement>,
+    page: PageItem,
+  ): void {
     event.preventDefault();
     event.stopPropagation();
     setOpenMenu(null);
@@ -850,7 +942,7 @@ function WorkbenchApp(): JSX.Element {
       y: event.clientY,
       pageId: page.id,
       title: page.title,
-      renaming: false
+      renaming: false,
     });
   }
 
@@ -870,7 +962,9 @@ function WorkbenchApp(): JSX.Element {
     }
 
     setPages((currentPages) =>
-      currentPages.map((page) => (page.id === pageId ? { ...page, title: nextTitle } : page))
+      currentPages.map((page) =>
+        page.id === pageId ? { ...page, title: nextTitle } : page,
+      ),
     );
 
     return true;
@@ -891,17 +985,29 @@ function WorkbenchApp(): JSX.Element {
     const pageNumber = pageCounterRef.current;
     pageCounterRef.current += 1;
 
-    return createPageItemFromTemplate(pageNumber, `页面 ${pageNumber}`, pageTemplateText.newPage);
+    return createPageItemFromTemplate(
+      pageNumber,
+      `页面 ${pageNumber}`,
+      pageTemplateText.newPage,
+    );
   }
 
   function createImportPage(): PageItem {
     const pageNumber = pageCounterRef.current;
     pageCounterRef.current += 1;
 
-    return createPageItemFromTemplate(pageNumber, `页面 ${pageNumber}`, pageTemplateText.default);
+    return createPageItemFromTemplate(
+      pageNumber,
+      `页面 ${pageNumber}`,
+      pageTemplateText.default,
+    );
   }
 
-  function createPageItemFromTemplate(pageNumber: number, title: string, templateText: string): PageItem {
+  function createPageItemFromTemplate(
+    pageNumber: number,
+    title: string,
+    templateText: string,
+  ): PageItem {
     return {
       id: `page-${pageNumber}`,
       title,
@@ -913,7 +1019,7 @@ function WorkbenchApp(): JSX.Element {
       importQueueActive: false,
       selectedBrowserFileIds: [],
       browserViewState: defaultBrowserViewState,
-      tagListViewState: defaultTagListViewState
+      tagListViewState: defaultTagListViewState,
     };
   }
 
@@ -921,7 +1027,10 @@ function WorkbenchApp(): JSX.Element {
     openViewOnPage(getOrCreateActivePage(), component);
   }
 
-  function openViewOnPage(page: PageItem, component: OpenableViewComponent): void {
+  function openViewOnPage(
+    page: PageItem,
+    component: OpenableViewComponent,
+  ): void {
     const existingTabId = findViewTabId(page.model, component);
 
     if (existingTabId) {
@@ -935,13 +1044,15 @@ function WorkbenchApp(): JSX.Element {
     if (!targetTabsetId) {
       const resetPage = {
         ...page,
-        model: createPageModel(pageTemplateText.newPage)
+        model: createPageModel(pageTemplateText.newPage),
       };
 
       page = resetPage;
       targetTabsetId = findFirstTabsetId(resetPage.model);
       setPages((currentPages) =>
-        currentPages.map((currentPage) => (currentPage.id === resetPage.id ? resetPage : currentPage))
+        currentPages.map((currentPage) =>
+          currentPage.id === resetPage.id ? resetPage : currentPage,
+        ),
       );
     }
 
@@ -953,8 +1064,10 @@ function WorkbenchApp(): JSX.Element {
     viewCounterRef.current += 1;
     const tab = createViewTab(component, viewId);
 
-    page.model.doAction(Actions.addNode(tab, targetTabsetId, DockLocation.CENTER, -1, true));
-    page.model.doAction(Actions.deleteTab('view-placeholder'));
+    page.model.doAction(
+      Actions.addNode(tab, targetTabsetId, DockLocation.CENTER, -1, true),
+    );
+    page.model.doAction(Actions.deleteTab("view-placeholder"));
     refreshLayout();
   }
 
@@ -963,16 +1076,18 @@ function WorkbenchApp(): JSX.Element {
       const page = createImportPage();
       setPages((currentPages) => [...currentPages, page]);
       setActivePageId(page.id);
-      openViewOnPage(page, 'file-import');
+      openViewOnPage(page, "file-import");
       return page;
     }
 
     const page = getOrCreateActivePage();
-    openViewOnPage(page, 'file-import');
+    openViewOnPage(page, "file-import");
     return page;
   }
 
-  async function activateImportQueuePreview(page: PageItem | null): Promise<void> {
+  async function activateImportQueuePreview(
+    page: PageItem | null,
+  ): Promise<void> {
     if (!window.asteria) {
       return;
     }
@@ -988,13 +1103,15 @@ function WorkbenchApp(): JSX.Element {
       currentPages.map((currentPage) =>
         currentPage.id === targetPage.id
           ? { ...currentPage, importQueueActive: true, searchFilters: [] }
-          : currentPage
-      )
+          : currentPage,
+      ),
     );
-    openViewOnPage(targetPage, 'file-browser');
+    openViewOnPage(targetPage, "file-browser");
   }
 
-  async function commitImportQueueFromActivePage(queueFiles: ImportQueueFileRecord[]): Promise<void> {
+  async function commitImportQueueFromActivePage(
+    queueFiles: ImportQueueFileRecord[],
+  ): Promise<void> {
     if (!window.asteria) {
       return;
     }
@@ -1007,8 +1124,8 @@ function WorkbenchApp(): JSX.Element {
       }
 
       const confirmed = await window.asteria.confirmDialog({
-        title: '确认重复导入',
-        message: `这个文件与 ${file.duplicate.domainName} 中的文件相同，确定要重复导入吗，这不会创建一个新的文件，只会创建一条新的数据库记录`
+        title: "确认重复导入",
+        message: `这个文件与 ${file.duplicate.domainName} 中的文件相同，确定要重复导入吗，这不会创建一个新的文件，只会创建一条新的数据库记录`,
       });
 
       if (confirmed) {
@@ -1018,7 +1135,7 @@ function WorkbenchApp(): JSX.Element {
 
     const result = await window.asteria.commitImportQueue(
       queueFiles.map((file) => file.id),
-      confirmedDuplicateIds
+      confirmedDuplicateIds,
     );
     setProgress(result);
 
@@ -1032,7 +1149,7 @@ function WorkbenchApp(): JSX.Element {
       return;
     }
 
-    const wasImporting = progress.phase === 'importing';
+    const wasImporting = progress.phase === "importing";
     const result = await window.asteria.clearImportQueue();
     setProgress(result);
 
@@ -1048,20 +1165,32 @@ function WorkbenchApp(): JSX.Element {
 
     setPages((currentPages) =>
       currentPages.map((currentPage) =>
-        currentPage.id === activePage.id ? { ...currentPage, importQueueActive: false } : currentPage
-      )
+        currentPage.id === activePage.id
+          ? { ...currentPage, importQueueActive: false }
+          : currentPage,
+      ),
     );
   }
 
-  function pageHasView(page: PageItem, component: OpenableViewComponent): boolean {
+  function pageHasView(
+    page: PageItem,
+    component: OpenableViewComponent,
+  ): boolean {
     return findViewTabId(page.model, component) !== null;
   }
 
-  function findViewTabId(model: Model, component: OpenableViewComponent): string | null {
+  function findViewTabId(
+    model: Model,
+    component: OpenableViewComponent,
+  ): string | null {
     let tabId: string | null = null;
 
     model.visitNodes((node) => {
-      if (!tabId && node.getType() === 'tab' && node.getComponent() === component) {
+      if (
+        !tabId &&
+        node.getType() === "tab" &&
+        node.getComponent() === component
+      ) {
         tabId = node.getId();
       }
     });
@@ -1073,20 +1202,29 @@ function WorkbenchApp(): JSX.Element {
     const page = getOrCreateActivePage();
     const normalizedTokens = normalizeSearchInputTokens(tokens);
 
-    if (page.importQueueActive || !normalizedTokens.some((token) => token.kind === 'tag')) {
+    if (
+      page.importQueueActive ||
+      !normalizedTokens.some((token) => token.kind === "tag")
+    ) {
       return;
     }
 
     setPages((currentPages) =>
       currentPages.map((currentPage) =>
         currentPage.id === page.id
-          ? { ...currentPage, searchFilters: [...currentPage.searchFilters, { tokens: normalizedTokens }] }
-          : currentPage
-      )
+          ? {
+              ...currentPage,
+              searchFilters: [
+                ...currentPage.searchFilters,
+                { tokens: normalizedTokens },
+              ],
+            }
+          : currentPage,
+      ),
     );
 
-    if (!pageHasView(page, 'file-browser')) {
-      openView('file-browser');
+    if (!pageHasView(page, "file-browser")) {
+      openView("file-browser");
     }
   }
 
@@ -1102,10 +1240,12 @@ function WorkbenchApp(): JSX.Element {
         currentPage.id === activePage.id
           ? {
               ...currentPage,
-              searchFilters: currentPage.searchFilters.filter((_, currentIndex) => !removingIndexes.has(currentIndex))
+              searchFilters: currentPage.searchFilters.filter(
+                (_, currentIndex) => !removingIndexes.has(currentIndex),
+              ),
             }
-          : currentPage
-      )
+          : currentPage,
+      ),
     );
   }
 
@@ -1116,8 +1256,10 @@ function WorkbenchApp(): JSX.Element {
 
     setPages((currentPages) =>
       currentPages.map((currentPage) =>
-        currentPage.id === activePage.id ? { ...currentPage, searchInputState: state } : currentPage
-      )
+        currentPage.id === activePage.id
+          ? { ...currentPage, searchInputState: state }
+          : currentPage,
+      ),
     );
   }
 
@@ -1130,8 +1272,8 @@ function WorkbenchApp(): JSX.Element {
       currentPages.map((currentPage) =>
         currentPage.id === activePage.id
           ? { ...currentPage, selectedBrowserFileIds: fileIds }
-          : currentPage
-      )
+          : currentPage,
+      ),
     );
   }
 
@@ -1142,8 +1284,10 @@ function WorkbenchApp(): JSX.Element {
 
     setPages((currentPages) =>
       currentPages.map((currentPage) =>
-        currentPage.id === activePage.id ? { ...currentPage, browserViewState: state } : currentPage
-      )
+        currentPage.id === activePage.id
+          ? { ...currentPage, browserViewState: state }
+          : currentPage,
+      ),
     );
   }
 
@@ -1154,8 +1298,10 @@ function WorkbenchApp(): JSX.Element {
 
     setPages((currentPages) =>
       currentPages.map((currentPage) =>
-        currentPage.id === activePage.id ? { ...currentPage, tagListViewState: state } : currentPage
-      )
+        currentPage.id === activePage.id
+          ? { ...currentPage, tagListViewState: state }
+          : currentPage,
+      ),
     );
   }
 
@@ -1163,28 +1309,33 @@ function WorkbenchApp(): JSX.Element {
     const page = getOrCreateActivePage();
 
     if (page.importQueueActive) {
-      openView('search');
+      openView("search");
       return;
     }
 
     const nextRequest = {
       sequence: searchAppendCounterRef.current,
-      tag
+      tag,
     };
     searchAppendCounterRef.current += 1;
 
     setPages((currentPages) =>
       currentPages.map((currentPage) =>
-        currentPage.id === page.id ? { ...currentPage, searchAppendTagRequest: nextRequest } : currentPage
-      )
+        currentPage.id === page.id
+          ? { ...currentPage, searchAppendTagRequest: nextRequest }
+          : currentPage,
+      ),
     );
-    openView('search');
+    openView("search");
   }
 
-  function openViewTabContextMenu(node: unknown, event: React.MouseEvent<HTMLElement>): void {
+  function openViewTabContextMenu(
+    node: unknown,
+    event: React.MouseEvent<HTMLElement>,
+  ): void {
     const candidate = node as { getType?: () => string; getId?: () => string };
 
-    if (candidate.getType?.() !== 'tab' || !candidate.getId) {
+    if (candidate.getType?.() !== "tab" || !candidate.getId) {
       return;
     }
 
@@ -1195,7 +1346,7 @@ function WorkbenchApp(): JSX.Element {
       x: event.clientX,
       y: event.clientY,
       pageId: activePageId,
-      tabId: candidate.getId()
+      tabId: candidate.getId(),
     });
   }
 
@@ -1211,10 +1362,10 @@ function WorkbenchApp(): JSX.Element {
           ...page,
           viewRefreshSequenceByTabId: {
             ...page.viewRefreshSequenceByTabId,
-            [tabId]: (page.viewRefreshSequenceByTabId[tabId] ?? 0) + 1
-          }
+            [tabId]: (page.viewRefreshSequenceByTabId[tabId] ?? 0) + 1,
+          },
         };
-      })
+      }),
     );
   }
 
@@ -1229,8 +1380,8 @@ function WorkbenchApp(): JSX.Element {
         searchInputState: page.searchInputState,
         importQueueActive: page.importQueueActive,
         browserViewState: page.browserViewState,
-        tagListViewState: page.tagListViewState
-      }))
+        tagListViewState: page.tagListViewState,
+      })),
     };
 
     window.localStorage.setItem(WORKBENCH_STATE_KEY, JSON.stringify(state));
@@ -1251,10 +1402,11 @@ function WorkbenchApp(): JSX.Element {
       }
 
       return {
-        activePageId: typeof state.activePageId === 'string' ? state.activePageId : '',
+        activePageId:
+          typeof state.activePageId === "string" ? state.activePageId : "",
         pages: state.pages
           .map((page) => normalizeSavedPage(page))
-          .filter((page): page is SavedPageItem => page !== null)
+          .filter((page): page is SavedPageItem => page !== null),
       };
     } catch {
       return null;
@@ -1262,9 +1414,16 @@ function WorkbenchApp(): JSX.Element {
   }
 
   function normalizeSavedPage(value: unknown): SavedPageItem | null {
-    const page = value as Partial<SavedPageItem> & { searchQuery?: unknown } | null;
+    const page = value as
+      | (Partial<SavedPageItem> & { searchQuery?: unknown })
+      | null;
 
-    if (!page || typeof page.id !== 'string' || typeof page.title !== 'string' || !page.modelJson) {
+    if (
+      !page ||
+      typeof page.id !== "string" ||
+      typeof page.title !== "string" ||
+      !page.modelJson
+    ) {
       return null;
     }
 
@@ -1274,31 +1433,37 @@ function WorkbenchApp(): JSX.Element {
       id: page.id,
       title: page.title,
       modelJson: page.modelJson,
-      searchFilters: normalizeSearchFilters(page.searchFilters, page.searchQuery),
+      searchFilters: normalizeSearchFilters(
+        page.searchFilters,
+        page.searchQuery,
+      ),
       searchInputState:
         searchInputState &&
         Array.isArray(searchInputState.tokens) &&
-        typeof searchInputState.text === 'string'
+        typeof searchInputState.text === "string"
           ? searchInputState
           : emptySearchInputState,
       importQueueActive: page.importQueueActive === true,
       browserViewState: normalizeBrowserViewState(page.browserViewState),
-      tagListViewState: normalizeTagListViewState(page.tagListViewState)
+      tagListViewState: normalizeTagListViewState(page.tagListViewState),
     };
   }
 
-  function normalizeSearchFilters(filters: unknown, legacyQuery: unknown): SearchFilter[] {
+  function normalizeSearchFilters(
+    filters: unknown,
+    legacyQuery: unknown,
+  ): SearchFilter[] {
     if (Array.isArray(filters)) {
       return filters
         .map(normalizeSearchFilter)
         .filter((filter): filter is SearchFilter => filter !== null);
     }
 
-    return typeof legacyQuery === 'string' && legacyQuery.trim() ? [] : [];
+    return typeof legacyQuery === "string" && legacyQuery.trim() ? [] : [];
   }
 
   function normalizeSearchFilter(value: unknown): SearchFilter | null {
-    if (typeof value === 'string') {
+    if (typeof value === "string") {
       return null;
     }
 
@@ -1310,18 +1475,20 @@ function WorkbenchApp(): JSX.Element {
 
     const tokens = normalizeSearchInputTokens(filter.tokens);
 
-    return tokens.some((token) => token.kind === 'tag') ? { tokens } : null;
+    return tokens.some((token) => token.kind === "tag") ? { tokens } : null;
   }
 
-  function normalizeSearchInputTokens(tokens: SearchInputToken[]): SearchInputToken[] {
+  function normalizeSearchInputTokens(
+    tokens: SearchInputToken[],
+  ): SearchInputToken[] {
     return tokens
       .map((token): SearchInputToken | null => {
-        if (token.kind === 'operator' && isSearchOperator(token.value)) {
-          return { kind: 'operator', value: token.value };
+        if (token.kind === "operator" && isSearchOperator(token.value)) {
+          return { kind: "operator", value: token.value };
         }
 
-        if (token.kind === 'tag') {
-          return { kind: 'tag', token: token.token };
+        if (token.kind === "tag") {
+          return { kind: "tag", token: token.token };
         }
 
         return null;
@@ -1330,25 +1497,31 @@ function WorkbenchApp(): JSX.Element {
   }
 
   function isSearchOperator(value: unknown): value is SearchOperator {
-    return value === '+' || value === '-' || value === '/' || value === '(' || value === ')';
+    return (
+      value === "+" ||
+      value === "-" ||
+      value === "/" ||
+      value === "(" ||
+      value === ")"
+    );
   }
 
   function buildCombinedSearchQuery(filters: SearchFilter[]): string {
     return filters
-      .map((filter) => buildSearchExpression(filter.tokens, ''))
+      .map((filter) => buildSearchExpression(filter.tokens, ""))
       .filter((filter) => filter.trim().length > 0)
       .map((filter) => `(${filter})`)
-      .join('+');
+      .join("+");
   }
 
   function normalizeBrowserViewState(value: unknown): BrowserViewState {
     const state = value as Partial<BrowserViewState> | null;
     const sortKey: BrowserSortKey =
-      state?.sortKey === 'updatedAt' || state?.sortKey === 'importedAt'
+      state?.sortKey === "updatedAt" || state?.sortKey === "importedAt"
         ? state.sortKey
         : defaultBrowserViewState.sortKey;
     const sortDirection: BrowserSortDirection =
-      state?.sortDirection === 'asc' || state?.sortDirection === 'desc'
+      state?.sortDirection === "asc" || state?.sortDirection === "desc"
         ? state.sortDirection
         : defaultBrowserViewState.sortDirection;
 
@@ -1358,21 +1531,21 @@ function WorkbenchApp(): JSX.Element {
   function normalizeTagListViewState(value: unknown): TagListViewState {
     const state = value as Partial<TagListViewState> | null;
     const direction: SortDirection =
-      state?.direction === 'asc' || state?.direction === 'desc'
+      state?.direction === "asc" || state?.direction === "desc"
         ? state.direction
         : defaultTagListViewState.direction;
     const filterMode: TagListFilterMode =
-      state?.filterMode === 'all' ||
-      state?.filterMode === 'namespace' ||
-      state?.filterMode === 'plain' ||
-      state?.filterMode === 'selection'
+      state?.filterMode === "all" ||
+      state?.filterMode === "namespace" ||
+      state?.filterMode === "plain" ||
+      state?.filterMode === "selection"
         ? state.filterMode
         : defaultTagListViewState.filterMode;
 
     return {
       direction,
       filterMode,
-      namespaceFirst: state?.namespaceFirst === true
+      namespaceFirst: state?.namespaceFirst === true,
     };
   }
 
@@ -1385,11 +1558,13 @@ function WorkbenchApp(): JSX.Element {
       maxPageNumber = Math.max(maxPageNumber, pageNumber);
 
       page.model.visitNodes((node) => {
-        if (node.getType() !== 'tab') {
+        if (node.getType() !== "tab") {
           return;
         }
 
-        const viewNumber = Number(node.getId().match(/^view-[^-]+(?:-[^-]+)*-(\d+)$/)?.[1] ?? 0);
+        const viewNumber = Number(
+          node.getId().match(/^view-[^-]+(?:-[^-]+)*-(\d+)$/)?.[1] ?? 0,
+        );
         maxViewNumber = Math.max(maxViewNumber, viewNumber);
       });
     }
@@ -1400,30 +1575,35 @@ function WorkbenchApp(): JSX.Element {
 
   function viewFactory(node: TabNode): JSX.Element {
     const component = node.getComponent() as ViewComponent;
-    const refreshSequence = activePage?.viewRefreshSequenceByTabId[node.getId()] ?? 0;
+    const refreshSequence =
+      activePage?.viewRefreshSequenceByTabId[node.getId()] ?? 0;
 
-    if (component === 'empty-page') {
+    if (component === "empty-page") {
       return <section className={emptyPageClass}>空页面</section>;
     }
 
-    if (component === 'file-import') {
+    if (component === "file-import") {
       return (
         <ImportView
           dragActive={dragActive}
           percent={percent}
           progress={progress}
           onCancelQueue={() => void cancelImportQueueFromActivePage()}
-          onCommitQueue={(queueFiles) => void commitImportQueueFromActivePage(queueFiles)}
+          onCommitQueue={(queueFiles) =>
+            void commitImportQueueFromActivePage(queueFiles)
+          }
         />
       );
     }
 
-    if (component === 'file-browser') {
+    if (component === "file-browser") {
       return (
         <FileBrowserView
           importQueueMode={Boolean(activePage?.importQueueActive)}
           refreshSequence={refreshSequence}
-          searchQuery={buildCombinedSearchQuery(activePage?.searchFilters ?? [])}
+          searchQuery={buildCombinedSearchQuery(
+            activePage?.searchFilters ?? [],
+          )}
           state={activePage?.browserViewState ?? defaultBrowserViewState}
           onImportQueueEmpty={deactivateActivePageImportQueue}
           onSelectionChange={updateActivePageBrowserSelection}
@@ -1432,7 +1612,7 @@ function WorkbenchApp(): JSX.Element {
       );
     }
 
-    if (component === 'search') {
+    if (component === "search") {
       return (
         <SearchView
           appendTagRequest={activePage?.searchAppendTagRequest ?? null}
@@ -1447,7 +1627,7 @@ function WorkbenchApp(): JSX.Element {
       );
     }
 
-    if (component === 'tag-list') {
+    if (component === "tag-list") {
       return (
         <TagListView
           locked={Boolean(activePage?.importQueueActive)}
@@ -1460,7 +1640,11 @@ function WorkbenchApp(): JSX.Element {
       );
     }
 
-    return <div className="grid h-full place-items-center text-(--muted)">未知视图</div>;
+    return (
+      <div className="grid h-full place-items-center text-(--muted)">
+        未知视图
+      </div>
+    );
   }
 
   return (
@@ -1469,14 +1653,18 @@ function WorkbenchApp(): JSX.Element {
         <div className="flex" ref={menuRef}>
           <div className="relative">
             <button
-              className={openMenu === 'file' ? activeMenuButtonClass : menuButtonClass}
+              className={
+                openMenu === "file" ? activeMenuButtonClass : menuButtonClass
+              }
               type="button"
-              onClick={() => setOpenMenu((menu) => (menu === 'file' ? null : 'file'))}
+              onClick={() =>
+                setOpenMenu((menu) => (menu === "file" ? null : "file"))
+              }
             >
               文件
             </button>
 
-            {openMenu === 'file' ? (
+            {openMenu === "file" ? (
               <div className={menuDropdownClass}>
                 <button
                   disabled={isImporting}
@@ -1503,14 +1691,18 @@ function WorkbenchApp(): JSX.Element {
 
           <div className="relative">
             <button
-              className={openMenu === 'page' ? activeMenuButtonClass : menuButtonClass}
+              className={
+                openMenu === "page" ? activeMenuButtonClass : menuButtonClass
+              }
               type="button"
-              onClick={() => setOpenMenu((menu) => (menu === 'page' ? null : 'page'))}
+              onClick={() =>
+                setOpenMenu((menu) => (menu === "page" ? null : "page"))
+              }
             >
               页面
             </button>
 
-            {openMenu === 'page' ? (
+            {openMenu === "page" ? (
               <div className={menuDropdownClass}>
                 <button type="button" onClick={createPage}>
                   新建页面
@@ -1527,14 +1719,18 @@ function WorkbenchApp(): JSX.Element {
 
           <div className="relative">
             <button
-              className={openMenu === 'view' ? activeMenuButtonClass : menuButtonClass}
+              className={
+                openMenu === "view" ? activeMenuButtonClass : menuButtonClass
+              }
               type="button"
-              onClick={() => setOpenMenu((menu) => (menu === 'view' ? null : 'view'))}
+              onClick={() =>
+                setOpenMenu((menu) => (menu === "view" ? null : "view"))
+              }
             >
               视图
             </button>
 
-            {openMenu === 'view' ? (
+            {openMenu === "view" ? (
               <div className={menuDropdownClass}>
                 <button type="button" onClick={openFileImportView}>
                   导入
@@ -1554,16 +1750,25 @@ function WorkbenchApp(): JSX.Element {
 
           <div className="relative">
             <button
-              className={openMenu === 'database' ? activeMenuButtonClass : menuButtonClass}
+              className={
+                openMenu === "database"
+                  ? activeMenuButtonClass
+                  : menuButtonClass
+              }
               type="button"
-              onClick={() => setOpenMenu((menu) => (menu === 'database' ? null : 'database'))}
+              onClick={() =>
+                setOpenMenu((menu) => (menu === "database" ? null : "database"))
+              }
             >
               数据库
             </button>
 
-            {openMenu === 'database' ? (
+            {openMenu === "database" ? (
               <div className={menuDropdownClass}>
-                <button type="button" onClick={() => void openDatabaseManager()}>
+                <button
+                  type="button"
+                  onClick={() => void openDatabaseManager()}
+                >
                   查看数据库
                 </button>
                 <button type="button" onClick={() => void openTagManager()}>
@@ -1578,14 +1783,18 @@ function WorkbenchApp(): JSX.Element {
 
           <div className="relative">
             <button
-              className={openMenu === 'service' ? activeMenuButtonClass : menuButtonClass}
+              className={
+                openMenu === "service" ? activeMenuButtonClass : menuButtonClass
+              }
               type="button"
-              onClick={() => setOpenMenu((menu) => (menu === 'service' ? null : 'service'))}
+              onClick={() =>
+                setOpenMenu((menu) => (menu === "service" ? null : "service"))
+              }
             >
               服务
             </button>
 
-            {openMenu === 'service' ? (
+            {openMenu === "service" ? (
               <div className={menuDropdownClass}>
                 <button type="button" onClick={() => void openRatingManager()}>
                   分级
@@ -1602,14 +1811,22 @@ function WorkbenchApp(): JSX.Element {
 
           <div className="relative">
             <button
-              className={openMenu === 'extension' ? activeMenuButtonClass : menuButtonClass}
+              className={
+                openMenu === "extension"
+                  ? activeMenuButtonClass
+                  : menuButtonClass
+              }
               type="button"
-              onClick={() => setOpenMenu((menu) => (menu === 'extension' ? null : 'extension'))}
+              onClick={() =>
+                setOpenMenu((menu) =>
+                  menu === "extension" ? null : "extension",
+                )
+              }
             >
               扩展功能
             </button>
 
-            {openMenu === 'extension' ? (
+            {openMenu === "extension" ? (
               <div className={menuDropdownClass}>
                 <button type="button" onClick={() => void openHydrusImport()}>
                   从 Hydrus 导入
@@ -1629,18 +1846,31 @@ function WorkbenchApp(): JSX.Element {
         </div>
       </header>
 
-      <nav className="flex min-w-0 items-stretch border-b border-(--line) bg-(--page-tabbar-bg)" aria-label="页面列表">
+      <nav
+        className="flex min-w-0 items-stretch border-b border-(--line) bg-(--page-tabbar-bg)"
+        aria-label="页面列表"
+      >
         {pages.map((page) => (
           <div
-            className={page.id === activePageId ? activePageTabClass : pageTabClass}
+            className={
+              page.id === activePageId ? activePageTabClass : pageTabClass
+            }
             key={page.id}
             onContextMenu={(event) => openPageTabContextMenu(event, page)}
             onMouseDown={(event) => handlePageTabMouseDown(event, page.id)}
           >
-            <button className={pageTabTitleClass} type="button" onClick={() => setActivePageId(page.id)}>
+            <button
+              className={pageTabTitleClass}
+              type="button"
+              onClick={() => setActivePageId(page.id)}
+            >
               {page.title}
             </button>
-            <button className={pageTabCloseClass} type="button" onClick={(event) => closePage(page.id, event)}>
+            <button
+              className={pageTabCloseClass}
+              type="button"
+              onClick={(event) => closePage(page.id, event)}
+            >
               x
             </button>
           </div>
@@ -1649,8 +1879,9 @@ function WorkbenchApp(): JSX.Element {
 
       <main
         className={cx(
-          'relative min-h-0 min-w-0 bg-(--bg) p-2',
-          dragActive && 'bg-(--selection-bg) [&_.module-view]:border-(--accent)'
+          "relative min-h-0 min-w-0 bg-(--bg) p-2",
+          dragActive &&
+            "bg-(--selection-bg) [&_.module-view]:border-(--accent)",
         )}
         onDragLeave={handleDragLeave}
         onDragOver={handleDragOver}
@@ -1676,7 +1907,9 @@ function WorkbenchApp(): JSX.Element {
         >
           <button
             type="button"
-            onClick={() => refreshViewTab(viewContextMenu.pageId, viewContextMenu.tabId)}
+            onClick={() =>
+              refreshViewTab(viewContextMenu.pageId, viewContextMenu.tabId)
+            }
           >
             刷新
           </button>
@@ -1698,15 +1931,15 @@ function WorkbenchApp(): JSX.Element {
                 value={pageContextMenu.title}
                 onChange={(event) =>
                   setPageContextMenu((menu) =>
-                    menu ? { ...menu, title: event.target.value } : menu
+                    menu ? { ...menu, title: event.target.value } : menu,
                   )
                 }
                 onKeyDown={(event) => {
-                  if (event.key === 'Enter') {
+                  if (event.key === "Enter") {
                     renamePage(pageContextMenu.pageId, pageContextMenu.title);
                   }
 
-                  if (event.key === 'Escape') {
+                  if (event.key === "Escape") {
                     setPageContextMenu(null);
                   }
                 }}
@@ -1715,8 +1948,13 @@ function WorkbenchApp(): JSX.Element {
                 afterFeedback={() => setPageContextMenu(null)}
                 label="保存"
                 onAction={() => {
-                  if (!savePageTitle(pageContextMenu.pageId, pageContextMenu.title)) {
-                    throw new Error('页面名称为空');
+                  if (
+                    !savePageTitle(
+                      pageContextMenu.pageId,
+                      pageContextMenu.title,
+                    )
+                  ) {
+                    throw new Error("页面名称为空");
                   }
                 }}
               />
@@ -1725,7 +1963,9 @@ function WorkbenchApp(): JSX.Element {
             <button
               type="button"
               onClick={() =>
-                setPageContextMenu((menu) => (menu ? { ...menu, renaming: true } : menu))
+                setPageContextMenu((menu) =>
+                  menu ? { ...menu, renaming: true } : menu,
+                )
               }
             >
               重命名
@@ -1734,7 +1974,9 @@ function WorkbenchApp(): JSX.Element {
         </div>
       ) : null}
       <footer className="flex h-5 min-w-0 items-center border-t border-(--line) bg-(--statusbar-bg) px-2 text-[10px] text-(--muted)">
-        <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{formatWorkStatus(workStatus)}</span>
+        <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
+          {formatWorkStatus(workStatus)}
+        </span>
       </footer>
     </div>
   );
@@ -1742,7 +1984,7 @@ function WorkbenchApp(): JSX.Element {
 
 function formatWorkStatus(status: WorkStatus): string {
   if (!status.active) {
-    return status.message || '就绪';
+    return status.message || "就绪";
   }
 
   return `${status.message} 队列 ${status.queued} 处理中 ${status.processing} 已完成 ${status.completed}`;

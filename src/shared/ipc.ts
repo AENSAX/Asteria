@@ -64,7 +64,7 @@ export interface DeleteManagedTagsResult {
   deletedFileCount: number;
 }
 
-export type FileDomain = 'pending' | 'library' | 'trash';
+export type FileDomain = "pending" | "library" | "trash";
 
 export interface DomainRecord {
   id: FileDomain;
@@ -133,7 +133,7 @@ export interface ExportFileRecord extends DatabaseFileRecord {
 
 export interface SearchHintRecord {
   id: number;
-  kind: 'tag' | 'domain' | 'favorite' | 'rating';
+  kind: "tag" | "domain" | "favorite" | "rating";
   styleName: string;
   namespace: string;
   name: string;
@@ -204,7 +204,7 @@ export interface OperationProgress {
   completed: boolean;
 }
 
-export type GenericDialogKind = 'alert' | 'confirm' | 'progress';
+export type GenericDialogKind = "alert" | "confirm" | "progress";
 
 export interface GenericDialogState {
   id: string;
@@ -223,18 +223,18 @@ export interface ConfirmDialogOptions {
   cancelText?: string;
 }
 
-export type ManagedTagSortKey = 'name' | 'createdAt' | 'fileCount';
-export type SortDirection = 'asc' | 'desc';
+export type ManagedTagSortKey = "name" | "createdAt" | "fileCount";
+export type SortDirection = "asc" | "desc";
 
 export type ImportPhase =
-  | 'idle'
-  | 'selecting'
-  | 'preparing'
-  | 'ready'
-  | 'importing'
-  | 'completed'
-  | 'canceled'
-  | 'failed';
+  | "idle"
+  | "selecting"
+  | "preparing"
+  | "ready"
+  | "importing"
+  | "completed"
+  | "canceled"
+  | "failed";
 
 export interface ImportDuplicateRecord {
   fileId: number;
@@ -252,7 +252,7 @@ export interface ImportQueueFileRecord {
   sha256: string;
   mediaUrl: string;
   duplicate: ImportDuplicateRecord | null;
-  status: 'ready' | 'failed';
+  status: "ready" | "failed";
   errorMessage: string | null;
 }
 
@@ -295,7 +295,15 @@ export interface HydrusConnectionStatus {
 }
 
 export interface HydrusImportProgress {
-  phase: 'idle' | 'testing' | 'searching' | 'metadata' | 'importing' | 'completed' | 'failed' | 'canceled';
+  phase:
+    | "idle"
+    | "testing"
+    | "searching"
+    | "metadata"
+    | "importing"
+    | "completed"
+    | "failed"
+    | "canceled";
   total: number;
   processed: number;
   imported: number;
@@ -325,7 +333,14 @@ export interface EHentaiGalleryStatus {
 }
 
 export interface EHentaiImportProgress {
-  phase: 'idle' | 'testing' | 'collecting' | 'importing' | 'completed' | 'failed' | 'canceled';
+  phase:
+    | "idle"
+    | "testing"
+    | "collecting"
+    | "importing"
+    | "completed"
+    | "failed"
+    | "canceled";
   total: number;
   processed: number;
   imported: number;
@@ -374,7 +389,12 @@ export interface AiTaggingSummary {
   failures: AiTaggingFailure[];
 }
 
-export type ExportPhase = 'idle' | 'exporting' | 'completed' | 'canceled' | 'failed';
+export type ExportPhase =
+  | "idle"
+  | "exporting"
+  | "completed"
+  | "canceled"
+  | "failed";
 
 export interface ExportOptions {
   jobId: string;
@@ -431,9 +451,18 @@ export interface ApiServiceAvailability {
   permissionCount: number;
 }
 
-export type ApiFileUrlRecord = Pick<FileUrlRecord, 'url' | 'normalizedUrl' | 'source' | 'createdAt' | 'updatedAt'>;
-export type ApiFileTagRecord = Pick<FileTagRecord, 'styleName' | 'namespace' | 'name' | 'displayName' | 'createdAt'>;
-export type ApiFileRatingRecord = Pick<FileRatingRecord, 'groupName' | 'label' | 'color'>;
+export type ApiFileUrlRecord = Pick<
+  FileUrlRecord,
+  "url" | "normalizedUrl" | "source" | "createdAt" | "updatedAt"
+>;
+export type ApiFileTagRecord = Pick<
+  FileTagRecord,
+  "styleName" | "namespace" | "name" | "displayName" | "createdAt"
+>;
+export type ApiFileRatingRecord = Pick<
+  FileRatingRecord,
+  "groupName" | "label" | "color"
+>;
 
 export interface ApiFileRecord {
   apiIdentifier: string;
@@ -474,29 +503,44 @@ export interface AsteriaApi {
   openEHentaiImportWindow: () => Promise<void>;
   openAiManagerWindow: () => Promise<void>;
   openTagTranslationWindow: () => Promise<void>;
-  openFileRatingEditorWindow: (fileIds: number[], groupId: number) => Promise<void>;
+  openFileRatingEditorWindow: (
+    fileIds: number[],
+    groupId: number,
+  ) => Promise<void>;
   openFavoritesWindow: () => Promise<void>;
   openFileExternally: (fileId: number) => Promise<void>;
   getFileDetail: (id: number) => Promise<FileDetailRecord | null>;
   getFileDetailSequence: () => Promise<number[]>;
   getStorageSettings: () => Promise<StorageSettings>;
   getNetworkSettings: () => Promise<NetworkSettings>;
-  updateNetworkSettings: (settings: NetworkSettings) => Promise<NetworkSettings>;
+  updateNetworkSettings: (
+    settings: NetworkSettings,
+  ) => Promise<NetworkSettings>;
   selectStorageDirectory: () => Promise<string | null>;
   updateFileStoragePath: (path: string) => Promise<StorageSettings>;
   updateThumbnailStoragePath: (path: string) => Promise<StorageSettings>;
-  updateConvertImportedImagesToPng: (enabled: boolean) => Promise<StorageSettings>;
+  updateConvertImportedImagesToPng: (
+    enabled: boolean,
+  ) => Promise<StorageSettings>;
   preloadThumbnails: (fileIds: number[]) => Promise<void>;
   getWorkStatus: () => Promise<WorkStatus>;
   listPageLayoutConfigs: () => Promise<PageLayoutConfigRecord[]>;
   getPageLayoutSettings: () => Promise<PageLayoutSettings>;
-  getPageLayoutTemplate: (kind: 'default' | 'newPage') => Promise<string>;
-  savePageLayoutConfig: (name: string, layoutJson: string) => Promise<PageLayoutConfigRecord[]>;
+  getPageLayoutTemplate: (kind: "default" | "newPage") => Promise<string>;
+  savePageLayoutConfig: (
+    name: string,
+    layoutJson: string,
+  ) => Promise<PageLayoutConfigRecord[]>;
   createPageLayoutConfig: () => Promise<PageLayoutConfigRecord[]>;
-  renamePageLayoutConfig: (id: string, name: string) => Promise<PageLayoutConfigRecord[]>;
+  renamePageLayoutConfig: (
+    id: string,
+    name: string,
+  ) => Promise<PageLayoutConfigRecord[]>;
   deletePageLayoutConfig: (id: string) => Promise<PageLayoutConfigRecord[]>;
   openPageLayoutConfig: (id: string) => Promise<void>;
-  setDefaultPageLayoutConfig: (id: string | null) => Promise<PageLayoutSettings>;
+  setDefaultPageLayoutConfig: (
+    id: string | null,
+  ) => Promise<PageLayoutSettings>;
   setNewPageLayoutConfig: (id: string | null) => Promise<PageLayoutSettings>;
   listTrashedFiles: (page: number) => Promise<DatabaseFilePage>;
   trashFiles: (fileIds: number[]) => Promise<void>;
@@ -510,24 +554,45 @@ export interface AsteriaApi {
     fileIds: number[],
     urlId: number,
     previousUrl: string,
-    nextUrl: string
+    nextUrl: string,
   ) => Promise<FileUrlRecord[]>;
-  removeFileUrl: (fileIds: number[], urlId: number, url: string) => Promise<FileUrlRecord[]>;
+  removeFileUrl: (
+    fileIds: number[],
+    urlId: number,
+    url: string,
+  ) => Promise<FileUrlRecord[]>;
   listRatingGroups: () => Promise<RatingGroupRecord[]>;
   createRatingGroup: (name: string) => Promise<RatingGroupRecord[]>;
-  renameRatingGroup: (groupId: number, name: string) => Promise<RatingGroupRecord[]>;
-  setRatingGroupActive: (groupId: number, active: boolean) => Promise<RatingGroupRecord[]>;
+  renameRatingGroup: (
+    groupId: number,
+    name: string,
+  ) => Promise<RatingGroupRecord[]>;
+  setRatingGroupActive: (
+    groupId: number,
+    active: boolean,
+  ) => Promise<RatingGroupRecord[]>;
   deleteRatingGroup: (groupId: number) => Promise<RatingGroupRecord[]>;
   listRatingEntries: (groupId: number) => Promise<RatingEntryRecord[]>;
-  createRatingEntry: (groupId: number, label: string, color: string) => Promise<RatingEntryRecord[]>;
+  createRatingEntry: (
+    groupId: number,
+    label: string,
+    color: string,
+  ) => Promise<RatingEntryRecord[]>;
   updateRatingEntry: (
     entryId: number,
     label: string,
-    color: string
+    color: string,
   ) => Promise<RatingEntryRecord[]>;
   deleteRatingEntry: (entryId: number) => Promise<RatingEntryRecord[]>;
-  reorderRatingEntries: (groupId: number, entryIds: number[]) => Promise<RatingEntryRecord[]>;
-  setFileRatingEntries: (fileIds: number[], groupId: number, entryIds: number[]) => Promise<void>;
+  reorderRatingEntries: (
+    groupId: number,
+    entryIds: number[],
+  ) => Promise<RatingEntryRecord[]>;
+  setFileRatingEntries: (
+    fileIds: number[],
+    groupId: number,
+    entryIds: number[],
+  ) => Promise<void>;
   listFileTags: (fileId: number) => Promise<FileTagRecord[]>;
   listBatchFileTags: (fileIds: number[]) => Promise<BatchFileTagRecord[]>;
   searchTags: (query: string) => Promise<TagRecord[]>;
@@ -540,15 +605,27 @@ export interface AsteriaApi {
   listManagedTags: (
     styleId: number,
     sortKey: ManagedTagSortKey,
-    direction: SortDirection
+    direction: SortDirection,
   ) => Promise<ManagedTagRecord[]>;
-  createManagedTag: (styleId: number, tag: TagDraft) => Promise<ManagedTagRecord>;
+  createManagedTag: (
+    styleId: number,
+    tag: TagDraft,
+  ) => Promise<ManagedTagRecord>;
   deleteManagedTag: (tagId: number) => Promise<DeleteManagedTagsResult>;
   deleteManagedTags: (tagIds: number[]) => Promise<DeleteManagedTagsResult>;
   addFileTags: (fileId: number, tags: TagDraft[]) => Promise<FileTagRecord[]>;
-  removeFileTags: (fileId: number, tagIds: number[]) => Promise<FileTagRecord[]>;
-  addTagsToFiles: (fileIds: number[], tags: TagDraft[]) => Promise<BatchFileTagRecord[]>;
-  removeTagsFromFiles: (fileIds: number[], tagIds: number[]) => Promise<BatchFileTagRecord[]>;
+  removeFileTags: (
+    fileId: number,
+    tagIds: number[],
+  ) => Promise<FileTagRecord[]>;
+  addTagsToFiles: (
+    fileIds: number[],
+    tags: TagDraft[],
+  ) => Promise<BatchFileTagRecord[]>;
+  removeTagsFromFiles: (
+    fileIds: number[],
+    tagIds: number[],
+  ) => Promise<BatchFileTagRecord[]>;
   importFiles: () => Promise<ImportProgress>;
   importFolder: () => Promise<ImportProgress>;
   importPaths: (paths: string[]) => Promise<ImportProgress>;
@@ -556,55 +633,96 @@ export interface AsteriaApi {
   listImportQueueFiles: () => Promise<ImportQueueFileRecord[]>;
   commitImportQueue: (
     queueIds: number[],
-    confirmedDuplicateQueueIds: number[]
+    confirmedDuplicateQueueIds: number[],
   ) => Promise<ImportCommitResult>;
   removeImportQueueFiles: (queueIds: number[]) => Promise<ImportProgress>;
   clearImportQueue: () => Promise<ImportProgress>;
-  testHydrusConnection: (options: HydrusImportOptions) => Promise<HydrusConnectionStatus>;
-  importFromHydrus: (options: HydrusImportOptions) => Promise<HydrusImportProgress>;
+  testHydrusConnection: (
+    options: HydrusImportOptions,
+  ) => Promise<HydrusConnectionStatus>;
+  importFromHydrus: (
+    options: HydrusImportOptions,
+  ) => Promise<HydrusImportProgress>;
   cancelHydrusImport: () => Promise<void>;
   getHydrusImportSettings: () => Promise<HydrusImportOptions>;
-  updateHydrusImportSettings: (settings: HydrusImportOptions) => Promise<HydrusImportOptions>;
-  testEHentaiGallery: (options: EHentaiImportOptions) => Promise<EHentaiGalleryStatus>;
-  importFromEHentai: (options: EHentaiImportOptions) => Promise<EHentaiImportProgress>;
+  updateHydrusImportSettings: (
+    settings: HydrusImportOptions,
+  ) => Promise<HydrusImportOptions>;
+  testEHentaiGallery: (
+    options: EHentaiImportOptions,
+  ) => Promise<EHentaiGalleryStatus>;
+  importFromEHentai: (
+    options: EHentaiImportOptions,
+  ) => Promise<EHentaiImportProgress>;
   cancelEHentaiImport: () => Promise<void>;
   getEHentaiImportSettings: () => Promise<EHentaiImportOptions>;
-  updateEHentaiImportSettings: (settings: EHentaiImportOptions) => Promise<EHentaiImportOptions>;
+  updateEHentaiImportSettings: (
+    settings: EHentaiImportOptions,
+  ) => Promise<EHentaiImportOptions>;
   getTagTranslationSettings: () => Promise<TagTranslationSettings>;
-  updateTagTranslationSettings: (settings: TagTranslationSettings) => Promise<TagTranslationSettings>;
+  updateTagTranslationSettings: (
+    settings: TagTranslationSettings,
+  ) => Promise<TagTranslationSettings>;
   selectTagTranslationCsv: () => Promise<string | null>;
   translateFileTags: (fileIds: number[]) => Promise<TagTranslationSummary>;
   getAiSettings: () => Promise<AiSettings>;
   updateAiSettings: (settings: AiSettings) => Promise<AiSettings>;
   selectAiModelDirectory: () => Promise<string | null>;
   detectAiModel: (modelPath: string) => Promise<AiModelInfo>;
-  detectAiModels: (modelPath: string, selectedModelName?: string) => Promise<AiModelCatalog>;
+  detectAiModels: (
+    modelPath: string,
+    selectedModelName?: string,
+  ) => Promise<AiModelCatalog>;
   downloadDefaultAiModel: (modelPath: string) => Promise<AiModelInfo>;
-  tagFilesWithAi: (fileIds: number[], overwrite: boolean) => Promise<AiTaggingSummary>;
+  tagFilesWithAi: (
+    fileIds: number[],
+    overwrite: boolean,
+  ) => Promise<AiTaggingSummary>;
   selectExportDirectory: () => Promise<string | null>;
   exportFiles: (options: ExportOptions) => Promise<ExportProgress>;
   cancelExport: (jobId: string) => Promise<void>;
   listApiPermissions: () => Promise<ApiPermissionRecord[]>;
   listApiServices: () => Promise<ApiServiceRecord[]>;
   createApiService: (name: string) => Promise<ApiServiceRecord[]>;
-  updateApiService: (serviceId: number, draft: ApiServiceDraft) => Promise<ApiServiceRecord[]>;
+  updateApiService: (
+    serviceId: number,
+    draft: ApiServiceDraft,
+  ) => Promise<ApiServiceRecord[]>;
   deleteApiService: (serviceId: number) => Promise<ApiServiceRecord[]>;
-  getApiServiceAvailability: (serviceId: number) => Promise<ApiServiceAvailability>;
+  getApiServiceAvailability: (
+    serviceId: number,
+  ) => Promise<ApiServiceAvailability>;
   confirmDialog: (options: ConfirmDialogOptions) => Promise<boolean>;
   getDialogState: (dialogId: string) => Promise<GenericDialogState | null>;
-  resizeDialog: (dialogId: string, width: number, height: number) => Promise<void>;
+  resizeDialog: (
+    dialogId: string,
+    width: number,
+    height: number,
+  ) => Promise<void>;
   resolveDialog: (dialogId: string, confirmed: boolean) => Promise<void>;
   getPathForFile: (file: unknown) => string;
-  setNativeTheme: (theme: 'light' | 'dark') => Promise<void>;
-  onImportProgress: (listener: (progress: ImportProgress) => void) => () => void;
-  onExportProgress: (listener: (progress: ExportProgress) => void) => () => void;
+  setNativeTheme: (theme: "light" | "dark") => Promise<void>;
+  onImportProgress: (
+    listener: (progress: ImportProgress) => void,
+  ) => () => void;
+  onExportProgress: (
+    listener: (progress: ExportProgress) => void,
+  ) => () => void;
   onImportQueueChanged: (listener: () => void) => () => void;
-  onHydrusImportProgress: (listener: (progress: HydrusImportProgress) => void) => () => void;
-  onEHentaiImportProgress: (listener: (progress: EHentaiImportProgress) => void) => () => void;
-  onDialogStateChanged: (listener: (state: GenericDialogState) => void) => () => void;
+  onHydrusImportProgress: (
+    listener: (progress: HydrusImportProgress) => void,
+  ) => () => void;
+  onEHentaiImportProgress: (
+    listener: (progress: EHentaiImportProgress) => void,
+  ) => () => void;
+  onDialogStateChanged: (
+    listener: (state: GenericDialogState) => void,
+  ) => () => void;
   onFileDetailReset: (listener: (fileId: number) => void) => () => void;
   onFilesChanged: (listener: () => void) => () => void;
-  onFileFavoriteChanged: (listener: (fileId: number, favorite: boolean) => void) => () => void;
+  onFileFavoriteChanged: (
+    listener: (fileId: number, favorite: boolean) => void,
+  ) => () => void;
   onPageLayoutChanged: (listener: () => void) => () => void;
   onWorkStatusChanged: (listener: (status: WorkStatus) => void) => () => void;
 }

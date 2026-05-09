@@ -1,54 +1,66 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type {
   FileDetailRecord,
   FileTagRecord,
   RatingGroupRecord,
-  TagStyleRecord
-} from '../../../shared/ipc';
-import { FileContextMenu } from '../components/FileContextMenu';
-import { FavoriteButton } from '../components/FavoriteButton';
-import { FileRatingStack } from '../components/FileRatingStack';
-import { ResizableColumns } from '../components/ResizableColumns';
-import { TagTokenInput } from '../components/TagTokenInput';
-import { useBoxSelection } from '../hooks/useBoxSelection';
-import { useShortcut } from '../hooks/useShortcut';
-import { useTagTokenInput } from '../hooks/useTagTokenInput';
-import { mergeIds } from '../utils/ids';
-import { isAudioExtension, isImageExtension, isVideoExtension } from '../utils/media';
+  TagStyleRecord,
+} from "../../../shared/ipc";
+import { FileContextMenu } from "../components/FileContextMenu";
+import { FavoriteButton } from "../components/FavoriteButton";
+import { FileRatingStack } from "../components/FileRatingStack";
+import { ResizableColumns } from "../components/ResizableColumns";
+import { TagTokenInput } from "../components/TagTokenInput";
+import { useBoxSelection } from "../hooks/useBoxSelection";
+import { useShortcut } from "../hooks/useShortcut";
+import { useTagTokenInput } from "../hooks/useTagTokenInput";
+import { mergeIds } from "../utils/ids";
+import {
+  isAudioExtension,
+  isImageExtension,
+  isVideoExtension,
+} from "../utils/media";
 import {
   formatTagLabel,
   getTagNamespaceClassName,
-  getTagNamespaceStyle
-} from '../utils/tags';
+  getTagNamespaceStyle,
+} from "../utils/tags";
 
 interface FileDetailWindowProps {
   fileId: number;
 }
 
-const detailShellClass = 'grid h-full min-h-0 min-w-0 grid-cols-[148px_minmax(0,1fr)] border border-(--line) bg-(--panel)';
-const detailTagsClass = 'grid min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_auto] border-r border-(--line) bg-(--surface-bg)';
-const tagListClass = 'relative min-h-0 overflow-auto p-1.5';
-const fileTagGroupClass = 'mb-2 border-b border-(--border-dark)';
+const detailShellClass =
+  "grid h-full min-h-0 min-w-0 grid-cols-[148px_minmax(0,1fr)] border border-(--line) bg-(--panel)";
+const detailTagsClass =
+  "grid min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_auto] border-r border-(--line) bg-(--surface-bg)";
+const tagListClass = "relative min-h-0 overflow-auto p-1.5";
+const fileTagGroupClass = "mb-2 border-b border-(--border-dark)";
 const fileTagHeaderClass =
-  'mb-1.5 grid h-6 grid-cols-[minmax(0,1fr)_auto] border-y border-(--border-dark) border-t-(--line-strong) bg-(--group-header-bg) px-1.5 leading-[22px] font-semibold text-(--group-header-ink)';
-const fileTagGroupBodyClass = 'flex flex-wrap content-start gap-1';
+  "mb-1.5 grid h-6 grid-cols-[minmax(0,1fr)_auto] border-y border-(--border-dark) border-t-(--line-strong) bg-(--group-header-bg) px-1.5 leading-[22px] font-semibold text-(--group-header-ink)";
+const fileTagGroupBodyClass = "flex flex-wrap content-start gap-1";
 const fileTagItemClass =
-  'inline-flex max-w-full min-h-[18px] cursor-default overflow-hidden border border-(--line-strong) bg-(--tag-bg) px-1.5 text-[11px] text-(--ink)';
-const fileTagPendingClass = 'border-(--danger)';
-const detailContentClass = 'relative grid min-h-0 min-w-0 place-items-center overflow-hidden bg-(--surface-media-bg)';
-const detailMessageClass = 'text-(--muted)';
-const detailAudioClass = 'w-[min(520px,calc(100%-32px))]';
-const detailImageStageClass = 'grid h-full w-full min-h-0 min-w-0 place-items-center overflow-hidden cursor-grab';
+  "inline-flex max-w-full min-h-[18px] cursor-default overflow-hidden border border-(--line-strong) bg-(--tag-bg) px-1.5 text-[11px] text-(--ink)";
+const fileTagPendingClass = "border-(--danger)";
+const detailContentClass =
+  "relative grid min-h-0 min-w-0 place-items-center overflow-hidden bg-(--surface-media-bg)";
+const detailMessageClass = "text-(--muted)";
+const detailAudioClass = "w-[min(520px,calc(100%-32px))]";
+const detailImageStageClass =
+  "grid h-full w-full min-h-0 min-w-0 place-items-center overflow-hidden cursor-grab";
 const detailVideoStageClass = detailImageStageClass;
-const detailMediaClass = 'max-h-full max-w-full object-contain';
+const detailMediaClass = "max-h-full max-w-full object-contain";
 const screeningStatusClass =
-  'absolute bottom-2 right-2 h-[22px] min-w-[54px] border border-(--line-strong) bg-(--surface-bg) px-1.5 text-center leading-5 text-(--muted)';
+  "absolute bottom-2 right-2 h-[22px] min-w-[54px] border border-(--line-strong) bg-(--surface-bg) px-1.5 text-center leading-5 text-(--muted)";
 
-export function FileDetailWindow({ fileId }: FileDetailWindowProps): JSX.Element {
+export function FileDetailWindow({
+  fileId,
+}: FileDetailWindowProps): JSX.Element {
   const [currentFileId, setCurrentFileId] = useState(fileId);
   const [file, setFile] = useState<FileDetailRecord | null>(null);
   const [orderedFileIds, setOrderedFileIds] = useState<number[]>([]);
-  const [activeRatingGroups, setActiveRatingGroups] = useState<RatingGroupRecord[]>([]);
+  const [activeRatingGroups, setActiveRatingGroups] = useState<
+    RatingGroupRecord[]
+  >([]);
   const [imageZoom, setImageZoom] = useState(1);
   const [imagePan, setImagePan] = useState({ x: 0, y: 0 });
   const [contextMenu, setContextMenu] = useState<{
@@ -58,14 +70,14 @@ export function FileDetailWindow({ fileId }: FileDetailWindowProps): JSX.Element
     canAiAppendTag: boolean;
     canTranslateTags: boolean;
   } | null>(null);
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState("");
   const imageDragRef = useRef({
     active: false,
     pointerId: 0,
     startX: 0,
     startY: 0,
     panX: 0,
-    panY: 0
+    panY: 0,
   });
 
   useEffect(() => {
@@ -77,10 +89,10 @@ export function FileDetailWindow({ fileId }: FileDetailWindowProps): JSX.Element
       setContextMenu(null);
     }
 
-    window.addEventListener('mousedown', closeContextMenu);
+    window.addEventListener("mousedown", closeContextMenu);
 
     return () => {
-      window.removeEventListener('mousedown', closeContextMenu);
+      window.removeEventListener("mousedown", closeContextMenu);
     };
   }, []);
 
@@ -102,13 +114,15 @@ export function FileDetailWindow({ fileId }: FileDetailWindowProps): JSX.Element
       void loadFileDetail();
     });
 
-    const unsubscribeFavoriteChanged = window.asteria.onFileFavoriteChanged((nextFileId, favorite) => {
-      setFile((currentFile) =>
-        currentFile && currentFile.id === nextFileId
-          ? { ...currentFile, isFavorite: favorite }
-          : currentFile
-      );
-    });
+    const unsubscribeFavoriteChanged = window.asteria.onFileFavoriteChanged(
+      (nextFileId, favorite) => {
+        setFile((currentFile) =>
+          currentFile && currentFile.id === nextFileId
+            ? { ...currentFile, isFavorite: favorite }
+            : currentFile,
+        );
+      },
+    );
 
     return () => {
       unsubscribeReset();
@@ -117,38 +131,45 @@ export function FileDetailWindow({ fileId }: FileDetailWindowProps): JSX.Element
     };
   }, [currentFileId]);
 
-  useShortcut('detail-previous-file', () => switchFile(-1), { enabled: orderedFileIds.length > 0 });
-  useShortcut('detail-next-file', () => switchFile(1), { enabled: orderedFileIds.length > 0 });
+  useShortcut("detail-previous-file", () => switchFile(-1), {
+    enabled: orderedFileIds.length > 0,
+  });
+  useShortcut("detail-next-file", () => switchFile(1), {
+    enabled: orderedFileIds.length > 0,
+  });
 
   async function loadFileDetail(): Promise<void> {
     if (!Number.isInteger(currentFileId) || currentFileId <= 0) {
-      setMessage('文件无效');
+      setMessage("文件无效");
       return;
     }
 
     if (!window.asteria) {
-      setMessage('preload unavailable');
+      setMessage("preload unavailable");
       return;
     }
 
     try {
-      const [nextFile, contextFileIds, fallbackOrderedFiles, nextRatingGroups] = await Promise.all([
-        window.asteria.getFileDetail(currentFileId),
-        window.asteria.getFileDetailSequence(),
-        window.asteria.listBrowserFiles(),
-        window.asteria.listRatingGroups()
-      ]);
+      const [nextFile, contextFileIds, fallbackOrderedFiles, nextRatingGroups] =
+        await Promise.all([
+          window.asteria.getFileDetail(currentFileId),
+          window.asteria.getFileDetailSequence(),
+          window.asteria.listBrowserFiles(),
+          window.asteria.listRatingGroups(),
+        ]);
 
       setFile(nextFile);
       setOrderedFileIds(
-        contextFileIds.length > 0 ? contextFileIds : fallbackOrderedFiles.map((item) => item.id)
+        contextFileIds.length > 0
+          ? contextFileIds
+          : fallbackOrderedFiles.map((item) => item.id),
       );
       setActiveRatingGroups(nextRatingGroups.filter((group) => group.isActive));
       resetImageViewport();
-      setMessage(nextFile ? '' : '文件不存在');
+      setMessage(nextFile ? "" : "文件不存在");
     } catch (error) {
       setFile(null);
-      setMessage(error instanceof Error ? error.message : '加载失败');
+      setMessage(error instanceof Error ? error.message : "加载失败");
     }
   }
 
@@ -164,7 +185,7 @@ export function FileDetailWindow({ fileId }: FileDetailWindowProps): JSX.Element
       await window.asteria.setFileFavorite(file.id, nextFavorite);
     } catch (error) {
       setFile({ ...file, isFavorite: file.isFavorite });
-      setMessage(error instanceof Error ? error.message : '收藏更新失败');
+      setMessage(error instanceof Error ? error.message : "收藏更新失败");
     }
   }
 
@@ -181,18 +202,24 @@ export function FileDetailWindow({ fileId }: FileDetailWindowProps): JSX.Element
   async function openContextMenuForFile(x: number, y: number): Promise<void> {
     const [translationSettings, aiSettings] = await Promise.all([
       window.asteria?.getTagTranslationSettings(),
-      window.asteria?.getAiSettings()
+      window.asteria?.getAiSettings(),
     ]);
     const isCurrentFileImage = Boolean(
-      file && isImageExtension(file.extension ?? file.originalPath)
+      file && isImageExtension(file.extension ?? file.originalPath),
     );
 
     setContextMenu({
       x,
       y,
-      canAiRetag: Boolean(aiSettings?.enableImageRetagContextMenu && isCurrentFileImage),
-      canAiAppendTag: Boolean(aiSettings?.enableImageAppendTagContextMenu && isCurrentFileImage),
-      canTranslateTags: Boolean(translationSettings?.enableContextMenuTranslation)
+      canAiRetag: Boolean(
+        aiSettings?.enableImageRetagContextMenu && isCurrentFileImage,
+      ),
+      canAiAppendTag: Boolean(
+        aiSettings?.enableImageAppendTagContextMenu && isCurrentFileImage,
+      ),
+      canTranslateTags: Boolean(
+        translationSettings?.enableContextMenuTranslation,
+      ),
     });
   }
 
@@ -261,17 +288,22 @@ export function FileDetailWindow({ fileId }: FileDetailWindowProps): JSX.Element
     setContextMenu(null);
     await window.asteria.trashFiles([trashedFileId]);
 
-    const remainingFileIds = orderedFileIds.filter((id) => id !== trashedFileId);
+    const remainingFileIds = orderedFileIds.filter(
+      (id) => id !== trashedFileId,
+    );
     setOrderedFileIds(remainingFileIds);
 
     if (remainingFileIds.length === 0) {
       setFile(null);
-      setMessage('文件已放入回收站');
+      setMessage("文件已放入回收站");
       return;
     }
 
     const currentIndex = orderedFileIds.findIndex((id) => id === trashedFileId);
-    const nextFileId = remainingFileIds[Math.min(Math.max(currentIndex, 0), remainingFileIds.length - 1)] ?? remainingFileIds[0];
+    const nextFileId =
+      remainingFileIds[
+        Math.min(Math.max(currentIndex, 0), remainingFileIds.length - 1)
+      ] ?? remainingFileIds[0];
 
     if (nextFileId) {
       setCurrentFileId(nextFileId);
@@ -304,7 +336,8 @@ export function FileDetailWindow({ fileId }: FileDetailWindowProps): JSX.Element
       return;
     }
 
-    const nextIndex = (currentIndex + offset + orderedFileIds.length) % orderedFileIds.length;
+    const nextIndex =
+      (currentIndex + offset + orderedFileIds.length) % orderedFileIds.length;
     const nextFileId = orderedFileIds[nextIndex];
 
     if (nextFileId) {
@@ -320,10 +353,14 @@ export function FileDetailWindow({ fileId }: FileDetailWindowProps): JSX.Element
 
   function handleImageWheel(deltaY: number): void {
     const zoomStep = deltaY < 0 ? 0.1 : -0.1;
-    setImageZoom((zoom) => Math.min(8, Math.max(0.1, Number((zoom + zoomStep).toFixed(2)))));
+    setImageZoom((zoom) =>
+      Math.min(8, Math.max(0.1, Number((zoom + zoomStep).toFixed(2)))),
+    );
   }
 
-  function handleImagePointerDown(event: React.PointerEvent<HTMLElement>): void {
+  function handleImagePointerDown(
+    event: React.PointerEvent<HTMLElement>,
+  ): void {
     if (event.button !== 0) {
       return;
     }
@@ -334,13 +371,15 @@ export function FileDetailWindow({ fileId }: FileDetailWindowProps): JSX.Element
       startX: event.clientX,
       startY: event.clientY,
       panX: imagePan.x,
-      panY: imagePan.y
+      panY: imagePan.y,
     };
     event.currentTarget.setPointerCapture(event.pointerId);
     event.preventDefault();
   }
 
-  function handleImagePointerMove(event: React.PointerEvent<HTMLElement>): void {
+  function handleImagePointerMove(
+    event: React.PointerEvent<HTMLElement>,
+  ): void {
     const drag = imageDragRef.current;
 
     if (!drag.active) {
@@ -349,7 +388,7 @@ export function FileDetailWindow({ fileId }: FileDetailWindowProps): JSX.Element
 
     setImagePan({
       x: drag.panX + event.clientX - drag.startX,
-      y: drag.panY + event.clientY - drag.startY
+      y: drag.panY + event.clientY - drag.startY,
     });
     event.preventDefault();
   }
@@ -373,12 +412,18 @@ export function FileDetailWindow({ fileId }: FileDetailWindowProps): JSX.Element
       minRightWidth={260}
       storageKey="asteria:file-detail-tags-width"
       left={<FileDetailTagColumn fileId={currentFileId} />}
-      right={(
+      right={
         <main className={detailContentClass} onContextMenu={openContextMenu}>
           {file ? (
             <>
-              <FileRatingStack className="top-1.5 left-1.5 z-2 max-w-[calc(100%-12px)]" ratings={file.ratings} />
-              <FavoriteButton active={Boolean(file.isFavorite)} onToggle={() => void toggleFavorite()} />
+              <FileRatingStack
+                className="top-1.5 left-1.5 z-2 max-w-[calc(100%-12px)]"
+                ratings={file.ratings}
+              />
+              <FavoriteButton
+                active={Boolean(file.isFavorite)}
+                onToggle={() => void toggleFavorite()}
+              />
               <DetailMedia
                 file={file}
                 imageZoom={imageZoom}
@@ -399,7 +444,7 @@ export function FileDetailWindow({ fileId }: FileDetailWindowProps): JSX.Element
               canAiRetag={contextMenu.canAiRetag}
               canManageTags={false}
               canOpenExternally
-              canScreening={file.domain === 'pending'}
+              canScreening={file.domain === "pending"}
               canTranslateTags={contextMenu.canTranslateTags}
               fileIds={[file.id]}
               x={contextMenu.x}
@@ -417,7 +462,7 @@ export function FileDetailWindow({ fileId }: FileDetailWindowProps): JSX.Element
             />
           ) : null}
         </main>
-      )}
+      }
     />
   );
 }
@@ -426,7 +471,9 @@ interface ScreeningDetailWindowProps {
   fileIds: number[];
 }
 
-export function ScreeningDetailWindow({ fileIds }: ScreeningDetailWindowProps): JSX.Element {
+export function ScreeningDetailWindow({
+  fileIds,
+}: ScreeningDetailWindowProps): JSX.Element {
   const [index, setIndex] = useState(0);
   const [file, setFile] = useState<FileDetailRecord | null>(null);
   const currentFileId = fileIds[index] ?? null;
@@ -449,7 +496,7 @@ export function ScreeningDetailWindow({ fileIds }: ScreeningDetailWindowProps): 
       return;
     }
 
-    await window.asteria.setFilesDomain([currentFileId], 'library');
+    await window.asteria.setFilesDomain([currentFileId], "library");
     goNext();
   }
 
@@ -481,8 +528,14 @@ export function ScreeningDetailWindow({ fileIds }: ScreeningDetailWindowProps): 
       minLeftWidth={110}
       minRightWidth={260}
       storageKey="asteria:file-detail-tags-width"
-      left={currentFileId ? <FileDetailTagColumn fileId={currentFileId} /> : <aside className={detailTagsClass} />}
-      right={(
+      left={
+        currentFileId ? (
+          <FileDetailTagColumn fileId={currentFileId} />
+        ) : (
+          <aside className={detailTagsClass} />
+        )
+      }
+      right={
         <main
           className={detailContentClass}
           onContextMenu={(event) => event.preventDefault()}
@@ -496,18 +549,22 @@ export function ScreeningDetailWindow({ fileIds }: ScreeningDetailWindowProps): 
             }
           }}
         >
-          {file ? <ScreeningMedia file={file} /> : <div className={detailMessageClass}>文件不存在</div>}
+          {file ? (
+            <ScreeningMedia file={file} />
+          ) : (
+            <div className={detailMessageClass}>文件不存在</div>
+          )}
           <div className={screeningStatusClass}>
             {index + 1} / {fileIds.length}
           </div>
         </main>
-      )}
+      }
     />
   );
 }
 
 function ScreeningMedia({ file }: { file: FileDetailRecord }): JSX.Element {
-  const extension = file.extension?.toLowerCase() ?? '';
+  const extension = file.extension?.toLowerCase() ?? "";
 
   if (isImageExtension(extension)) {
     return <img alt="" className={detailMediaClass} src={file.mediaUrl} />;
@@ -528,7 +585,9 @@ interface FileDetailTagColumnProps {
   fileId: number;
 }
 
-function FileDetailTagColumn({ fileId }: FileDetailTagColumnProps): JSX.Element {
+function FileDetailTagColumn({
+  fileId,
+}: FileDetailTagColumnProps): JSX.Element {
   const [fileTags, setFileTags] = useState<FileTagRecord[]>([]);
   const [tagStyles, setTagStyles] = useState<TagStyleRecord[]>([]);
   const [pendingTagIds, setPendingTagIds] = useState<number[]>([]);
@@ -542,26 +601,26 @@ function FileDetailTagColumn({ fileId }: FileDetailTagColumnProps): JSX.Element 
 
       const nextFileTags = await window.asteria.addFileTags(fileId, nextTokens);
       setFileTags(nextFileTags);
-    }
+    },
   });
   const groupedFileTags = useMemo(
     () => groupFileTagsByStyle(fileTags, tagStyles),
-    [fileTags, tagStyles]
+    [fileTags, tagStyles],
   );
   const orderedFileTags = useMemo(
     () => groupedFileTags.flatMap((group) => group.tags),
-    [groupedFileTags]
+    [groupedFileTags],
   );
   const boxSelection = useBoxSelection({
     containerRef: tagListRef,
-    itemSelector: '[data-box-select-id]',
+    itemSelector: "[data-box-select-id]",
     selectedIds: pendingTagIds,
     startOnlyFromContainer: true,
     onSelect: setPendingTagIds,
-    onLastSelectedId: setLastPendingTagId
+    onLastSelectedId: setLastPendingTagId,
   });
 
-  useShortcut('select-all', () => {
+  useShortcut("select-all", () => {
     const tagIds = orderedFileTags.map((tag) => tag.id);
     setPendingTagIds(tagIds);
     setLastPendingTagId(tagIds[tagIds.length - 1] ?? null);
@@ -578,16 +637,16 @@ function FileDetailTagColumn({ fileId }: FileDetailTagColumnProps): JSX.Element 
     function clearPendingTags(event: MouseEvent): void {
       const target = event.target as Element | null;
 
-      if (!target?.closest('.file-tag-item')) {
+      if (!target?.closest(".file-tag-item")) {
         setPendingTagIds([]);
         setLastPendingTagId(null);
       }
     }
 
-    window.addEventListener('mousedown', clearPendingTags);
+    window.addEventListener("mousedown", clearPendingTags);
 
     return () => {
-      window.removeEventListener('mousedown', clearPendingTags);
+      window.removeEventListener("mousedown", clearPendingTags);
     };
   }, []);
 
@@ -600,7 +659,7 @@ function FileDetailTagColumn({ fileId }: FileDetailTagColumnProps): JSX.Element 
 
     const [nextFileTags, nextTagStyles] = await Promise.all([
       window.asteria.listFileTags(fileId),
-      window.asteria.listTagStyles()
+      window.asteria.listTagStyles(),
     ]);
     setFileTags(nextFileTags);
     setTagStyles(nextTagStyles);
@@ -617,22 +676,30 @@ function FileDetailTagColumn({ fileId }: FileDetailTagColumnProps): JSX.Element 
     setLastPendingTagId(null);
   }
 
-  function handleFileTagMouseDown(event: React.MouseEvent<HTMLElement>, tag: FileTagRecord, index: number): void {
+  function handleFileTagMouseDown(
+    event: React.MouseEvent<HTMLElement>,
+    tag: FileTagRecord,
+    index: number,
+  ): void {
     event.preventDefault();
     event.stopPropagation();
 
     const isPending = pendingTagIds.includes(tag.id);
 
     if (event.shiftKey && lastPendingTagId !== null) {
-      const anchorIndex = orderedFileTags.findIndex((item) => item.id === lastPendingTagId);
+      const anchorIndex = orderedFileTags.findIndex(
+        (item) => item.id === lastPendingTagId,
+      );
 
       if (anchorIndex >= 0) {
         const start = Math.min(anchorIndex, index);
         const end = Math.max(anchorIndex, index);
-        const rangeIds = orderedFileTags.slice(start, end + 1).map((item) => item.id);
+        const rangeIds = orderedFileTags
+          .slice(start, end + 1)
+          .map((item) => item.id);
 
         setPendingTagIds((currentTagIds) =>
-          event.ctrlKey ? mergeIds(currentTagIds, rangeIds) : rangeIds
+          event.ctrlKey ? mergeIds(currentTagIds, rangeIds) : rangeIds,
         );
         return;
       }
@@ -668,25 +735,33 @@ function FileDetailTagColumn({ fileId }: FileDetailTagColumnProps): JSX.Element 
         {groupedFileTags.map((group) => (
           <section className={fileTagGroupClass} key={group.styleName}>
             <header className={fileTagHeaderClass}>
-              <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{group.displayName}</span>
+              <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
+                {group.displayName}
+              </span>
               <span className="pl-1.5 text-right">{group.tags.length}</span>
             </header>
             <div className={fileTagGroupBodyClass}>
               {group.tags.map((tag) => {
-                const visualIndex = orderedFileTags.findIndex((item) => item.id === tag.id);
+                const visualIndex = orderedFileTags.findIndex(
+                  (item) => item.id === tag.id,
+                );
 
                 return (
                   <button
                     className={getTagNamespaceClassName(
                       tag,
-                      pendingTagIds.includes(tag.id) ? `${fileTagItemClass} ${fileTagPendingClass}` : fileTagItemClass
+                      pendingTagIds.includes(tag.id)
+                        ? `${fileTagItemClass} ${fileTagPendingClass}`
+                        : fileTagItemClass,
                     )}
                     data-box-select-id={tag.id}
                     key={tag.id}
                     style={getTagNamespaceStyle(tag)}
                     title={formatTagLabel(tag)}
                     type="button"
-                    onMouseDown={(event) => handleFileTagMouseDown(event, tag, visualIndex)}
+                    onMouseDown={(event) =>
+                      handleFileTagMouseDown(event, tag, visualIndex)
+                    }
                   >
                     {formatTagLabel(tag)}
                   </button>
@@ -696,9 +771,12 @@ function FileDetailTagColumn({ fileId }: FileDetailTagColumnProps): JSX.Element 
           </section>
         ))}
         {boxSelection.selectionBox ? (
-            <div className="absolute z-40 border border-(--accent) bg-(--accent-overlay) pointer-events-none" style={boxSelection.selectionBox} />
-          ) : null}
-        </div>
+          <div
+            className="absolute z-40 border border-(--accent) bg-(--accent-overlay) pointer-events-none"
+            style={boxSelection.selectionBox}
+          />
+        ) : null}
+      </div>
 
       <TagTokenInput
         ariaLabel="输入标签"
@@ -724,7 +802,7 @@ interface FileTagStyleGroup {
 
 function groupFileTagsByStyle(
   fileTags: FileTagRecord[],
-  tagStyles: TagStyleRecord[]
+  tagStyles: TagStyleRecord[],
 ): FileTagStyleGroup[] {
   const styleByName = new Map(tagStyles.map((style) => [style.name, style]));
   const groups = new Map<string, FileTagStyleGroup>();
@@ -735,7 +813,7 @@ function groupFileTagsByStyle(
       styleName: tag.styleName,
       displayName: style?.displayName ?? tag.styleName,
       isDefault: Boolean(style?.isDefault),
-      tags: []
+      tags: [],
     };
 
     group.tags.push(tag);
@@ -745,7 +823,9 @@ function groupFileTagsByStyle(
   return [...groups.values()]
     .map((group) => ({
       ...group,
-      tags: [...group.tags].sort((left, right) => formatTagLabel(left).localeCompare(formatTagLabel(right)))
+      tags: [...group.tags].sort((left, right) =>
+        formatTagLabel(left).localeCompare(formatTagLabel(right)),
+      ),
     }))
     .sort((left, right) => {
       if (left.isDefault !== right.isDefault) {
@@ -779,9 +859,9 @@ function DetailMedia({
   onImageWheel,
   onImagePointerDown,
   onImagePointerMove,
-  onImagePointerUp
+  onImagePointerUp,
 }: DetailMediaProps): JSX.Element {
-  const extension = file.extension?.toLowerCase() ?? '';
+  const extension = file.extension?.toLowerCase() ?? "";
 
   if (isImageExtension(extension)) {
     return (
@@ -837,11 +917,14 @@ function DetailVideo({
   onMediaPointerDown,
   onMediaPointerMove,
   onMediaPointerUp,
-  onMediaWheel
+  onMediaWheel,
 }: DetailVideoProps): JSX.Element {
   const stageRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const [fitSize, setFitSize] = useState<{ width: number; height: number } | null>(null);
+  const [fitSize, setFitSize] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
 
   useLayoutEffect(() => {
     setFitSize(null);
@@ -870,10 +953,10 @@ function DetailVideo({
       onMediaWheel(event.deltaY);
     }
 
-    stage.addEventListener('wheel', handleWheel, { passive: false });
+    stage.addEventListener("wheel", handleWheel, { passive: false });
 
     return () => {
-      stage.removeEventListener('wheel', handleWheel);
+      stage.removeEventListener("wheel", handleWheel);
     };
   }, [onMediaWheel]);
 
@@ -912,15 +995,21 @@ function DetailVideo({
     }
 
     const stageRect = stage.getBoundingClientRect();
-    const scale = Math.min(stageRect.width / video.videoWidth, stageRect.height / video.videoHeight, 1);
+    const scale = Math.min(
+      stageRect.width / video.videoWidth,
+      stageRect.height / video.videoHeight,
+      1,
+    );
 
     setFitSize({
       width: Math.max(1, Math.floor(video.videoWidth * scale)),
-      height: Math.max(1, Math.floor(video.videoHeight * scale))
+      height: Math.max(1, Math.floor(video.videoHeight * scale)),
     });
   }
 
-  function isVideoControlArea(event: React.PointerEvent<HTMLElement> | React.MouseEvent<HTMLElement>): boolean {
+  function isVideoControlArea(
+    event: React.PointerEvent<HTMLElement> | React.MouseEvent<HTMLElement>,
+  ): boolean {
     const rect = event.currentTarget.getBoundingClientRect();
 
     return event.clientY >= rect.bottom - 40;
@@ -972,10 +1061,10 @@ function DetailVideo({
         ref={videoRef}
         src={file.mediaUrl}
         style={{
-          width: fitSize ? `${fitSize.width}px` : '1px',
-          height: fitSize ? `${fitSize.height}px` : '1px',
-          visibility: fitSize ? 'visible' : 'hidden',
-          transform: `translate(${mediaPan.x}px, ${mediaPan.y}px) scale(${mediaZoom})`
+          width: fitSize ? `${fitSize.width}px` : "1px",
+          height: fitSize ? `${fitSize.height}px` : "1px",
+          visibility: fitSize ? "visible" : "hidden",
+          transform: `translate(${mediaPan.x}px, ${mediaPan.y}px) scale(${mediaZoom})`,
         }}
         onCanPlay={(event) => {
           updateVideoFitSize();
@@ -1011,11 +1100,14 @@ function DetailImage({
   onImageWheel,
   onImagePointerDown,
   onImagePointerMove,
-  onImagePointerUp
+  onImagePointerUp,
 }: DetailImageProps): JSX.Element {
   const stageRef = useRef<HTMLDivElement | null>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
-  const [fitSize, setFitSize] = useState<{ width: number; height: number } | null>(null);
+  const [fitSize, setFitSize] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
 
   useLayoutEffect(() => {
     setFitSize(null);
@@ -1033,10 +1125,10 @@ function DetailImage({
       onImageWheel(event.deltaY);
     }
 
-    stage.addEventListener('wheel', handleWheel, { passive: false });
+    stage.addEventListener("wheel", handleWheel, { passive: false });
 
     return () => {
-      stage.removeEventListener('wheel', handleWheel);
+      stage.removeEventListener("wheel", handleWheel);
     };
   }, [onImageWheel]);
 
@@ -1069,17 +1161,26 @@ function DetailImage({
     const stage = stageRef.current;
     const image = imageRef.current;
 
-    if (!stage || !image || image.naturalWidth <= 0 || image.naturalHeight <= 0) {
+    if (
+      !stage ||
+      !image ||
+      image.naturalWidth <= 0 ||
+      image.naturalHeight <= 0
+    ) {
       setFitSize(null);
       return;
     }
 
     const stageRect = stage.getBoundingClientRect();
-    const scale = Math.min(stageRect.width / image.naturalWidth, stageRect.height / image.naturalHeight, 1);
+    const scale = Math.min(
+      stageRect.width / image.naturalWidth,
+      stageRect.height / image.naturalHeight,
+      1,
+    );
 
     setFitSize({
       width: Math.max(1, Math.floor(image.naturalWidth * scale)),
-      height: Math.max(1, Math.floor(image.naturalHeight * scale))
+      height: Math.max(1, Math.floor(image.naturalHeight * scale)),
     });
   }
 
@@ -1098,10 +1199,10 @@ function DetailImage({
         ref={imageRef}
         src={file.mediaUrl}
         style={{
-          width: fitSize ? `${fitSize.width}px` : '1px',
-          height: fitSize ? `${fitSize.height}px` : '1px',
-          visibility: fitSize ? 'visible' : 'hidden',
-          transform: `translate(${imagePan.x}px, ${imagePan.y}px) scale(${imageZoom})`
+          width: fitSize ? `${fitSize.width}px` : "1px",
+          height: fitSize ? `${fitSize.height}px` : "1px",
+          visibility: fitSize ? "visible" : "hidden",
+          transform: `translate(${imagePan.x}px, ${imagePan.y}px) scale(${imageZoom})`,
         }}
         onLoad={updateImageFitSize}
       />

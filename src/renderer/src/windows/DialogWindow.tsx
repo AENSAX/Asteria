@@ -1,5 +1,5 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import type { GenericDialogState } from '../../../shared/ipc';
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import type { GenericDialogState } from "../../../shared/ipc";
 
 interface DialogWindowProps {
   dialogId: string;
@@ -63,18 +63,29 @@ export function DialogWindow({ dialogId }: DialogWindowProps): JSX.Element {
   }, [dialogId, state]);
 
   if (!state) {
-    return <section className="grid w-fit min-w-[280px] overflow-hidden bg-(--bg) text-[11px] text-(--ink)" ref={rootRef}>加载中</section>;
+    return (
+      <section
+        className="grid w-fit min-w-[280px] overflow-hidden bg-(--bg) text-[11px] text-(--ink)"
+        ref={rootRef}
+      >
+        加载中
+      </section>
+    );
   }
 
-  const percent = state.progress && state.progress.total > 0
-    ? Math.floor((state.progress.processed / state.progress.total) * 100)
-    : 0;
+  const percent =
+    state.progress && state.progress.total > 0
+      ? Math.floor((state.progress.processed / state.progress.total) * 100)
+      : 0;
 
   return (
-    <section className="grid w-fit min-w-[280px] max-w-[900px] overflow-hidden bg-(--bg) text-[11px] text-(--ink)" ref={rootRef}>
+    <section
+      className="grid w-fit min-w-[280px] max-w-[900px] overflow-hidden bg-(--bg) text-[11px] text-(--ink)"
+      ref={rootRef}
+    >
       <main className="min-w-0 min-h-0 p-3">
         <div className="max-w-[860px]">{state.message}</div>
-        {state.kind === 'progress' && state.progress ? (
+        {state.kind === "progress" && state.progress ? (
           <div className="mt-3 grid gap-2">
             <div className="grid grid-cols-[minmax(0,1fr)_42px] items-center gap-2">
               <progress max={100} value={percent} />
@@ -86,14 +97,22 @@ export function DialogWindow({ dialogId }: DialogWindowProps): JSX.Element {
           </div>
         ) : null}
       </main>
-      {state.kind === 'confirm' || state.kind === 'alert' ? (
+      {state.kind === "confirm" || state.kind === "alert" ? (
         <footer className="flex justify-end gap-1 border-t border-(--line) bg-(--surface-bg) p-2">
-          {state.kind === 'confirm' ? (
-            <button className="h-6 min-w-14.5 border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px] text-(--ink)" type="button" onClick={() => void resolve(false)}>
+          {state.kind === "confirm" ? (
+            <button
+              className="h-6 min-w-14.5 border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px] text-(--ink)"
+              type="button"
+              onClick={() => void resolve(false)}
+            >
               {state.cancelText}
             </button>
           ) : null}
-          <button className="h-6 min-w-[58px] border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px] text-(--ink)" type="button" onClick={() => void resolve(true)}>
+          <button
+            className="h-6 min-w-[58px] border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px] text-(--ink)"
+            type="button"
+            onClick={() => void resolve(true)}
+          >
             {state.confirmText}
           </button>
         </footer>

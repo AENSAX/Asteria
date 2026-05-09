@@ -1,10 +1,10 @@
-import type { TagRecord } from '../../../shared/ipc';
+import type { TagRecord } from "../../../shared/ipc";
 import {
   formatTagLabel,
   getTagNamespaceClassName,
   getTagNamespaceStyle,
-  type TagToken
-} from '../utils/tags';
+  type TagToken,
+} from "../utils/tags";
 
 interface TagTokenInputProps {
   ariaLabel: string;
@@ -27,7 +27,7 @@ export function TagTokenInput({
   selectedSuggestionIndex,
   onTextChange,
   onKeyDown,
-  onPickSuggestion
+  onPickSuggestion,
 }: TagTokenInputProps): JSX.Element {
   return (
     <div className="relative min-w-0 border-t border-(--line) bg-(--surface-input-panel-bg)">
@@ -38,8 +38,8 @@ export function TagTokenInput({
               className={getTagNamespaceClassName(
                 tag,
                 index === selectedSuggestionIndex
-                  ? 'block h-6 w-full border-0 border-b border-(--line) bg-(--accent-weak) px-1.5 text-left text-[11px] text-(--ink)'
-                  : 'block h-6 w-full border-0 border-b border-(--line) bg-transparent px-1.5 text-left text-[11px] text-(--ink)'
+                  ? "block h-6 w-full border-0 border-b border-(--line) bg-(--accent-weak) px-1.5 text-left text-[11px] text-(--ink)"
+                  : "block h-6 w-full border-0 border-b border-(--line) bg-transparent px-1.5 text-left text-[11px] text-(--ink)",
               )}
               key={tag.id}
               style={getTagNamespaceStyle(tag)}
@@ -60,7 +60,7 @@ export function TagTokenInput({
           <span
             className={getTagNamespaceClassName(
               token,
-              'inline-flex min-h-[18px] max-w-full overflow-hidden border border-(--line-strong) bg-(--tag-bg) px-1.5 text-[11px] text-(--ink)'
+              "inline-flex min-h-[18px] max-w-full overflow-hidden border border-(--line-strong) bg-(--tag-bg) px-1.5 text-[11px] text-(--ink)",
             )}
             key={token.key}
             style={getTagNamespaceStyle(token)}

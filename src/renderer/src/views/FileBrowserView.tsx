@@ -1,21 +1,21 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   AiSettings,
   BrowserFileRecord,
   ImportQueueFileRecord,
-  RatingGroupRecord
-} from '../../../shared/ipc';
-import { FileContextMenu } from '../components/FileContextMenu';
-import { FavoriteButton } from '../components/FavoriteButton';
-import { FileRatingStack } from '../components/FileRatingStack';
-import { useBoxSelection } from '../hooks/useBoxSelection';
-import { useShortcut } from '../hooks/useShortcut';
-import { mergeIds } from '../utils/ids';
+  RatingGroupRecord,
+} from "../../../shared/ipc";
+import { FileContextMenu } from "../components/FileContextMenu";
+import { FavoriteButton } from "../components/FavoriteButton";
+import { FileRatingStack } from "../components/FileRatingStack";
+import { useBoxSelection } from "../hooks/useBoxSelection";
+import { useShortcut } from "../hooks/useShortcut";
+import { mergeIds } from "../utils/ids";
 import {
   listenInterfaceSettingsChanged,
-  loadInterfaceSettings
-} from '../utils/interfaceSettings';
-import { isImageExtension, isVideoExtension } from '../utils/media';
+  loadInterfaceSettings,
+} from "../utils/interfaceSettings";
+import { isImageExtension, isVideoExtension } from "../utils/media";
 
 interface FileBrowserViewProps {
   searchQuery: string;
@@ -28,8 +28,8 @@ interface FileBrowserViewProps {
 }
 
 type BrowserDisplayFile = BrowserFileRecord | ImportQueueFileRecord;
-export type BrowserSortKey = 'importedAt' | 'updatedAt';
-export type BrowserSortDirection = 'asc' | 'desc';
+export type BrowserSortKey = "importedAt" | "updatedAt";
+export type BrowserSortDirection = "asc" | "desc";
 
 export interface BrowserViewState {
   sortKey: BrowserSortKey;
@@ -42,13 +42,13 @@ const BROWSER_GRID_PADDING = 8;
 const BROWSER_PREVIEW_OVERSCAN_ROWS = 1;
 const DECODED_PREVIEW_CACHE_LIMIT = 384;
 const defaultAiSettings: AiSettings = {
-  modelPath: '',
-  modelName: '',
+  modelPath: "",
+  modelName: "",
   generalThreshold: 0.35,
   characterThreshold: 0.75,
   autoTagUntaggedImagesOnImport: false,
   enableImageRetagContextMenu: false,
-  enableImageAppendTagContextMenu: false
+  enableImageAppendTagContextMenu: false,
 };
 const decodedPreviewCache = new Map<
   string,
@@ -57,22 +57,29 @@ const decodedPreviewCache = new Map<
     lastViewedAt: number;
   }
 >();
-const browserRootClass = 'grid h-full min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_24px] bg-(--panel)';
+const browserRootClass =
+  "grid h-full min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_24px] bg-(--panel)";
 const browserGridClass =
-  'relative grid min-h-0 auto-rows-[128px] grid-cols-[repeat(auto-fill,128px)] content-start justify-start gap-2 overflow-auto p-2';
+  "relative grid min-h-0 auto-rows-[128px] grid-cols-[repeat(auto-fill,128px)] content-start justify-start gap-2 overflow-auto p-2";
 const browserCellClass =
-  'relative grid h-32 w-32 overflow-hidden border border-(--line) bg-(--surface-bg) cursor-default';
-const browserCellPendingClass = 'border-(--accent) bg-(--selection-bg)';
-const importBadgeClass = 'absolute right-1 bottom-1 z-[2] border border-(--line-strong) bg-(--surface-bg) px-1.5 leading-5 text-[10px] text-(--muted)';
-const importBadgeDuplicateClass = 'border-(--warning) text-(--warning-ink)';
-const browserMediaClass = 'grid h-full w-full place-items-center overflow-hidden [&>img]:block [&>img]:max-h-full [&>img]:max-w-full [&>img]:object-contain [&>span]:text-(--muted)';
-const browserStatusClass = 'flex h-6 min-w-0 items-center justify-end gap-1.5 border-t border-(--line) bg-(--surface-bg) px-2 text-(--muted)';
-const browserSelectClass = 'h-[18px] min-w-[72px] border border-(--line-strong) bg-(--surface-inset-bg) text-(--ink)';
-const browserPagerClass = 'inline-flex min-w-0 items-center gap-1';
-const browserPagerButtonClass = 'h-[18px] min-w-[38px] cursor-default border border-(--line-strong) bg-(--panel-strong) px-1.5 leading-4 text-(--ink)';
-const browserPagerInputClass = 'h-[18px] w-[42px] border border-(--line-strong) bg-(--surface-inset-bg) px-1 text-(--ink) leading-4';
+  "relative grid h-32 w-32 overflow-hidden border border-(--line) bg-(--surface-bg) cursor-default";
+const browserCellPendingClass = "border-(--accent) bg-(--selection-bg)";
+const importBadgeClass =
+  "absolute right-1 bottom-1 z-[2] border border-(--line-strong) bg-(--surface-bg) px-1.5 leading-5 text-[10px] text-(--muted)";
+const importBadgeDuplicateClass = "border-(--warning) text-(--warning-ink)";
+const browserMediaClass =
+  "grid h-full w-full place-items-center overflow-hidden [&>img]:block [&>img]:max-h-full [&>img]:max-w-full [&>img]:object-contain [&>span]:text-(--muted)";
+const browserStatusClass =
+  "flex h-6 min-w-0 items-center justify-end gap-1.5 border-t border-(--line) bg-(--surface-bg) px-2 text-(--muted)";
+const browserSelectClass =
+  "h-[18px] min-w-[72px] border border-(--line-strong) bg-(--surface-inset-bg) text-(--ink)";
+const browserPagerClass = "inline-flex min-w-0 items-center gap-1";
+const browserPagerButtonClass =
+  "h-[18px] min-w-[38px] cursor-default border border-(--line-strong) bg-(--panel-strong) px-1.5 leading-4 text-(--ink)";
+const browserPagerInputClass =
+  "h-[18px] w-[42px] border border-(--line-strong) bg-(--surface-inset-bg) px-1 text-(--ink) leading-4";
 const contextMenuClass =
-  'fixed z-30 w-[142px] border border-(--line-strong) bg-(--panel) p-1 [&>button]:block [&>button]:h-6 [&>button]:w-full [&>button]:cursor-default [&>button]:border-0 [&>button]:bg-transparent [&>button]:px-2 [&>button]:text-left [&>button]:text-[11px] [&>button]:text-(--ink) [&>button:hover]:bg-(--accent-weak)';
+  "fixed z-30 w-[142px] border border-(--line-strong) bg-(--panel) p-1 [&>button]:block [&>button]:h-6 [&>button]:w-full [&>button]:cursor-default [&>button]:border-0 [&>button]:bg-transparent [&>button]:px-2 [&>button]:text-left [&>button]:text-[11px] [&>button]:text-(--ink) [&>button:hover]:bg-(--accent-weak)";
 
 export function FileBrowserView({
   importQueueMode,
@@ -81,17 +88,25 @@ export function FileBrowserView({
   onStateChange,
   refreshSequence,
   searchQuery,
-  state
+  state,
 }: FileBrowserViewProps): JSX.Element {
   const [files, setFiles] = useState<BrowserDisplayFile[]>([]);
   const [aiSettings, setAiSettings] = useState<AiSettings>(defaultAiSettings);
-  const [activeRatingGroups, setActiveRatingGroups] = useState<RatingGroupRecord[]>([]);
-  const [message, setMessage] = useState('未加载');
+  const [activeRatingGroups, setActiveRatingGroups] = useState<
+    RatingGroupRecord[]
+  >([]);
+  const [message, setMessage] = useState("未加载");
   const [pendingFileIds, setPendingFileIds] = useState<number[]>([]);
-  const [lastPendingFileId, setLastPendingFileId] = useState<number | null>(null);
+  const [lastPendingFileId, setLastPendingFileId] = useState<number | null>(
+    null,
+  );
   const [visiblePreviewIds, setVisiblePreviewIds] = useState<number[]>([]);
-  const [cachedPreviewUrls, setCachedPreviewUrls] = useState<Set<string>>(() => new Set());
-  const [pageSize, setPageSize] = useState(() => loadInterfaceSettings().browserPageSize);
+  const [cachedPreviewUrls, setCachedPreviewUrls] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [pageSize, setPageSize] = useState(
+    () => loadInterfaceSettings().browserPageSize,
+  );
   const [currentPage, setCurrentPage] = useState(1);
   const [contextMenu, setContextMenu] = useState<{
     x: number;
@@ -111,35 +126,39 @@ export function FileBrowserView({
   const onSelectionChangeRef = useRef(onSelectionChange);
   const sortedFiles = useMemo(
     () => sortBrowserFiles(files, state.sortKey, state.sortDirection),
-    [files, state.sortDirection, state.sortKey]
+    [files, state.sortDirection, state.sortKey],
   );
   const totalPages = Math.max(1, Math.ceil(sortedFiles.length / pageSize));
   const clampedPage = Math.min(currentPage, totalPages);
   const pageStartIndex = (clampedPage - 1) * pageSize;
   const pageFiles = useMemo(
     () => sortedFiles.slice(pageStartIndex, pageStartIndex + pageSize),
-    [pageSize, pageStartIndex, sortedFiles]
+    [pageSize, pageStartIndex, sortedFiles],
   );
   const pageFileIdSignature = useMemo(
-    () => pageFiles.map((file) => file.id).join(','),
-    [pageFiles]
+    () => pageFiles.map((file) => file.id).join(","),
+    [pageFiles],
   );
   const pageEndIndex = pageStartIndex + pageFiles.length;
   const boxSelection = useBoxSelection({
     containerRef: gridRef,
-    itemSelector: '[data-box-select-id]',
+    itemSelector: "[data-box-select-id]",
     selectedIds: pendingFileIds,
     onSelect: setPendingFileIds,
-    onLastSelectedId: setLastPendingFileId
+    onLastSelectedId: setLastPendingFileId,
   });
 
   useEffect(() => {
     void loadBrowserFiles();
   }, [importQueueMode, searchQuery, refreshSequence]);
 
-  useEffect(() => listenInterfaceSettingsChanged((settings) => {
-    setPageSize(settings.browserPageSize);
-  }), []);
+  useEffect(
+    () =>
+      listenInterfaceSettingsChanged((settings) => {
+        setPageSize(settings.browserPageSize);
+      }),
+    [],
+  );
 
   useEffect(() => {
     onSelectionChangeRef.current = onSelectionChange;
@@ -151,7 +170,13 @@ export function FileBrowserView({
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [importQueueMode, pageSize, searchQuery, state.sortDirection, state.sortKey]);
+  }, [
+    importQueueMode,
+    pageSize,
+    searchQuery,
+    state.sortDirection,
+    state.sortKey,
+  ]);
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -168,10 +193,12 @@ export function FileBrowserView({
 
     setVisiblePreviewIds([]);
     setPendingFileIds((currentIds) =>
-      currentIds.filter((id) => pageFiles.some((file) => file.id === id))
+      currentIds.filter((id) => pageFiles.some((file) => file.id === id)),
     );
     setLastPendingFileId((currentId) =>
-      currentId !== null && pageFiles.some((file) => file.id === currentId) ? currentId : null
+      currentId !== null && pageFiles.some((file) => file.id === currentId)
+        ? currentId
+        : null,
     );
     setContextMenu(null);
     setBlankContextMenu(null);
@@ -206,12 +233,14 @@ export function FileBrowserView({
     }
 
     updateVisiblePreviews();
-    grid.addEventListener('scroll', scheduleVisiblePreviewUpdate, { passive: true });
-    window.addEventListener('resize', scheduleVisiblePreviewUpdate);
+    grid.addEventListener("scroll", scheduleVisiblePreviewUpdate, {
+      passive: true,
+    });
+    window.addEventListener("resize", scheduleVisiblePreviewUpdate);
 
     return () => {
-      grid.removeEventListener('scroll', scheduleVisiblePreviewUpdate);
-      window.removeEventListener('resize', scheduleVisiblePreviewUpdate);
+      grid.removeEventListener("scroll", scheduleVisiblePreviewUpdate);
+      window.removeEventListener("resize", scheduleVisiblePreviewUpdate);
 
       if (previewFrameRef.current !== null) {
         cancelAnimationFrame(previewFrameRef.current);
@@ -225,7 +254,9 @@ export function FileBrowserView({
       return;
     }
 
-    const visibleFiles = pageFiles.filter((file) => visiblePreviewIds.includes(file.id));
+    const visibleFiles = pageFiles.filter((file) =>
+      visiblePreviewIds.includes(file.id),
+    );
     const thumbnailFileIds = visibleFiles
       .filter(usesThumbnailPreview)
       .map((file) => file.id);
@@ -238,14 +269,17 @@ export function FileBrowserView({
     setCachedPreviewUrls(getDecodedPreviewCacheUrls());
   }, [pageFiles, visiblePreviewIds]);
 
-
-  useShortcut('select-all', () => {
+  useShortcut("select-all", () => {
     const fileIds = pageFiles.map((file) => file.id);
     setPendingFileIds(fileIds);
     setLastPendingFileId(fileIds[fileIds.length - 1] ?? null);
   });
-  useShortcut('browser-previous-page', () => changePage(-1), { enabled: totalPages > 1 });
-  useShortcut('browser-next-page', () => changePage(1), { enabled: totalPages > 1 });
+  useShortcut("browser-previous-page", () => changePage(-1), {
+    enabled: totalPages > 1,
+  });
+  useShortcut("browser-next-page", () => changePage(1), {
+    enabled: totalPages > 1,
+  });
 
   useEffect(() => {
     if (!window.asteria) {
@@ -256,15 +290,21 @@ export function FileBrowserView({
       void loadBrowserFiles();
     });
 
-    const unsubscribeFavoriteChanged = window.asteria.onFileFavoriteChanged((fileId, favorite) => {
-      setFiles((currentFiles) => patchFileFavorite(currentFiles, fileId, favorite));
-    });
+    const unsubscribeFavoriteChanged = window.asteria.onFileFavoriteChanged(
+      (fileId, favorite) => {
+        setFiles((currentFiles) =>
+          patchFileFavorite(currentFiles, fileId, favorite),
+        );
+      },
+    );
 
-    const unsubscribeImportQueueChanged = window.asteria.onImportQueueChanged(() => {
-      if (importQueueMode) {
-        void loadBrowserFiles();
-      }
-    });
+    const unsubscribeImportQueueChanged = window.asteria.onImportQueueChanged(
+      () => {
+        if (importQueueMode) {
+          void loadBrowserFiles();
+        }
+      },
+    );
 
     return () => {
       unsubscribeFilesChanged();
@@ -279,20 +319,20 @@ export function FileBrowserView({
       setBlankContextMenu(null);
     }
 
-    window.addEventListener('mousedown', closeContextMenu);
+    window.addEventListener("mousedown", closeContextMenu);
 
     return () => {
-      window.removeEventListener('mousedown', closeContextMenu);
+      window.removeEventListener("mousedown", closeContextMenu);
     };
   }, []);
 
   async function loadBrowserFiles(): Promise<void> {
     if (!window.asteria) {
-      setMessage('preload unavailable');
+      setMessage("preload unavailable");
       return;
     }
 
-    setMessage('加载中');
+    setMessage("加载中");
 
     try {
       const nextFiles = importQueueMode
@@ -301,25 +341,29 @@ export function FileBrowserView({
           ? await window.asteria.searchBrowserFiles(searchQuery)
           : await window.asteria.listBrowserFiles();
       const [nextRatingGroups, nextAiSettings] = importQueueMode
-        ? [[], defaultAiSettings] as const
+        ? ([[], defaultAiSettings] as const)
         : await Promise.all([
             window.asteria.listRatingGroups(),
-            window.asteria.getAiSettings()
+            window.asteria.getAiSettings(),
           ]);
       setFiles(nextFiles);
       setVisiblePreviewIds([]);
       setActiveRatingGroups(nextRatingGroups.filter((group) => group.isActive));
       setAiSettings(nextAiSettings);
       setPendingFileIds((currentIds) =>
-        currentIds.filter((id) => nextFiles.some((file) => file.id === id))
+        currentIds.filter((id) => nextFiles.some((file) => file.id === id)),
       );
       setMessage(
-        importQueueMode ? `${nextFiles.length} 个待导入文件` : searchQuery ? `${nextFiles.length} 个结果` : `${nextFiles.length} 个文件`
+        importQueueMode
+          ? `${nextFiles.length} 个待导入文件`
+          : searchQuery
+            ? `${nextFiles.length} 个结果`
+            : `${nextFiles.length} 个文件`,
       );
     } catch (error) {
       setFiles([]);
       setVisiblePreviewIds([]);
-      setMessage(error instanceof Error ? error.message : '加载失败');
+      setMessage(error instanceof Error ? error.message : "加载失败");
     }
   }
 
@@ -328,7 +372,10 @@ export function FileBrowserView({
       return;
     }
 
-    await window.asteria?.openFileDetailWindow(id, sortedFiles.map((file) => file.id));
+    await window.asteria?.openFileDetailWindow(
+      id,
+      sortedFiles.map((file) => file.id),
+    );
   }
 
   async function toggleFavorite(file: BrowserDisplayFile): Promise<void> {
@@ -337,17 +384,23 @@ export function FileBrowserView({
     }
 
     const nextFavorite = !file.isFavorite;
-    setFiles((currentFiles) => patchFileFavorite(currentFiles, file.id, nextFavorite));
+    setFiles((currentFiles) =>
+      patchFileFavorite(currentFiles, file.id, nextFavorite),
+    );
 
     try {
       await window.asteria.setFileFavorite(file.id, nextFavorite);
     } catch (error) {
-      setFiles((currentFiles) => patchFileFavorite(currentFiles, file.id, Boolean(file.isFavorite)));
-      setMessage(error instanceof Error ? error.message : '收藏更新失败');
+      setFiles((currentFiles) =>
+        patchFileFavorite(currentFiles, file.id, Boolean(file.isFavorite)),
+      );
+      setMessage(error instanceof Error ? error.message : "收藏更新失败");
     }
   }
 
-  function handleBrowserGridMouseDown(event: React.MouseEvent<HTMLDivElement>): void {
+  function handleBrowserGridMouseDown(
+    event: React.MouseEvent<HTMLDivElement>,
+  ): void {
     if (event.target === event.currentTarget) {
       setPendingFileIds([]);
       setLastPendingFileId(null);
@@ -356,11 +409,15 @@ export function FileBrowserView({
     }
   }
 
-  function handleBrowserGridMouseDownCapture(event: React.MouseEvent<HTMLDivElement>): void {
+  function handleBrowserGridMouseDownCapture(
+    event: React.MouseEvent<HTMLDivElement>,
+  ): void {
     boxSelection.handleMouseDownCapture(event);
   }
 
-  function handleBrowserGridContextMenu(event: React.MouseEvent<HTMLDivElement>): void {
+  function handleBrowserGridContextMenu(
+    event: React.MouseEvent<HTMLDivElement>,
+  ): void {
     if (event.target !== event.currentTarget) {
       return;
     }
@@ -372,14 +429,14 @@ export function FileBrowserView({
     setLastPendingFileId(null);
     setBlankContextMenu({
       x: event.clientX,
-      y: event.clientY
+      y: event.clientY,
     });
   }
 
   function handleBrowserFileMouseDown(
     event: React.MouseEvent<HTMLElement>,
     file: BrowserDisplayFile,
-    index: number
+    index: number,
   ): void {
     if (event.button !== 0) {
       return;
@@ -391,7 +448,9 @@ export function FileBrowserView({
     const isPending = pendingFileIds.includes(file.id);
 
     if (event.shiftKey && lastPendingFileId !== null) {
-      const anchorIndex = pageFiles.findIndex((item) => item.id === lastPendingFileId);
+      const anchorIndex = pageFiles.findIndex(
+        (item) => item.id === lastPendingFileId,
+      );
 
       if (anchorIndex >= 0) {
         const start = Math.min(anchorIndex, index);
@@ -399,7 +458,7 @@ export function FileBrowserView({
         const rangeIds = pageFiles.slice(start, end + 1).map((item) => item.id);
 
         setPendingFileIds((currentIds) =>
-          event.ctrlKey ? mergeIds(currentIds, rangeIds) : rangeIds
+          event.ctrlKey ? mergeIds(currentIds, rangeIds) : rangeIds,
         );
         return;
       }
@@ -407,7 +466,9 @@ export function FileBrowserView({
 
     if (event.ctrlKey) {
       setPendingFileIds((currentIds) =>
-        isPending ? currentIds.filter((id) => id !== file.id) : [...currentIds, file.id]
+        isPending
+          ? currentIds.filter((id) => id !== file.id)
+          : [...currentIds, file.id],
       );
       setLastPendingFileId(file.id);
       return;
@@ -424,7 +485,7 @@ export function FileBrowserView({
 
   async function handleBrowserFileContextMenu(
     event: React.MouseEvent<HTMLElement>,
-    file: BrowserDisplayFile
+    file: BrowserDisplayFile,
   ): Promise<void> {
     event.preventDefault();
     event.stopPropagation();
@@ -432,7 +493,9 @@ export function FileBrowserView({
     const menuX = event.clientX;
     const menuY = event.clientY;
     const fileIds =
-      pendingFileIds.includes(file.id) && pendingFileIds.length > 1 ? pendingFileIds : [file.id];
+      pendingFileIds.includes(file.id) && pendingFileIds.length > 1
+        ? pendingFileIds
+        : [file.id];
     const selectedFiles = pageFiles.filter((item) => fileIds.includes(item.id));
     const latestAiSettings =
       !importQueueMode && window.asteria
@@ -457,12 +520,18 @@ export function FileBrowserView({
         !importQueueMode &&
         latestAiSettings.enableImageRetagContextMenu &&
         selectedFiles.length > 0 &&
-        selectedFiles.every((item) => !isImportQueueFile(item) && isImageExtension(item.extension ?? '')),
+        selectedFiles.every(
+          (item) =>
+            !isImportQueueFile(item) && isImageExtension(item.extension ?? ""),
+        ),
       canAiAppendTag:
         !importQueueMode &&
         latestAiSettings.enableImageAppendTagContextMenu &&
         selectedFiles.length > 0 &&
-        selectedFiles.every((item) => !isImportQueueFile(item) && isImageExtension(item.extension ?? '')),
+        selectedFiles.every(
+          (item) =>
+            !isImportQueueFile(item) && isImageExtension(item.extension ?? ""),
+        ),
       canTranslateTags:
         !importQueueMode &&
         Boolean(latestTagTranslationSettings?.enableContextMenuTranslation) &&
@@ -471,7 +540,9 @@ export function FileBrowserView({
       canScreening:
         !importQueueMode &&
         selectedFiles.length > 0 &&
-        selectedFiles.every((item) => !isImportQueueFile(item) && item.domain === 'pending')
+        selectedFiles.every(
+          (item) => !isImportQueueFile(item) && item.domain === "pending",
+        ),
     });
   }
 
@@ -502,7 +573,10 @@ export function FileBrowserView({
     await window.asteria?.openExportWindow(fileIds);
   }
 
-  async function tagWithAi(fileIds: number[], overwrite: boolean): Promise<void> {
+  async function tagWithAi(
+    fileIds: number[],
+    overwrite: boolean,
+  ): Promise<void> {
     if (importQueueMode) {
       return;
     }
@@ -563,7 +637,10 @@ export function FileBrowserView({
     }
 
     setContextMenu(null);
-    const queueFiles = pageFiles.filter((file): file is ImportQueueFileRecord => isImportQueueFile(file) && fileIds.includes(file.id));
+    const queueFiles = pageFiles.filter(
+      (file): file is ImportQueueFileRecord =>
+        isImportQueueFile(file) && fileIds.includes(file.id),
+    );
     const confirmedDuplicateIds: number[] = [];
 
     for (const file of queueFiles) {
@@ -572,8 +649,8 @@ export function FileBrowserView({
       }
 
       const confirmed = await window.asteria.confirmDialog({
-        title: '确认重复导入',
-        message: `这个文件与 ${file.duplicate.domainName} 中的文件相同，确定要重复导入吗，这不会创建一个新的文件，只会创建一条新的数据库记录`
+        title: "确认重复导入",
+        message: `这个文件与 ${file.duplicate.domainName} 中的文件相同，确定要重复导入吗，这不会创建一个新的文件，只会创建一条新的数据库记录`,
       });
 
       if (confirmed) {
@@ -581,7 +658,10 @@ export function FileBrowserView({
       }
     }
 
-    const result = await window.asteria.commitImportQueue(fileIds, confirmedDuplicateIds);
+    const result = await window.asteria.commitImportQueue(
+      fileIds,
+      confirmedDuplicateIds,
+    );
     setPendingFileIds([]);
     setLastPendingFileId(null);
     setFiles(result.remainingQueue);
@@ -603,7 +683,10 @@ export function FileBrowserView({
     await loadBrowserFiles();
   }
 
-  async function openRatingDialog(fileIds: number[], group: RatingGroupRecord): Promise<void> {
+  async function openRatingDialog(
+    fileIds: number[],
+    group: RatingGroupRecord,
+  ): Promise<void> {
     if (!window.asteria) {
       return;
     }
@@ -628,26 +711,40 @@ export function FileBrowserView({
         {pageFiles.length > 0 ? (
           pageFiles.map((file, index) => (
             <article
-              className={`${browserCellClass} ${pendingFileIds.includes(file.id) ? browserCellPendingClass : ''}`}
+              className={`${browserCellClass} ${pendingFileIds.includes(file.id) ? browserCellPendingClass : ""}`}
               data-box-select-id={file.id}
               key={file.id}
-              onMouseDown={(event) => handleBrowserFileMouseDown(event, file, index)}
-              onContextMenu={(event) => void handleBrowserFileContextMenu(event, file)}
+              onMouseDown={(event) =>
+                handleBrowserFileMouseDown(event, file, index)
+              }
+              onContextMenu={(event) =>
+                void handleBrowserFileContextMenu(event, file)
+              }
             >
               {isImportQueueFile(file) ? (
-                <div className={`${importBadgeClass} ${file.duplicate ? importBadgeDuplicateClass : ''}`}>
-                  {file.duplicate ? '重复' : file.status === 'failed' ? '失败' : '待导入'}
+                <div
+                  className={`${importBadgeClass} ${file.duplicate ? importBadgeDuplicateClass : ""}`}
+                >
+                  {file.duplicate
+                    ? "重复"
+                    : file.status === "failed"
+                      ? "失败"
+                      : "待导入"}
                 </div>
               ) : (
                 <>
                   <FileRatingStack ratings={file.ratings} />
-                  <FavoriteButton active={Boolean(file.isFavorite)} onToggle={() => void toggleFavorite(file)} />
+                  <FavoriteButton
+                    active={Boolean(file.isFavorite)}
+                    onToggle={() => void toggleFavorite(file)}
+                  />
                 </>
               )}
               <div className={browserMediaClass}>
                 {renderBrowserMedia(
                   file,
-                  visiblePreviewIds.includes(file.id) || isPreviewCached(file, cachedPreviewUrls)
+                  visiblePreviewIds.includes(file.id) ||
+                    isPreviewCached(file, cachedPreviewUrls),
                 )}
               </div>
             </article>
@@ -656,7 +753,10 @@ export function FileBrowserView({
           <div className="text-(--muted)">没有文件记录</div>
         )}
         {boxSelection.selectionBox ? (
-          <div className="absolute z-40 border border-(--accent) bg-(--accent-overlay) pointer-events-none" style={boxSelection.selectionBox} />
+          <div
+            className="absolute z-40 border border-(--accent) bg-(--accent-overlay) pointer-events-none"
+            style={boxSelection.selectionBox}
+          />
         ) : null}
       </div>
 
@@ -669,7 +769,10 @@ export function FileBrowserView({
             disabled={importQueueMode}
             value={state.sortKey}
             onChange={(event) =>
-              onStateChange({ ...state, sortKey: event.target.value as BrowserSortKey })
+              onStateChange({
+                ...state,
+                sortKey: event.target.value as BrowserSortKey,
+              })
             }
           >
             <option value="importedAt">导入日期</option>
@@ -682,7 +785,10 @@ export function FileBrowserView({
           disabled={importQueueMode}
           value={state.sortDirection}
           onChange={(event) =>
-            onStateChange({ ...state, sortDirection: event.target.value as BrowserSortDirection })
+            onStateChange({
+              ...state,
+              sortDirection: event.target.value as BrowserSortDirection,
+            })
           }
         >
           <option value="desc">降序</option>
@@ -712,14 +818,18 @@ export function FileBrowserView({
             min={1}
             type="number"
             value={clampedPage}
-            onChange={(event) => setCurrentPage(normalizePageInput(event.target.value, totalPages))}
+            onChange={(event) =>
+              setCurrentPage(normalizePageInput(event.target.value, totalPages))
+            }
           />
           <span>/ {totalPages}</span>
           <button
             className={browserPagerButtonClass}
             disabled={clampedPage >= totalPages}
             type="button"
-            onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+            onClick={() =>
+              setCurrentPage((page) => Math.min(totalPages, page + 1))
+            }
           >
             下页
           </button>
@@ -736,7 +846,7 @@ export function FileBrowserView({
           {message}
           {sortedFiles.length > 0
             ? ` · ${pageStartIndex + 1}-${pageEndIndex} / ${sortedFiles.length}`
-            : ''}
+            : ""}
         </span>
       </footer>
 
@@ -764,10 +874,16 @@ export function FileBrowserView({
           style={{ left: contextMenu.x, top: contextMenu.y }}
           onMouseDown={(event) => event.stopPropagation()}
         >
-          <button type="button" onClick={() => void commitQueueFiles(contextMenu.fileIds)}>
+          <button
+            type="button"
+            onClick={() => void commitQueueFiles(contextMenu.fileIds)}
+          >
             导入
           </button>
-          <button type="button" onClick={() => void removeQueueFiles(contextMenu.fileIds)}>
+          <button
+            type="button"
+            onClick={() => void removeQueueFiles(contextMenu.fileIds)}
+          >
             删除
           </button>
         </div>
@@ -792,21 +908,26 @@ export function FileBrowserView({
           onTranslateTags={(fileIds) => void translateTags(fileIds)}
           onExport={(fileIds) => void openExportWindow(fileIds)}
           onOpenExternally={(fileIds) => void openExternally(fileIds)}
-          onOpenRating={(fileIds, group) => void openRatingDialog(fileIds, group)}
+          onOpenRating={(fileIds, group) =>
+            void openRatingDialog(fileIds, group)
+          }
           onOpenScreening={(fileIds) => void openScreening(fileIds)}
           onTrash={(fileIds) => void trashSelectedFiles(fileIds)}
         />
       ) : null}
-
     </section>
   );
 }
 
-function renderBrowserMedia(file: BrowserDisplayFile, shouldLoadPreview: boolean): JSX.Element {
-  const extension = file.extension?.toLowerCase() ?? '';
+function renderBrowserMedia(
+  file: BrowserDisplayFile,
+  shouldLoadPreview: boolean,
+): JSX.Element {
+  const extension = file.extension?.toLowerCase() ?? "";
 
   if (isImageExtension(extension)) {
-    const previewUrl = 'thumbnailUrl' in file ? file.thumbnailUrl : file.mediaUrl;
+    const previewUrl =
+      "thumbnailUrl" in file ? file.thumbnailUrl : file.mediaUrl;
 
     return shouldLoadPreview ? (
       <img alt={file.fileName} loading="lazy" src={previewUrl} />
@@ -816,7 +937,8 @@ function renderBrowserMedia(file: BrowserDisplayFile, shouldLoadPreview: boolean
   }
 
   if (isVideoExtension(extension)) {
-    const previewUrl = 'thumbnailUrl' in file ? file.thumbnailUrl : file.mediaUrl;
+    const previewUrl =
+      "thumbnailUrl" in file ? file.thumbnailUrl : file.mediaUrl;
 
     return shouldLoadPreview ? (
       <img alt={file.fileName} loading="lazy" src={previewUrl} />
@@ -825,12 +947,12 @@ function renderBrowserMedia(file: BrowserDisplayFile, shouldLoadPreview: boolean
     );
   }
 
-  return <span>{extension || 'file'}</span>;
+  return <span>{extension || "file"}</span>;
 }
 
 function calculateVisiblePreviewIds(
   grid: HTMLDivElement,
-  files: BrowserDisplayFile[]
+  files: BrowserDisplayFile[],
 ): number[] {
   if (files.length === 0 || grid.clientWidth <= 0 || grid.clientHeight <= 0) {
     return [];
@@ -839,10 +961,17 @@ function calculateVisiblePreviewIds(
   const columnStride = BROWSER_CELL_SIZE + BROWSER_GRID_GAP;
   const rowStride = BROWSER_CELL_SIZE + BROWSER_GRID_GAP;
   const usableWidth = Math.max(0, grid.clientWidth - BROWSER_GRID_PADDING * 2);
-  const columnCount = Math.max(1, Math.floor((usableWidth + BROWSER_GRID_GAP) / columnStride));
+  const columnCount = Math.max(
+    1,
+    Math.floor((usableWidth + BROWSER_GRID_GAP) / columnStride),
+  );
   const overscan = BROWSER_PREVIEW_OVERSCAN_ROWS * rowStride;
-  const viewportStart = Math.max(0, grid.scrollTop - BROWSER_GRID_PADDING - overscan);
-  const viewportEnd = grid.scrollTop + grid.clientHeight - BROWSER_GRID_PADDING + overscan;
+  const viewportStart = Math.max(
+    0,
+    grid.scrollTop - BROWSER_GRID_PADDING - overscan,
+  );
+  const viewportEnd =
+    grid.scrollTop + grid.clientHeight - BROWSER_GRID_PADDING + overscan;
   const firstRow = Math.max(0, Math.floor(viewportStart / rowStride));
   const lastRow = Math.max(firstRow, Math.floor(viewportEnd / rowStride));
   const firstIndex = firstRow * columnCount;
@@ -863,30 +992,39 @@ function calculateVisiblePreviewIds(
 function sortBrowserFiles(
   files: BrowserDisplayFile[],
   sortKey: BrowserSortKey,
-  direction: BrowserSortDirection
+  direction: BrowserSortDirection,
 ): BrowserDisplayFile[] {
   if (files.some(isImportQueueFile)) {
     return files;
   }
 
-  const multiplier = direction === 'asc' ? 1 : -1;
+  const multiplier = direction === "asc" ? 1 : -1;
 
   return [...files].sort((left, right) => {
-    const leftValue = sortKey === 'updatedAt' ? left.updatedAt : left.importedAt;
-    const rightValue = sortKey === 'updatedAt' ? right.updatedAt : right.importedAt;
+    const leftValue =
+      sortKey === "updatedAt" ? left.updatedAt : left.importedAt;
+    const rightValue =
+      sortKey === "updatedAt" ? right.updatedAt : right.importedAt;
 
-    return compareText(leftValue, rightValue) * multiplier || (left.id - right.id) * multiplier;
+    return (
+      compareText(leftValue, rightValue) * multiplier ||
+      (left.id - right.id) * multiplier
+    );
   });
 }
 
 function patchFileFavorite(
   files: BrowserDisplayFile[],
   fileId: number,
-  favorite: boolean
+  favorite: boolean,
 ): BrowserDisplayFile[] {
   let changed = false;
   const nextFiles = files.map((file) => {
-    if (isImportQueueFile(file) || file.id !== fileId || file.isFavorite === favorite) {
+    if (
+      isImportQueueFile(file) ||
+      file.id !== fileId ||
+      file.isFavorite === favorite
+    ) {
       return file;
     }
 
@@ -901,7 +1039,7 @@ function warmDecodedPreviewCache(files: BrowserDisplayFile[]): void {
   const viewedAt = Date.now();
 
   for (const file of files) {
-    if (!usesThumbnailPreview(file) || !('thumbnailUrl' in file)) {
+    if (!usesThumbnailPreview(file) || !("thumbnailUrl" in file)) {
       continue;
     }
 
@@ -911,12 +1049,15 @@ function warmDecodedPreviewCache(files: BrowserDisplayFile[]): void {
     }
 
     const image = new Image();
-    image.decoding = 'async';
+    image.decoding = "async";
     image.src = file.thumbnailUrl;
-    decodedPreviewCache.set(file.thumbnailUrl, { image, lastViewedAt: viewedAt });
+    decodedPreviewCache.set(file.thumbnailUrl, {
+      image,
+      lastViewedAt: viewedAt,
+    });
     trimDecodedPreviewCache();
 
-    if (typeof image.decode === 'function') {
+    if (typeof image.decode === "function") {
       void image.decode().catch(() => {
         decodedPreviewCache.delete(file.thumbnailUrl);
       });
@@ -925,11 +1066,14 @@ function warmDecodedPreviewCache(files: BrowserDisplayFile[]): void {
 }
 
 function usesThumbnailPreview(file: BrowserDisplayFile): boolean {
-  const extension = file.extension?.toLowerCase() ?? '';
+  const extension = file.extension?.toLowerCase() ?? "";
   return isImageExtension(extension) || isVideoExtension(extension);
 }
 
-function isPreviewCached(file: BrowserDisplayFile, cachedUrls: Set<string>): boolean {
+function isPreviewCached(
+  file: BrowserDisplayFile,
+  cachedUrls: Set<string>,
+): boolean {
   const previewUrl = getBrowserPreviewUrl(file);
   return Boolean(previewUrl && cachedUrls.has(previewUrl));
 }
@@ -939,7 +1083,7 @@ function getBrowserPreviewUrl(file: BrowserDisplayFile): string | null {
     return null;
   }
 
-  return 'thumbnailUrl' in file ? file.thumbnailUrl : file.mediaUrl;
+  return "thumbnailUrl" in file ? file.thumbnailUrl : file.mediaUrl;
 }
 
 function touchDecodedPreview(url: string, viewedAt: number): void {
@@ -997,6 +1141,8 @@ function normalizePageInput(value: string, totalPages: number): number {
   return Math.min(totalPages, Math.max(1, page));
 }
 
-function isImportQueueFile(file: BrowserDisplayFile): file is ImportQueueFileRecord {
-  return 'duplicate' in file && 'status' in file;
+function isImportQueueFile(
+  file: BrowserDisplayFile,
+): file is ImportQueueFileRecord {
+  return "duplicate" in file && "status" in file;
 }

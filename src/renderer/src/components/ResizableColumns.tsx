@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import type { PointerEvent } from 'react';
+import { useEffect, useRef, useState } from "react";
+import type { PointerEvent } from "react";
 
 interface ResizableColumnsProps {
   className: string;
@@ -18,15 +18,17 @@ export function ResizableColumns({
   minLeftWidth = 120,
   minRightWidth = 180,
   left,
-  right
+  right,
 }: ResizableColumnsProps): JSX.Element {
   const rootRef = useRef<HTMLElement | null>(null);
   const dragRef = useRef({
     active: false,
     startX: 0,
-    startWidth: defaultLeftWidth
+    startWidth: defaultLeftWidth,
   });
-  const [leftWidth, setLeftWidth] = useState(() => readStoredWidth(storageKey, defaultLeftWidth));
+  const [leftWidth, setLeftWidth] = useState(() =>
+    readStoredWidth(storageKey, defaultLeftWidth),
+  );
 
   useEffect(() => {
     window.localStorage.setItem(storageKey, String(leftWidth));
@@ -39,24 +41,30 @@ export function ResizableColumns({
       }
 
       const rootWidth = rootRef.current?.getBoundingClientRect().width ?? 0;
-      const maxLeftWidth = Math.max(minLeftWidth, rootWidth - minRightWidth - 5);
-      const nextWidth = dragRef.current.startWidth + event.clientX - dragRef.current.startX;
-      setLeftWidth(Math.min(maxLeftWidth, Math.max(minLeftWidth, Math.round(nextWidth))));
+      const maxLeftWidth = Math.max(
+        minLeftWidth,
+        rootWidth - minRightWidth - 5,
+      );
+      const nextWidth =
+        dragRef.current.startWidth + event.clientX - dragRef.current.startX;
+      setLeftWidth(
+        Math.min(maxLeftWidth, Math.max(minLeftWidth, Math.round(nextWidth))),
+      );
       event.preventDefault();
     }
 
     function handlePointerUp(): void {
       dragRef.current.active = false;
-      document.body.classList.remove('resizing-columns');
+      document.body.classList.remove("resizing-columns");
     }
 
-    window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
 
     return () => {
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerUp);
-      document.body.classList.remove('resizing-columns');
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+      document.body.classList.remove("resizing-columns");
     };
   }, [minLeftWidth, minRightWidth]);
 
@@ -68,9 +76,9 @@ export function ResizableColumns({
     dragRef.current = {
       active: true,
       startX: event.clientX,
-      startWidth: leftWidth
+      startWidth: leftWidth,
     };
-    document.body.classList.add('resizing-columns');
+    document.body.classList.add("resizing-columns");
     event.currentTarget.setPointerCapture(event.pointerId);
     event.preventDefault();
   }
@@ -81,7 +89,9 @@ export function ResizableColumns({
       ref={rootRef}
       style={{ gridTemplateColumns: `${leftWidth}px 5px minmax(0, 1fr)` }}
     >
-      <div className="min-h-0 min-w-0 overflow-hidden [&>*]:h-full [&>*]:w-full [&>*]:min-h-0 [&>*]:min-w-0">{left}</div>
+      <div className="min-h-0 min-w-0 overflow-hidden [&>*]:h-full [&>*]:w-full [&>*]:min-h-0 [&>*]:min-w-0">
+        {left}
+      </div>
       <div
         aria-label="调整宽度"
         aria-orientation="vertical"
@@ -89,7 +99,9 @@ export function ResizableColumns({
         role="separator"
         onPointerDown={startResize}
       />
-      <div className="min-h-0 min-w-0 overflow-hidden [&>*]:h-full [&>*]:w-full [&>*]:min-h-0 [&>*]:min-w-0">{right}</div>
+      <div className="min-h-0 min-w-0 overflow-hidden [&>*]:h-full [&>*]:w-full [&>*]:min-h-0 [&>*]:min-w-0">
+        {right}
+      </div>
     </section>
   );
 }

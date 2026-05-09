@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState, type ButtonHTMLAttributes } from 'react';
+import { useEffect, useRef, useState, type ButtonHTMLAttributes } from "react";
 
-type FeedbackKind = 'save' | 'apply';
+type FeedbackKind = "save" | "apply";
 
-interface ActionFeedbackButtonProps
-  extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children' | 'onClick'> {
+interface ActionFeedbackButtonProps extends Omit<
+  ButtonHTMLAttributes<HTMLButtonElement>,
+  "children" | "onClick"
+> {
   afterFeedback?: () => void;
   feedbackKind?: FeedbackKind;
   label: string;
@@ -11,30 +13,33 @@ interface ActionFeedbackButtonProps
 }
 
 const feedbackLabels: Record<FeedbackKind, string> = {
-  apply: '√已应用',
-  save: '√已保存'
+  apply: "√已应用",
+  save: "√已保存",
 };
 const successClass =
-  'border border-(--success) bg-(--success-weak) text-(--success-feedback-ink) hover:border-(--success) hover:bg-(--success-weak) active:border-(--success) active:bg-(--success-weak) active:text-(--success-feedback-ink)';
+  "border border-(--success) bg-(--success-weak) text-(--success-feedback-ink) hover:border-(--success) hover:bg-(--success-weak) active:border-(--success) active:bg-(--success-weak) active:text-(--success-feedback-ink)";
 
 export function ActionFeedbackButton({
   afterFeedback,
   className,
   disabled,
-  feedbackKind = 'save',
+  feedbackKind = "save",
   label,
   onAction,
-  type = 'button',
+  type = "button",
   ...buttonProps
 }: ActionFeedbackButtonProps): JSX.Element {
   const [responded, setResponded] = useState(false);
   const timerRef = useRef<number | null>(null);
 
-  useEffect(() => () => {
-    if (timerRef.current !== null) {
-      window.clearTimeout(timerRef.current);
-    }
-  }, []);
+  useEffect(
+    () => () => {
+      if (timerRef.current !== null) {
+        window.clearTimeout(timerRef.current);
+      }
+    },
+    [],
+  );
 
   async function handleClick(): Promise<void> {
     if (disabled) {
@@ -62,9 +67,9 @@ export function ActionFeedbackButton({
   return (
     <button
       {...buttonProps}
-      className={[className, responded ? successClass : '']
+      className={[className, responded ? successClass : ""]
         .filter(Boolean)
-        .join(' ')}
+        .join(" ")}
       disabled={disabled}
       type={type}
       onClick={() => void handleClick()}

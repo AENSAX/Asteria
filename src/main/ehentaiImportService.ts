@@ -1,34 +1,34 @@
-import { app, net, session, type WebContents } from 'electron';
+import { app, net, session, type WebContents } from "electron";
 import {
   request as requestHttp,
   type IncomingHttpHeaders,
-  type IncomingMessage
-} from 'node:http';
-import { request as requestHttps } from 'node:https';
-import { mkdir, rm, stat, writeFile } from 'node:fs/promises';
-import { basename, extname, join } from 'node:path';
-import { connect as connectTls } from 'node:tls';
+  type IncomingMessage,
+} from "node:http";
+import { request as requestHttps } from "node:https";
+import { mkdir, rm, stat, writeFile } from "node:fs/promises";
+import { basename, extname, join } from "node:path";
+import { connect as connectTls } from "node:tls";
 import {
   createApiUploadedFileRecord,
   findStoredFileForApiUpload,
-  getNetworkSettings
-} from './database.js';
-import { hashFile } from './fileHash.js';
-import { storeNewMediaFile } from './mediaStorage.js';
+  getNetworkSettings,
+} from "./database.js";
+import { hashFile } from "./fileHash.js";
+import { storeNewMediaFile } from "./mediaStorage.js";
 import type {
   EHentaiGalleryStatus,
   EHentaiImportOptions,
   EHentaiImportProgress,
-  TagDraft
-} from '../shared/ipc.js';
+  TagDraft,
+} from "../shared/ipc.js";
 
-const EHENTAI_TAG_STYLE_NAME = 'e-hentai';
+const EHENTAI_TAG_STYLE_NAME = "e-hentai";
 const DEFAULT_REQUEST_DELAY_MS = 10000;
 const DEFAULT_REQUEST_TIMEOUT_MS = 45_000;
 const RATE_LIMIT_EXTRA_WAIT_MS = 5000;
 const MAX_RATE_LIMIT_RETRIES = 3;
 const DEFAULT_USER_AGENT =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36';
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36";
 let ehentaiImportCanceled = false;
 
 interface GalleryImagePage {
@@ -56,7 +56,9 @@ class EHentaiRateLimitError extends Error {
   }
 }
 
-export async function testEHentaiGallery(options: EHentaiImportOptions): Promise<EHentaiGalleryStatus> {
+export async function testEHentaiGallery(
+  options: EHentaiImportOptions,
+): Promise<EHentaiGalleryStatus> {
   try {
     const normalizedOptions = normalizeEHentaiImportOptions(options);
     const galleryUrl = normalizeGalleryUrl(normalizedOptions.galleryUrl);
@@ -64,30 +66,33 @@ export async function testEHentaiGallery(options: EHentaiImportOptions): Promise
       galleryUrl,
       normalizedOptions.cookie,
       galleryUrl,
-      normalizedOptions.requestTimeoutMs
+      normalizedOptions.requestTimeoutMs,
     );
     const metadata = parseGalleryMetadata(html);
     const imagePages = parseGalleryImagePages(html, galleryUrl);
 
     return {
       ok: imagePages.length > 0,
-      message: imagePages.length > 0 ? `链接可用，首页解析到 ${imagePages.length} 张` : '没有解析到图片页面，请检查 Cookie 或页面结构',
+      message:
+        imagePages.length > 0
+          ? `链接可用，首页解析到 ${imagePages.length} 张`
+          : "没有解析到图片页面，请检查 Cookie 或页面结构",
       galleryTitle: metadata.title,
-      imageCount: imagePages.length
+      imageCount: imagePages.length,
     };
   } catch (error) {
     return {
       ok: false,
-      message: error instanceof Error ? error.message : '检测失败',
-      galleryTitle: '',
-      imageCount: 0
+      message: error instanceof Error ? error.message : "检测失败",
+      galleryTitle: "",
+      imageCount: 0,
     };
   }
 }
 
 export async function importFromEHentai(
   sender: WebContents,
-  options: EHentaiImportOptions
+  options: EHentaiImportOptions,
 ): Promise<EHentaiImportProgress> {
   ehentaiImportCanceled = false;
   const normalizedOptions = normalizeEHentaiImportOptions(options);
@@ -96,104 +101,134 @@ export async function importFromEHentai(
     imported: 0,
     duplicated: 0,
     skipped: 0,
-    failed: 0
+    failed: 0,
   };
   let total = 0;
 
   try {
     const galleryUrl = normalizeGalleryUrl(normalizedOptions.galleryUrl);
-    emitEHentaiProgress(sender, createEHentaiProgress({ phase: 'testing', message: '检测 gallery 链接' }));
+    emitEHentaiProgress(
+      sender,
+      createEHentaiProgress({ phase: "testing", message: "检测 gallery 链接" }),
+    );
 
     const firstPageHtml = await fetchEHentaiText(
       galleryUrl,
       normalizedOptions.cookie,
       galleryUrl,
       normalizedOptions.requestTimeoutMs,
-      (waitMs) => emitRateLimitProgress(sender, 'testing', 0, 0, galleryUrl, waitMs)
+      (waitMs) =>
+        emitRateLimitProgress(sender, "testing", 0, 0, galleryUrl, waitMs),
     );
     const metadata = parseGalleryMetadata(firstPageHtml);
-    const firstPageImagePages = parseGalleryImagePages(firstPageHtml, galleryUrl);
+    const firstPageImagePages = parseGalleryImagePages(
+      firstPageHtml,
+      galleryUrl,
+    );
 
     if (firstPageImagePages.length === 0) {
-      throw new Error('没有解析到图片页面，请检查 Cookie 或页面结构。');
+      throw new Error("没有解析到图片页面，请检查 Cookie 或页面结构。");
     }
 
     assertEHentaiNotCanceled();
-    emitEHentaiProgress(sender, createEHentaiProgress({ phase: 'collecting', message: '解析 gallery 分页' }));
     emitEHentaiProgress(
       sender,
       createEHentaiProgress({
-        phase: 'collecting',
+        phase: "collecting",
+        message: "解析 gallery 分页",
+      }),
+    );
+    emitEHentaiProgress(
+      sender,
+      createEHentaiProgress({
+        phase: "collecting",
         total: 1,
         processed: 0,
         currentFile: galleryUrl,
-        message: `读取 gallery 首页链接：${galleryUrl}`
-      })
+        message: `读取 gallery 首页链接：${galleryUrl}`,
+      }),
     );
     const imagePages = await collectGalleryImagePages(
       sender,
       galleryUrl,
       normalizedOptions,
       firstPageHtml,
-      firstPageImagePages
+      firstPageImagePages,
     );
-    const selectedPages = sliceImagePages(imagePages, normalizedOptions.startIndex, normalizedOptions.limit);
+    const selectedPages = sliceImagePages(
+      imagePages,
+      normalizedOptions.startIndex,
+      normalizedOptions.limit,
+    );
     total = selectedPages.length;
 
     if (selectedPages.length === 0) {
       const completed = createEHentaiProgress({
-        phase: 'completed',
+        phase: "completed",
         total,
-        message: '没有需要导入的图片',
-        ...counters
+        message: "没有需要导入的图片",
+        ...counters,
       });
       emitEHentaiProgress(sender, completed);
       return completed;
     }
 
-    const baseTags = createGalleryTags(metadata, normalizedOptions.importGalleryTags);
+    const baseTags = createGalleryTags(
+      metadata,
+      normalizedOptions.importGalleryTags,
+    );
 
     for (const imagePage of selectedPages) {
       assertEHentaiNotCanceled();
       emitEHentaiProgress(
         sender,
         createEHentaiProgress({
-          phase: 'importing',
+          phase: "importing",
           total,
           currentFile: imagePage.fileName ?? imagePage.pageUrl,
-          message: '下载并导入 E-Hentai 原图',
-          ...counters
-        })
+          message: "下载并导入 E-Hentai 原图",
+          ...counters,
+        }),
       );
 
       try {
         emitEHentaiProgress(
           sender,
           createEHentaiProgress({
-            phase: 'importing',
+            phase: "importing",
             total,
             currentFile: imagePage.pageUrl,
             message: `读取单页链接：${imagePage.pageUrl}`,
-            ...counters
-          })
+            ...counters,
+          }),
         );
 
         const originalUrl = await resolveOriginalImageUrl(
           imagePage,
           normalizedOptions.cookie,
           normalizedOptions.requestTimeoutMs,
-          (waitMs) => emitRateLimitProgress(sender, 'importing', total, counters.processed, imagePage.pageUrl, waitMs)
+          (waitMs) =>
+            emitRateLimitProgress(
+              sender,
+              "importing",
+              total,
+              counters.processed,
+              imagePage.pageUrl,
+              waitMs,
+            ),
         );
-        const imageLinkType = isEHentaiFullImageUrl(originalUrl) ? '原图' : '展示图';
+        const imageLinkType = isEHentaiFullImageUrl(originalUrl)
+          ? "原图"
+          : "展示图";
         emitEHentaiProgress(
           sender,
           createEHentaiProgress({
-            phase: 'importing',
+            phase: "importing",
             total,
             currentFile: originalUrl,
             message: `解析${imageLinkType}链接：${originalUrl}`,
-            ...counters
-          })
+            ...counters,
+          }),
         );
         const result = await importOriginalImage(
           sender,
@@ -204,15 +239,24 @@ export async function importFromEHentai(
           originalUrl,
           normalizedOptions.cookie,
           normalizedOptions.requestTimeoutMs,
-          (waitMs) => emitRateLimitProgress(sender, 'importing', total, counters.processed, originalUrl, waitMs),
-          (redirectUrl) => emitOriginalRedirectProgress(sender, total, counters, redirectUrl),
+          (waitMs) =>
+            emitRateLimitProgress(
+              sender,
+              "importing",
+              total,
+              counters.processed,
+              originalUrl,
+              waitMs,
+            ),
+          (redirectUrl) =>
+            emitOriginalRedirectProgress(sender, total, counters, redirectUrl),
           normalizedOptions.forceDuplicate,
-          baseTags
+          baseTags,
         );
 
-        if (result === 'duplicated') {
+        if (result === "duplicated") {
           counters.duplicated += 1;
-        } else if (result === 'skipped') {
+        } else if (result === "skipped") {
           counters.skipped += 1;
         } else {
           counters.imported += 1;
@@ -222,12 +266,12 @@ export async function importFromEHentai(
         emitEHentaiProgress(
           sender,
           createEHentaiProgress({
-            phase: 'importing',
+            phase: "importing",
             total,
             currentFile: imagePage.fileName ?? imagePage.pageUrl,
-            message: `导入失败：${error instanceof Error ? error.message : '未知错误'}`,
-            ...counters
-          })
+            message: `导入失败：${error instanceof Error ? error.message : "未知错误"}`,
+            ...counters,
+          }),
         );
       }
 
@@ -236,23 +280,23 @@ export async function importFromEHentai(
     }
 
     const completed = createEHentaiProgress({
-      phase: 'completed',
+      phase: "completed",
       total,
       currentFile: null,
-      message: 'E-Hentai 导入完成',
-      ...counters
+      message: "E-Hentai 导入完成",
+      ...counters,
     });
     emitEHentaiProgress(sender, completed);
     return completed;
   } catch (error) {
     const resumeIndex = normalizedOptions.startIndex + counters.processed;
     const failed = createEHentaiProgress({
-      phase: ehentaiImportCanceled ? 'canceled' : 'failed',
+      phase: ehentaiImportCanceled ? "canceled" : "failed",
       total,
       message: ehentaiImportCanceled
         ? `已取消 E-Hentai 导入。已成功导入 ${counters.imported + counters.duplicated} 张，可从第 ${resumeIndex} 张继续。`
-        : `${error instanceof Error ? error.message : 'E-Hentai 导入失败'}。已成功导入 ${counters.imported + counters.duplicated} 张，可从第 ${resumeIndex} 张继续。`,
-      ...counters
+        : `${error instanceof Error ? error.message : "E-Hentai 导入失败"}。已成功导入 ${counters.imported + counters.duplicated} 张，可从第 ${resumeIndex} 张继续。`,
+      ...counters,
     });
     emitEHentaiProgress(sender, failed);
     return failed;
@@ -268,11 +312,14 @@ async function collectGalleryImagePages(
   galleryUrl: string,
   options: EHentaiImportOptions,
   firstPageHtml: string,
-  firstPageImagePages: GalleryImagePage[]
+  firstPageImagePages: GalleryImagePage[],
 ): Promise<GalleryImagePage[]> {
   const pages: GalleryImagePage[] = [];
   const seenPageUrls = new Set<string>();
-  let maxPageIndex = Math.max(0, ...parseGalleryPageIndexes(firstPageHtml, galleryUrl));
+  let maxPageIndex = Math.max(
+    0,
+    ...parseGalleryPageIndexes(firstPageHtml, galleryUrl),
+  );
 
   appendImagePages(pages, seenPageUrls, firstPageImagePages);
 
@@ -283,22 +330,37 @@ async function collectGalleryImagePages(
     emitEHentaiProgress(
       sender,
       createEHentaiProgress({
-        phase: 'collecting',
+        phase: "collecting",
         total: maxPageIndex + 1,
         processed: pageIndex,
         currentFile: pageUrl,
-        message: `读取 gallery 分页链接：${pageUrl}`
-      })
+        message: `读取 gallery 分页链接：${pageUrl}`,
+      }),
     );
     const html = await fetchEHentaiText(
       pageUrl,
       options.cookie,
       galleryUrl,
       options.requestTimeoutMs,
-      (waitMs) => emitRateLimitProgress(sender, 'collecting', maxPageIndex + 1, pageIndex, pageUrl, waitMs)
+      (waitMs) =>
+        emitRateLimitProgress(
+          sender,
+          "collecting",
+          maxPageIndex + 1,
+          pageIndex,
+          pageUrl,
+          waitMs,
+        ),
     );
-    maxPageIndex = Math.max(maxPageIndex, ...parseGalleryPageIndexes(html, galleryUrl));
-    appendImagePages(pages, seenPageUrls, parseGalleryImagePages(html, pageUrl));
+    maxPageIndex = Math.max(
+      maxPageIndex,
+      ...parseGalleryPageIndexes(html, galleryUrl),
+    );
+    appendImagePages(
+      pages,
+      seenPageUrls,
+      parseGalleryImagePages(html, pageUrl),
+    );
   }
 
   return pages.sort((left, right) => {
@@ -311,7 +373,7 @@ async function collectGalleryImagePages(
 function appendImagePages(
   output: GalleryImagePage[],
   seenPageUrls: Set<string>,
-  imagePages: GalleryImagePage[]
+  imagePages: GalleryImagePage[],
 ): void {
   for (const imagePage of imagePages) {
     if (seenPageUrls.has(imagePage.pageUrl)) {
@@ -327,19 +389,19 @@ async function resolveOriginalImageUrl(
   imagePage: GalleryImagePage,
   cookie: string,
   timeoutMs: number,
-  onRateLimited?: (waitMs: number) => void
+  onRateLimited?: (waitMs: number) => void,
 ): Promise<string> {
   const html = await fetchEHentaiText(
     imagePage.pageUrl,
     cookie,
     imagePage.pageUrl,
     timeoutMs,
-    onRateLimited
+    onRateLimited,
   );
   const originalUrl = parseOriginalImageUrl(html, imagePage.pageUrl);
 
   if (!originalUrl) {
-    throw new Error('没有找到 Download original 链接');
+    throw new Error("没有找到 Download original 链接");
   }
 
   return originalUrl;
@@ -357,18 +419,18 @@ async function importOriginalImage(
   onRateLimited: ((waitMs: number) => void) | undefined,
   onOriginalRedirect: ((redirectUrl: string) => void) | undefined,
   forceDuplicate: boolean,
-  tags: TagDraft[]
-): Promise<'imported' | 'duplicated' | 'skipped'> {
-  const imageLinkType = isEHentaiFullImageUrl(originalUrl) ? '原图' : '展示图';
+  tags: TagDraft[],
+): Promise<"imported" | "duplicated" | "skipped"> {
+  const imageLinkType = isEHentaiFullImageUrl(originalUrl) ? "原图" : "展示图";
   emitEHentaiProgress(
     sender,
     createEHentaiProgress({
-      phase: 'importing',
+      phase: "importing",
       total,
       currentFile: originalUrl,
       message: `下载${imageLinkType}链接：${originalUrl}`,
-      ...counters
-    })
+      ...counters,
+    }),
   );
   const tempPath = await downloadOriginalImage(
     originalUrl,
@@ -377,7 +439,7 @@ async function importOriginalImage(
     imagePage.fileName,
     timeoutMs,
     onRateLimited,
-    onOriginalRedirect
+    onOriginalRedirect,
   );
 
   try {
@@ -389,14 +451,14 @@ async function importOriginalImage(
       emitEHentaiProgress(
         sender,
         createEHentaiProgress({
-          phase: 'importing',
+          phase: "importing",
           total,
           currentFile: imagePage.fileName ?? imagePage.pageUrl,
-          message: '重复文件，已跳过',
-          ...counters
-        })
+          message: "重复文件，已跳过",
+          ...counters,
+        }),
       );
-      return 'skipped';
+      return "skipped";
     }
 
     const extension = normalizeExtension(tempPath);
@@ -405,13 +467,13 @@ async function importOriginalImage(
           storagePath: existing.storagePath,
           fileName: existing.fileName,
           extension: existing.extension,
-          sizeBytes: fileStat.size
+          sizeBytes: fileStat.size,
         }
       : await storeNewMediaFile({
           sourcePath: tempPath,
           sha256,
           extension,
-          sizeBytes: fileStat.size
+          sizeBytes: fileStat.size,
         });
 
     createApiUploadedFileRecord({
@@ -423,10 +485,10 @@ async function importOriginalImage(
       sizeBytes: storedFile.sizeBytes,
       tags,
       tagStyleName: EHENTAI_TAG_STYLE_NAME,
-      urls: [galleryUrl, imagePage.pageUrl, originalUrl]
+      urls: [galleryUrl, imagePage.pageUrl, originalUrl],
     });
 
-    return existing ? 'duplicated' : 'imported';
+    return existing ? "duplicated" : "imported";
   } finally {
     await rm(tempPath, { force: true });
   }
@@ -439,7 +501,7 @@ async function downloadOriginalImage(
   fileName: string | null,
   timeoutMs: number,
   onRateLimited?: (waitMs: number) => void,
-  onOriginalRedirect?: (redirectUrl: string) => void
+  onOriginalRedirect?: (redirectUrl: string) => void,
 ): Promise<string> {
   const response = await fetchOriginalImageWithRateLimitRetry(
     originalUrl,
@@ -447,16 +509,16 @@ async function downloadOriginalImage(
     referer,
     timeoutMs,
     onRateLimited,
-    onOriginalRedirect
+    onOriginalRedirect,
   );
 
   if (!response.ok) {
     throw new Error(`下载原图失败: HTTP ${response.status}`);
   }
 
-  const contentType = response.headers.get('content-type')?.toLowerCase() ?? '';
+  const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
 
-  if (contentType.includes('text/html') || contentType.includes('text/plain')) {
+  if (contentType.includes("text/html") || contentType.includes("text/plain")) {
     const text = await response.text();
     const retryAfterMs = readEHentaiRateLimitRetryMs(text);
 
@@ -464,14 +526,18 @@ async function downloadOriginalImage(
       throw new EHentaiRateLimitError(retryAfterMs);
     }
 
-    throw new Error(`下载原图失败：返回了 ${contentType}：${summarizeText(text)}`);
+    throw new Error(
+      `下载原图失败：返回了 ${contentType}：${summarizeText(text)}`,
+    );
   }
 
   const buffer = Buffer.from(await response.arrayBuffer());
-  const directory = join(app.getPath('userData'), 'runtime', 'ehentai-import');
+  const directory = join(app.getPath("userData"), "runtime", "ehentai-import");
   await mkdir(directory, { recursive: true });
 
-  const normalizedFileName = sanitizeFileName(fileName || fileNameFromUrl(originalUrl) || 'ehentai-image.bin');
+  const normalizedFileName = sanitizeFileName(
+    fileName || fileNameFromUrl(originalUrl) || "ehentai-image.bin",
+  );
   const filePath = join(directory, `${Date.now()}-${normalizedFileName}`);
   await writeFile(filePath, buffer);
   return filePath;
@@ -482,7 +548,7 @@ async function fetchEHentaiText(
   cookie: string,
   referer: string,
   timeoutMs: number,
-  onRateLimited?: (waitMs: number) => void
+  onRateLimited?: (waitMs: number) => void,
 ): Promise<string> {
   for (let attempt = 0; attempt <= MAX_RATE_LIMIT_RETRIES; attempt += 1) {
     const response = await fetchEHentai(url, cookie, referer, timeoutMs);
@@ -506,7 +572,7 @@ async function fetchEHentaiText(
     await delay(retryAfterMs);
   }
 
-  throw new Error('E-Hentai 请求失败');
+  throw new Error("E-Hentai 请求失败");
 }
 
 async function fetchOriginalImageWithRateLimitRetry(
@@ -515,18 +581,28 @@ async function fetchOriginalImageWithRateLimitRetry(
   referer: string,
   timeoutMs: number,
   onRateLimited?: (waitMs: number) => void,
-  onOriginalRedirect?: (redirectUrl: string) => void
+  onOriginalRedirect?: (redirectUrl: string) => void,
 ): Promise<Response> {
   for (let attempt = 0; attempt <= MAX_RATE_LIMIT_RETRIES; attempt += 1) {
     const response = isEHentaiFullImageUrl(originalUrl)
-      ? await requestOriginalImage(originalUrl, cookie, referer, timeoutMs, (redirectUrl) => {
-          onOriginalRedirect?.(redirectUrl);
-        })
+      ? await requestOriginalImage(
+          originalUrl,
+          cookie,
+          referer,
+          timeoutMs,
+          (redirectUrl) => {
+            onOriginalRedirect?.(redirectUrl);
+          },
+        )
       : await requestImageUrl(originalUrl, referer, timeoutMs);
 
-    const contentType = response.headers.get('content-type')?.toLowerCase() ?? '';
+    const contentType =
+      response.headers.get("content-type")?.toLowerCase() ?? "";
 
-    if (!contentType.includes('text/html') && !contentType.includes('text/plain')) {
+    if (
+      !contentType.includes("text/html") &&
+      !contentType.includes("text/plain")
+    ) {
       return response;
     }
 
@@ -545,7 +621,7 @@ async function fetchOriginalImageWithRateLimitRetry(
     await delay(retryAfterMs);
   }
 
-  throw new Error('E-Hentai 原图请求失败');
+  throw new Error("E-Hentai 原图请求失败");
 }
 
 async function fetchEHentai(
@@ -553,7 +629,7 @@ async function fetchEHentai(
   cookie: string,
   referer: string,
   timeoutMs: number,
-  redirect: RequestRedirect = 'follow'
+  redirect: RequestRedirect = "follow",
 ): Promise<Response> {
   const controller = new AbortController();
   const timeout = setTimeout(() => {
@@ -565,13 +641,14 @@ async function fetchEHentai(
       redirect,
       signal: controller.signal,
       headers: {
-        'User-Agent': DEFAULT_USER_AGENT,
-        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-        'Upgrade-Insecure-Requests': '1',
+        "User-Agent": DEFAULT_USER_AGENT,
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+        "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+        "Upgrade-Insecure-Requests": "1",
         Referer: referer,
-        ...(cookie.trim() ? { Cookie: normalizeCookie(cookie) } : {})
-      }
+        ...(cookie.trim() ? { Cookie: normalizeCookie(cookie) } : {}),
+      },
     });
   } catch (error) {
     if (controller.signal.aborted) {
@@ -589,22 +666,22 @@ function requestOriginalImage(
   cookie: string,
   referer: string,
   timeoutMs: number,
-  onRedirect?: (redirectUrl: string) => void
+  onRedirect?: (redirectUrl: string) => void,
 ): Promise<Response> {
   return new Promise((resolveRequest, rejectRequest) => {
     const request = net.request({
-      method: 'GET',
+      method: "GET",
       url: originalUrl,
       session: session.defaultSession,
-      redirect: 'manual',
-      credentials: 'omit',
+      redirect: "manual",
+      credentials: "omit",
       headers: {
-        'User-Agent': DEFAULT_USER_AGENT,
-        Accept: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
-        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+        "User-Agent": DEFAULT_USER_AGENT,
+        Accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+        "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
         Referer: referer,
-        ...(cookie.trim() ? { Cookie: normalizeCookie(cookie) } : {})
-      }
+        ...(cookie.trim() ? { Cookie: normalizeCookie(cookie) } : {}),
+      },
     });
     const timeout = setTimeout(() => {
       request.abort();
@@ -622,19 +699,19 @@ function requestOriginalImage(
       rejectRequest(error);
     }
 
-    request.on('redirect', (_statusCode, _method, redirectUrl) => {
+    request.on("redirect", (_statusCode, _method, redirectUrl) => {
       onRedirect?.(redirectUrl);
       request.followRedirect();
     });
 
-    request.on('response', (incomingMessage) => {
+    request.on("response", (incomingMessage) => {
       const chunks: Buffer[] = [];
 
-      incomingMessage.on('data', (chunk: Buffer) => {
+      incomingMessage.on("data", (chunk: Buffer) => {
         chunks.push(chunk);
       });
 
-      incomingMessage.on('end', () => {
+      incomingMessage.on("end", () => {
         if (settled) {
           return;
         }
@@ -644,17 +721,17 @@ function requestOriginalImage(
         resolveRequest(
           new Response(Buffer.concat(chunks), {
             status: incomingMessage.statusCode ?? 0,
-            headers: flattenIncomingHeaders(incomingMessage.headers)
-          })
+            headers: flattenIncomingHeaders(incomingMessage.headers),
+          }),
         );
       });
 
-      incomingMessage.on('error', (error: Error) => {
+      incomingMessage.on("error", (error: Error) => {
         settleWithError(error);
       });
     });
 
-    request.on('error', (error) => {
+    request.on("error", (error) => {
       settleWithError(error);
     });
 
@@ -665,16 +742,18 @@ function requestOriginalImage(
 function requestImageUrl(
   url: string,
   referer: string,
-  timeoutMs: number
+  timeoutMs: number,
 ): Promise<Response> {
   if (!isEHentaiUrl(url)) {
-    return requestExternalImageWithNode(url, referer, timeoutMs).catch((error) => {
-      if (isProxyConnectionError(error)) {
-        throw error;
-      }
+    return requestExternalImageWithNode(url, referer, timeoutMs).catch(
+      (error) => {
+        if (isProxyConnectionError(error)) {
+          throw error;
+        }
 
-      return requestImageUrlWithElectron(url, referer, timeoutMs);
-    });
+        return requestImageUrlWithElectron(url, referer, timeoutMs);
+      },
+    );
   }
 
   return requestImageUrlWithElectron(url, referer, timeoutMs);
@@ -683,21 +762,21 @@ function requestImageUrl(
 function requestImageUrlWithElectron(
   url: string,
   referer: string,
-  timeoutMs: number
+  timeoutMs: number,
 ): Promise<Response> {
   return new Promise((resolveRequest, rejectRequest) => {
     const request = net.request({
-      method: 'GET',
+      method: "GET",
       url,
       session: session.defaultSession,
-      redirect: 'follow',
-      credentials: 'omit',
+      redirect: "follow",
+      credentials: "omit",
       headers: {
-        'User-Agent': DEFAULT_USER_AGENT,
-        Accept: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
-        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-        Referer: referer
-      }
+        "User-Agent": DEFAULT_USER_AGENT,
+        Accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+        "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+        Referer: referer,
+      },
     });
     const timeout = setTimeout(() => {
       request.abort();
@@ -715,14 +794,14 @@ function requestImageUrlWithElectron(
       rejectRequest(error);
     }
 
-    request.on('response', (incomingMessage) => {
+    request.on("response", (incomingMessage) => {
       const chunks: Buffer[] = [];
 
-      incomingMessage.on('data', (chunk: Buffer) => {
+      incomingMessage.on("data", (chunk: Buffer) => {
         chunks.push(chunk);
       });
 
-      incomingMessage.on('end', () => {
+      incomingMessage.on("end", () => {
         if (settled) {
           return;
         }
@@ -732,17 +811,17 @@ function requestImageUrlWithElectron(
         resolveRequest(
           new Response(Buffer.concat(chunks), {
             status: incomingMessage.statusCode ?? 0,
-            headers: flattenIncomingHeaders(incomingMessage.headers)
-          })
+            headers: flattenIncomingHeaders(incomingMessage.headers),
+          }),
         );
       });
 
-      incomingMessage.on('error', (error: Error) => {
+      incomingMessage.on("error", (error: Error) => {
         settleWithError(error);
       });
     });
 
-    request.on('error', (error) => {
+    request.on("error", (error) => {
       settleWithError(error);
     });
 
@@ -754,7 +833,7 @@ function requestExternalImageWithNode(
   url: string,
   referer: string,
   timeoutMs: number,
-  redirectCount = 0
+  redirectCount = 0,
 ): Promise<Response> {
   const targetUrl = new URL(url);
   const networkSettings = getNetworkSettings();
@@ -765,14 +844,19 @@ function requestExternalImageWithNode(
       : requestNodeDirect(targetUrl, headers, timeoutMs);
 
   return requestPromise.then((response) => {
-    const location = response.headers.get('location');
+    const location = response.headers.get("location");
 
-    if (response.status >= 300 && response.status < 400 && location && redirectCount < 5) {
+    if (
+      response.status >= 300 &&
+      response.status < 400 &&
+      location &&
+      redirectCount < 5
+    ) {
       return requestExternalImageWithNode(
         new URL(location, targetUrl).toString(),
         referer,
         timeoutMs,
-        redirectCount + 1
+        redirectCount + 1,
       );
     }
 
@@ -783,27 +867,29 @@ function requestExternalImageWithNode(
 function requestNodeDirect(
   targetUrl: URL,
   headers: Record<string, string>,
-  timeoutMs: number
+  timeoutMs: number,
 ): Promise<Response> {
-  const request = targetUrl.protocol === 'https:' ? requestHttps : requestHttp;
+  const request = targetUrl.protocol === "https:" ? requestHttps : requestHttp;
 
   return new Promise((resolveRequest, rejectRequest) => {
     const clientRequest = request(
       targetUrl,
       {
-        method: 'GET',
+        method: "GET",
         headers,
-        timeout: timeoutMs
+        timeout: timeoutMs,
       },
       (incomingMessage) => {
         collectNodeResponse(incomingMessage, resolveRequest, rejectRequest);
-      }
+      },
     );
 
-    clientRequest.on('timeout', () => {
-      clientRequest.destroy(new Error(`请求超时：${Math.ceil(timeoutMs / 1000)} 秒`));
+    clientRequest.on("timeout", () => {
+      clientRequest.destroy(
+        new Error(`请求超时：${Math.ceil(timeoutMs / 1000)} 秒`),
+      );
     });
-    clientRequest.on('error', rejectRequest);
+    clientRequest.on("error", rejectRequest);
     clientRequest.end();
   });
 }
@@ -811,7 +897,7 @@ function requestNodeDirect(
 function requestNodeViaHttpProxy(
   targetUrl: URL,
   headers: Record<string, string>,
-  timeoutMs: number
+  timeoutMs: number,
 ): Promise<Response> {
   const networkSettings = getNetworkSettings();
   const proxyHost = networkSettings.proxyHost.trim();
@@ -821,56 +907,71 @@ function requestNodeViaHttpProxy(
     return requestNodeDirect(targetUrl, headers, timeoutMs);
   }
 
-  if (targetUrl.protocol !== 'https:') {
-    return requestNodeHttpViaProxy(targetUrl, headers, timeoutMs, proxyHost, proxyPort);
+  if (targetUrl.protocol !== "https:") {
+    return requestNodeHttpViaProxy(
+      targetUrl,
+      headers,
+      timeoutMs,
+      proxyHost,
+      proxyPort,
+    );
   }
 
   return new Promise((resolveRequest, rejectRequest) => {
     const connectRequest = requestHttp({
       host: proxyHost,
       port: proxyPort,
-      method: 'CONNECT',
+      method: "CONNECT",
       path: `${targetUrl.hostname}:${targetUrl.port || 443}`,
-      timeout: timeoutMs
+      timeout: timeoutMs,
     });
 
-    connectRequest.on('connect', (response, socket) => {
-      if ((response.statusCode ?? 0) < 200 || (response.statusCode ?? 0) >= 300) {
+    connectRequest.on("connect", (response, socket) => {
+      if (
+        (response.statusCode ?? 0) < 200 ||
+        (response.statusCode ?? 0) >= 300
+      ) {
         socket.destroy();
-        rejectRequest(new Error(`代理 CONNECT 失败: HTTP ${response.statusCode ?? 0}`));
+        rejectRequest(
+          new Error(`代理 CONNECT 失败: HTTP ${response.statusCode ?? 0}`),
+        );
         return;
       }
 
       const tlsSocket = connectTls({
         socket,
-        servername: targetUrl.hostname
+        servername: targetUrl.hostname,
       });
       const clientRequest = requestHttps(
         {
-          method: 'GET',
+          method: "GET",
           hostname: targetUrl.hostname,
           port: Number(targetUrl.port || 443),
           path: `${targetUrl.pathname}${targetUrl.search}`,
           headers,
           timeout: timeoutMs,
-          createConnection: () => tlsSocket
+          createConnection: () => tlsSocket,
         },
         (incomingMessage) => {
           collectNodeResponse(incomingMessage, resolveRequest, rejectRequest);
-        }
+        },
       );
 
-      clientRequest.on('timeout', () => {
-        clientRequest.destroy(new Error(`请求超时：${Math.ceil(timeoutMs / 1000)} 秒`));
+      clientRequest.on("timeout", () => {
+        clientRequest.destroy(
+          new Error(`请求超时：${Math.ceil(timeoutMs / 1000)} 秒`),
+        );
       });
-      clientRequest.on('error', rejectRequest);
+      clientRequest.on("error", rejectRequest);
       clientRequest.end();
     });
 
-    connectRequest.on('timeout', () => {
-      connectRequest.destroy(new Error(`请求超时：${Math.ceil(timeoutMs / 1000)} 秒`));
+    connectRequest.on("timeout", () => {
+      connectRequest.destroy(
+        new Error(`请求超时：${Math.ceil(timeoutMs / 1000)} 秒`),
+      );
     });
-    connectRequest.on('error', rejectRequest);
+    connectRequest.on("error", rejectRequest);
     connectRequest.end();
   });
 }
@@ -880,27 +981,29 @@ function requestNodeHttpViaProxy(
   headers: Record<string, string>,
   timeoutMs: number,
   proxyHost: string,
-  proxyPort: number
+  proxyPort: number,
 ): Promise<Response> {
   return new Promise((resolveRequest, rejectRequest) => {
     const clientRequest = requestHttp(
       {
         host: proxyHost,
         port: proxyPort,
-        method: 'GET',
+        method: "GET",
         path: targetUrl.toString(),
         headers,
-        timeout: timeoutMs
+        timeout: timeoutMs,
       },
       (incomingMessage) => {
         collectNodeResponse(incomingMessage, resolveRequest, rejectRequest);
-      }
+      },
     );
 
-    clientRequest.on('timeout', () => {
-      clientRequest.destroy(new Error(`请求超时：${Math.ceil(timeoutMs / 1000)} 秒`));
+    clientRequest.on("timeout", () => {
+      clientRequest.destroy(
+        new Error(`请求超时：${Math.ceil(timeoutMs / 1000)} 秒`),
+      );
     });
-    clientRequest.on('error', rejectRequest);
+    clientRequest.on("error", rejectRequest);
     clientRequest.end();
   });
 }
@@ -908,45 +1011,48 @@ function requestNodeHttpViaProxy(
 function collectNodeResponse(
   incomingMessage: IncomingMessage,
   resolveRequest: (response: Response) => void,
-  rejectRequest: (error: Error) => void
+  rejectRequest: (error: Error) => void,
 ): void {
   const chunks: Buffer[] = [];
 
-  incomingMessage.on('data', (chunk: Buffer) => {
+  incomingMessage.on("data", (chunk: Buffer) => {
     chunks.push(chunk);
   });
-  incomingMessage.on('end', () => {
+  incomingMessage.on("end", () => {
     resolveRequest(
       new Response(Buffer.concat(chunks), {
         status: incomingMessage.statusCode ?? 0,
-        headers: flattenIncomingHeaders(incomingMessage.headers)
-      })
+        headers: flattenIncomingHeaders(incomingMessage.headers),
+      }),
     );
   });
-  incomingMessage.on('error', rejectRequest);
+  incomingMessage.on("error", rejectRequest);
 }
 
 function createExternalImageHeaders(referer: string): Record<string, string> {
   return {
-    'User-Agent': DEFAULT_USER_AGENT,
-    Accept: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
-    'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-    Referer: referer
+    "User-Agent": DEFAULT_USER_AGENT,
+    Accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+    "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+    Referer: referer,
   };
 }
 
 function parseGalleryMetadata(html: string): GalleryMetadata {
-  const title = readFirstMatch(html, /<h1[^>]*id=["']gn["'][^>]*>([\s\S]*?)<\/h1>/i)
-    || readFirstMatch(html, /<title[^>]*>([\s\S]*?)<\/title>/i)
-    || 'E-Hentai Gallery';
+  const title =
+    readFirstMatch(html, /<h1[^>]*id=["']gn["'][^>]*>([\s\S]*?)<\/h1>/i) ||
+    readFirstMatch(html, /<title[^>]*>([\s\S]*?)<\/title>/i) ||
+    "E-Hentai Gallery";
   const tags: TagDraft[] = [];
-  const rowPattern = /<tr[^>]*>\s*<td[^>]*class=["'][^"']*\btc\b[^"']*["'][^>]*>([\s\S]*?)<\/td>\s*<td[^>]*>([\s\S]*?)<\/td>\s*<\/tr>/gi;
+  const rowPattern =
+    /<tr[^>]*>\s*<td[^>]*class=["'][^"']*\btc\b[^"']*["'][^>]*>([\s\S]*?)<\/td>\s*<td[^>]*>([\s\S]*?)<\/td>\s*<\/tr>/gi;
   let rowMatch: RegExpExecArray | null;
 
   while ((rowMatch = rowPattern.exec(html)) !== null) {
-    const namespace = stripHtml(rowMatch[1]).replace(/:$/u, '').trim();
+    const namespace = stripHtml(rowMatch[1]).replace(/:$/u, "").trim();
     const cellHtml = rowMatch[2];
-    const tagPattern = /<div[^>]*class=["'][^"']*\bgt\w*\b[^"']*["'][^>]*>([\s\S]*?)<\/div>/gi;
+    const tagPattern =
+      /<div[^>]*class=["'][^"']*\bgt\w*\b[^"']*["'][^>]*>([\s\S]*?)<\/div>/gi;
     let tagMatch: RegExpExecArray | null;
 
     while ((tagMatch = tagPattern.exec(cellHtml)) !== null) {
@@ -959,14 +1065,18 @@ function parseGalleryMetadata(html: string): GalleryMetadata {
   }
 
   return {
-    title: stripHtml(title).trim() || 'E-Hentai Gallery',
-    tags
+    title: stripHtml(title).trim() || "E-Hentai Gallery",
+    tags,
   };
 }
 
-function parseGalleryImagePages(html: string, baseUrl: string): GalleryImagePage[] {
+function parseGalleryImagePages(
+  html: string,
+  baseUrl: string,
+): GalleryImagePage[] {
   const imagePages: GalleryImagePage[] = [];
-  const linkPattern = /<a[^>]*href=["']([^"']*\/s\/[^"']+)["'][^>]*>\s*<div[^>]*title=["']([^"']*)["'][^>]*>/gi;
+  const linkPattern =
+    /<a[^>]*href=["']([^"']*\/s\/[^"']+)["'][^>]*>\s*<div[^>]*title=["']([^"']*)["'][^>]*>/gi;
   let match: RegExpExecArray | null;
 
   while ((match = linkPattern.exec(html)) !== null) {
@@ -974,7 +1084,7 @@ function parseGalleryImagePages(html: string, baseUrl: string): GalleryImagePage
     imagePages.push({
       pageUrl: new URL(decodeHtml(match[1]), baseUrl).toString(),
       pageNumber,
-      fileName
+      fileName,
     });
   }
 
@@ -991,11 +1101,11 @@ function parseGalleryPageIndexes(html: string, galleryUrl: string): number[] {
     try {
       const url = new URL(decodeHtml(match[1]), galleryUrl);
 
-      if (url.hostname !== 'e-hentai.org' || url.pathname !== galleryPath) {
+      if (url.hostname !== "e-hentai.org" || url.pathname !== galleryPath) {
         continue;
       }
 
-      const pageIndex = Number(url.searchParams.get('p') ?? '0');
+      const pageIndex = Number(url.searchParams.get("p") ?? "0");
 
       if (Number.isInteger(pageIndex) && pageIndex >= 0) {
         indexes.add(pageIndex);
@@ -1015,9 +1125,11 @@ function parseOriginalImageUrl(html: string, baseUrl: string): string | null {
     return new URL(decodeHtml(original), baseUrl).toString();
   }
 
-  const displayedImage = readImageSourceById(html, 'img');
+  const displayedImage = readImageSourceById(html, "img");
 
-  return displayedImage ? new URL(decodeHtml(displayedImage), baseUrl).toString() : null;
+  return displayedImage
+    ? new URL(decodeHtml(displayedImage), baseUrl).toString()
+    : null;
 }
 
 function readDownloadOriginalUrl(html: string): string | null {
@@ -1026,9 +1138,9 @@ function readDownloadOriginalUrl(html: string): string | null {
 
   while ((match = anchorPattern.exec(html)) !== null) {
     const attributes = parseHtmlAttributes(match[1]);
-    const href = attributes.get('href');
+    const href = attributes.get("href");
 
-    if (!href || !href.includes('/fullimg/')) {
+    if (!href || !href.includes("/fullimg/")) {
       continue;
     }
 
@@ -1047,8 +1159,8 @@ function readImageSourceById(html: string, id: string): string | null {
   while ((match = imageTagPattern.exec(html)) !== null) {
     const attributes = parseHtmlAttributes(match[0]);
 
-    if (attributes.get('id') === id && attributes.get('src')) {
-      return attributes.get('src') ?? null;
+    if (attributes.get("id") === id && attributes.get("src")) {
+      return attributes.get("src") ?? null;
     }
   }
 
@@ -1057,22 +1169,29 @@ function readImageSourceById(html: string, id: string): string | null {
 
 function parseHtmlAttributes(tagHtml: string): Map<string, string> {
   const attributes = new Map<string, string>();
-  const attributePattern = /([^\s=<>"']+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/g;
+  const attributePattern =
+    /([^\s=<>"']+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/g;
   let match: RegExpExecArray | null;
 
   while ((match = attributePattern.exec(tagHtml)) !== null) {
-    attributes.set(match[1].toLowerCase(), decodeHtml(match[2] ?? match[3] ?? match[4] ?? ''));
+    attributes.set(
+      match[1].toLowerCase(),
+      decodeHtml(match[2] ?? match[3] ?? match[4] ?? ""),
+    );
   }
 
   return attributes;
 }
 
-function createGalleryTags(metadata: GalleryMetadata, importGalleryTags: boolean): TagDraft[] {
+function createGalleryTags(
+  metadata: GalleryMetadata,
+  importGalleryTags: boolean,
+): TagDraft[] {
   const tags: TagDraft[] = [
     {
-      namespace: 'gallery',
-      name: metadata.title
-    }
+      namespace: "gallery",
+      name: metadata.title,
+    },
   ];
 
   if (importGalleryTags) {
@@ -1107,38 +1226,44 @@ function dedupeTags(tags: TagDraft[]): TagDraft[] {
   return output;
 }
 
-function normalizeEHentaiImportOptions(options: EHentaiImportOptions): EHentaiImportOptions {
+function normalizeEHentaiImportOptions(
+  options: EHentaiImportOptions,
+): EHentaiImportOptions {
   return {
     galleryUrl: options.galleryUrl.trim(),
     cookie: normalizeCookie(options.cookie),
     importGalleryTags: options.importGalleryTags !== false,
     forceDuplicate: options.forceDuplicate === true,
     requestDelayMs: DEFAULT_REQUEST_DELAY_MS,
-    requestTimeoutMs: Number.isFinite(options.requestTimeoutMs) && options.requestTimeoutMs > 0
-      ? Math.max(1000, Math.floor(options.requestTimeoutMs))
-      : DEFAULT_REQUEST_TIMEOUT_MS,
+    requestTimeoutMs:
+      Number.isFinite(options.requestTimeoutMs) && options.requestTimeoutMs > 0
+        ? Math.max(1000, Math.floor(options.requestTimeoutMs))
+        : DEFAULT_REQUEST_TIMEOUT_MS,
     startIndex: Number.isFinite(options.startIndex)
       ? Math.max(1, Math.floor(options.startIndex))
       : 1,
-    limit: Number.isFinite(options.limit) && options.limit > 0 ? Math.floor(options.limit) : 0
+    limit:
+      Number.isFinite(options.limit) && options.limit > 0
+        ? Math.floor(options.limit)
+        : 0,
   };
 }
 
 function normalizeGalleryUrl(value: string): string {
   const url = new URL(value.trim());
 
-  if (url.protocol !== 'https:' || url.hostname !== 'e-hentai.org') {
-    throw new Error('请输入 https://e-hentai.org/g/... 格式的 gallery 链接');
+  if (url.protocol !== "https:" || url.hostname !== "e-hentai.org") {
+    throw new Error("请输入 https://e-hentai.org/g/... 格式的 gallery 链接");
   }
 
   if (!/^\/g\/\d+\/[0-9a-z]+\/?$/i.test(url.pathname)) {
-    throw new Error('请输入正确的 E-Hentai gallery 链接');
+    throw new Error("请输入正确的 E-Hentai gallery 链接");
   }
 
-  url.search = '';
-  url.hash = '';
+  url.search = "";
+  url.hash = "";
 
-  if (!url.pathname.endsWith('/')) {
+  if (!url.pathname.endsWith("/")) {
     url.pathname = `${url.pathname}/`;
   }
 
@@ -1149,7 +1274,7 @@ function buildGalleryPageUrl(galleryUrl: string, pageIndex: number): string {
   const url = new URL(galleryUrl);
 
   if (pageIndex > 0) {
-    url.searchParams.set('p', String(pageIndex));
+    url.searchParams.set("p", String(pageIndex));
   }
 
   return url.toString();
@@ -1158,39 +1283,42 @@ function buildGalleryPageUrl(galleryUrl: string, pageIndex: number): string {
 function sliceImagePages(
   imagePages: GalleryImagePage[],
   startIndex: number,
-  limit: number
+  limit: number,
 ): GalleryImagePage[] {
   const selectedPages = imagePages.slice(Math.max(0, startIndex - 1));
   return limit > 0 ? selectedPages.slice(0, limit) : selectedPages;
 }
 
-function parseGridTitle(title: string): { pageNumber: number | null; fileName: string | null } {
+function parseGridTitle(title: string): {
+  pageNumber: number | null;
+  fileName: string | null;
+} {
   const match = /^Page\s+(\d+)\s*:\s*(.+)$/i.exec(title.trim());
 
   if (!match) {
     return {
       pageNumber: null,
-      fileName: title.trim() || null
+      fileName: title.trim() || null,
     };
   }
 
   return {
     pageNumber: Number(match[1]),
-    fileName: match[2].trim() || null
+    fileName: match[2].trim() || null,
   };
 }
 
 function normalizeCookie(cookie: string): string {
   return cookie
     .split(/\r?\n|;/)
-    .map((part) => part.trim().replace(/^cookie:\s*/i, ''))
+    .map((part) => part.trim().replace(/^cookie:\s*/i, ""))
     .filter(Boolean)
-    .join('; ');
+    .join("; ");
 }
 
 function isEHentaiUrl(value: string): boolean {
   try {
-    return new URL(value).hostname === 'e-hentai.org';
+    return new URL(value).hostname === "e-hentai.org";
   } catch {
     return false;
   }
@@ -1199,19 +1327,23 @@ function isEHentaiUrl(value: string): boolean {
 function isEHentaiFullImageUrl(value: string): boolean {
   try {
     const url = new URL(value);
-    return url.hostname === 'e-hentai.org' && url.pathname.startsWith('/fullimg/');
+    return (
+      url.hostname === "e-hentai.org" && url.pathname.startsWith("/fullimg/")
+    );
   } catch {
     return false;
   }
 }
 
-function flattenIncomingHeaders(headers: Record<string, string | string[]> | IncomingHttpHeaders): Headers {
+function flattenIncomingHeaders(
+  headers: Record<string, string | string[]> | IncomingHttpHeaders,
+): Headers {
   const flattened = new Headers();
 
   for (const [name, value] of Object.entries(headers)) {
     if (Array.isArray(value)) {
-      flattened.set(name, value.join(', '));
-    } else if (typeof value === 'string') {
+      flattened.set(name, value.join(", "));
+    } else if (typeof value === "string") {
       flattened.set(name, value);
     }
   }
@@ -1220,7 +1352,7 @@ function flattenIncomingHeaders(headers: Record<string, string | string[]> | Inc
 }
 
 function isProxyConnectionError(error: unknown): boolean {
-  return error instanceof Error && error.message.includes('代理 CONNECT 失败');
+  return error instanceof Error && error.message.includes("代理 CONNECT 失败");
 }
 
 function readEHentaiRateLimitRetryMs(text: string): number | null {
@@ -1229,21 +1361,27 @@ function readEHentaiRateLimitRetryMs(text: string): number | null {
   }
 
   const normalizedText = stripHtml(text);
-  const match = /ban expires in\s+(?:(\d+)\s+minutes?)?(?:\s+and\s+)?(?:(\d+)\s+seconds?)?/i.exec(normalizedText);
+  const match =
+    /ban expires in\s+(?:(\d+)\s+minutes?)?(?:\s+and\s+)?(?:(\d+)\s+seconds?)?/i.exec(
+      normalizedText,
+    );
   const minutes = match?.[1] ? Number(match[1]) : 0;
   const seconds = match?.[2] ? Number(match[2]) : 0;
   const retryAfterMs = (minutes * 60 + seconds) * 1000;
 
-  return Math.max(RATE_LIMIT_EXTRA_WAIT_MS, retryAfterMs + RATE_LIMIT_EXTRA_WAIT_MS);
+  return Math.max(
+    RATE_LIMIT_EXTRA_WAIT_MS,
+    retryAfterMs + RATE_LIMIT_EXTRA_WAIT_MS,
+  );
 }
 
 function emitRateLimitProgress(
   sender: WebContents,
-  phase: EHentaiImportProgress['phase'],
+  phase: EHentaiImportProgress["phase"],
   total: number,
   processed: number,
   currentFile: string,
-  waitMs: number
+  waitMs: number,
 ): void {
   emitEHentaiProgress(
     sender,
@@ -1252,8 +1390,8 @@ function emitRateLimitProgress(
       total,
       processed,
       currentFile,
-      message: `触发临时限制，等待 ${formatDuration(waitMs)} 后重试：${currentFile}`
-    })
+      message: `触发临时限制，等待 ${formatDuration(waitMs)} 后重试：${currentFile}`,
+    }),
   );
 }
 
@@ -1261,17 +1399,17 @@ function emitOriginalRedirectProgress(
   sender: WebContents,
   total: number,
   counters: EHentaiCounters,
-  redirectUrl: string
+  redirectUrl: string,
 ): void {
   emitEHentaiProgress(
     sender,
     createEHentaiProgress({
-      phase: 'importing',
+      phase: "importing",
       total,
       currentFile: redirectUrl,
       message: `跳转原图实际链接：${redirectUrl}`,
-      ...counters
-    })
+      ...counters,
+    }),
   );
 }
 
@@ -1292,18 +1430,22 @@ function summarizeText(text: string): string {
 }
 
 function stripHtml(value: string): string {
-  return decodeHtml(value.replace(/<[^>]*>/g, ' ')).replace(/\s+/g, ' ');
+  return decodeHtml(value.replace(/<[^>]*>/g, " ")).replace(/\s+/g, " ");
 }
 
 function decodeHtml(value: string): string {
   return value
-    .replace(/&#(\d+);/g, (_match, code: string) => String.fromCodePoint(Number(code)))
-    .replace(/&#x([0-9a-f]+);/gi, (_match, code: string) => String.fromCodePoint(Number.parseInt(code, 16)))
+    .replace(/&#(\d+);/g, (_match, code: string) =>
+      String.fromCodePoint(Number(code)),
+    )
+    .replace(/&#x([0-9a-f]+);/gi, (_match, code: string) =>
+      String.fromCodePoint(Number.parseInt(code, 16)),
+    )
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>');
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">");
 }
 
 function readFirstMatch(value: string, pattern: RegExp): string | null {
@@ -1317,8 +1459,11 @@ function fileNameFromUrl(url: string): string | null {
 }
 
 function sanitizeFileName(fileName: string): string {
-  const sanitized = fileName.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_').replace(/[. ]+$/g, '').trim();
-  return sanitized || 'ehentai-image.bin';
+  const sanitized = fileName
+    .replace(/[<>:"/\\|?*\x00-\x1f]/g, "_")
+    .replace(/[. ]+$/g, "")
+    .trim();
+  return sanitized || "ehentai-image.bin";
 }
 
 function normalizeExtension(filePath: string): string | null {
@@ -1328,7 +1473,7 @@ function normalizeExtension(filePath: string): string | null {
 
 function assertEHentaiNotCanceled(): void {
   if (ehentaiImportCanceled) {
-    throw new Error('已取消 E-Hentai 导入');
+    throw new Error("已取消 E-Hentai 导入");
   }
 }
 
@@ -1342,9 +1487,11 @@ function delay(ms: number): Promise<void> {
   });
 }
 
-function createEHentaiProgress(overrides: Partial<EHentaiImportProgress>): EHentaiImportProgress {
+function createEHentaiProgress(
+  overrides: Partial<EHentaiImportProgress>,
+): EHentaiImportProgress {
   return {
-    phase: 'idle',
+    phase: "idle",
     total: 0,
     processed: 0,
     imported: 0,
@@ -1352,11 +1499,14 @@ function createEHentaiProgress(overrides: Partial<EHentaiImportProgress>): EHent
     skipped: 0,
     failed: 0,
     currentFile: null,
-    message: '',
-    ...overrides
+    message: "",
+    ...overrides,
   };
 }
 
-function emitEHentaiProgress(sender: WebContents, progress: EHentaiImportProgress): void {
-  sender.send('ehentai-import:progress', progress);
+function emitEHentaiProgress(
+  sender: WebContents,
+  progress: EHentaiImportProgress,
+): void {
+  sender.send("ehentai-import:progress", progress);
 }

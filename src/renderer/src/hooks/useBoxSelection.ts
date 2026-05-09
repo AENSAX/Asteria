@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
-import type { MouseEvent as ReactMouseEvent, RefObject } from 'react';
-import { mergeIds } from '../utils/ids';
+import { useEffect, useRef, useState } from "react";
+import type { MouseEvent as ReactMouseEvent, RefObject } from "react";
+import { mergeIds } from "../utils/ids";
 
 interface SelectionBox {
   left: number;
@@ -39,7 +39,7 @@ export function useBoxSelection({
   onLastSelectedId,
   onSelect,
   selectedIds,
-  startOnlyFromContainer = false
+  startOnlyFromContainer = false,
 }: UseBoxSelectionOptions): UseBoxSelectionResult {
   const selectedIdsRef = useRef(selectedIds);
   const dragRef = useRef<DragState | null>(null);
@@ -51,8 +51,8 @@ export function useBoxSelection({
 
   useEffect(() => {
     return () => {
-      document.removeEventListener('mousemove', handleDocumentMouseMove);
-      document.removeEventListener('mouseup', handleDocumentMouseUp);
+      document.removeEventListener("mousemove", handleDocumentMouseMove);
+      document.removeEventListener("mouseup", handleDocumentMouseUp);
     };
   }, []);
 
@@ -74,11 +74,11 @@ export function useBoxSelection({
       startClientY: event.clientY,
       additive: event.ctrlKey,
       baseIds: event.ctrlKey ? [...selectedIdsRef.current] : [],
-      active: false
+      active: false,
     };
 
-    document.addEventListener('mousemove', handleDocumentMouseMove);
-    document.addEventListener('mouseup', handleDocumentMouseUp);
+    document.addEventListener("mousemove", handleDocumentMouseMove);
+    document.addEventListener("mouseup", handleDocumentMouseUp);
   }
 
   function handleDocumentMouseMove(event: MouseEvent): void {
@@ -103,26 +103,32 @@ export function useBoxSelection({
       drag.startClientX,
       drag.startClientY,
       event.clientX,
-      event.clientY
+      event.clientY,
     );
     setSelectionBox(toContainerBox(viewportBox, container));
 
-    const boxIds = readIntersectingItemIds(container, itemSelector, viewportBox);
+    const boxIds = readIntersectingItemIds(
+      container,
+      itemSelector,
+      viewportBox,
+    );
     const nextIds = drag.additive ? mergeIds(drag.baseIds, boxIds) : boxIds;
     onSelect(nextIds);
-    onLastSelectedId?.(boxIds[boxIds.length - 1] ?? nextIds[nextIds.length - 1] ?? null);
+    onLastSelectedId?.(
+      boxIds[boxIds.length - 1] ?? nextIds[nextIds.length - 1] ?? null,
+    );
   }
 
   function handleDocumentMouseUp(): void {
     dragRef.current = null;
     setSelectionBox(null);
-    document.removeEventListener('mousemove', handleDocumentMouseMove);
-    document.removeEventListener('mouseup', handleDocumentMouseUp);
+    document.removeEventListener("mousemove", handleDocumentMouseMove);
+    document.removeEventListener("mouseup", handleDocumentMouseUp);
   }
 
   return {
     selectionBox,
-    handleMouseDownCapture
+    handleMouseDownCapture,
   };
 }
 
@@ -133,14 +139,16 @@ function isInteractiveNonSelectableTarget(target: EventTarget): boolean {
     return false;
   }
 
-  return Boolean(element.closest('input, textarea, select, .context-menu, .tag-token-input'));
+  return Boolean(
+    element.closest("input, textarea, select, .context-menu, .tag-token-input"),
+  );
 }
 
 function createViewportBox(
   startClientX: number,
   startClientY: number,
   currentClientX: number,
-  currentClientY: number
+  currentClientY: number,
 ): SelectionBox {
   const left = Math.min(startClientX, currentClientX);
   const top = Math.min(startClientY, currentClientY);
@@ -149,25 +157,28 @@ function createViewportBox(
     left,
     top,
     width: Math.abs(currentClientX - startClientX),
-    height: Math.abs(currentClientY - startClientY)
+    height: Math.abs(currentClientY - startClientY),
   };
 }
 
-function toContainerBox(viewportBox: SelectionBox, container: HTMLElement): SelectionBox {
+function toContainerBox(
+  viewportBox: SelectionBox,
+  container: HTMLElement,
+): SelectionBox {
   const containerRect = container.getBoundingClientRect();
 
   return {
     left: viewportBox.left - containerRect.left + container.scrollLeft,
     top: viewportBox.top - containerRect.top + container.scrollTop,
     width: viewportBox.width,
-    height: viewportBox.height
+    height: viewportBox.height,
   };
 }
 
 function readIntersectingItemIds(
   container: HTMLElement,
   itemSelector: string,
-  viewportBox: SelectionBox
+  viewportBox: SelectionBox,
 ): number[] {
   const ids: number[] = [];
   const items = container.querySelectorAll<HTMLElement>(itemSelector);

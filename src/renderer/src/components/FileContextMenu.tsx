@@ -1,4 +1,4 @@
-import type { RatingGroupRecord } from '../../../shared/ipc';
+import type { RatingGroupRecord } from "../../../shared/ipc";
 
 interface FileContextMenuProps {
   x: number;
@@ -43,7 +43,7 @@ export function FileContextMenu({
   onOpenExternally,
   onOpenScreening,
   onOpenRating,
-  onTrash
+  onTrash,
 }: FileContextMenuProps): JSX.Element {
   return (
     <div
@@ -88,7 +88,11 @@ export function FileContextMenu({
         </button>
       ) : null}
       {activeRatingGroups.map((group) => (
-        <button key={group.id} type="button" onClick={() => onOpenRating(fileIds, group)}>
+        <button
+          key={group.id}
+          type="button"
+          onClick={() => onOpenRating(fileIds, group)}
+        >
           设置:{group.name}
         </button>
       ))}

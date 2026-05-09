@@ -1,18 +1,20 @@
-import { useEffect, useState } from 'react';
-import type { FileUrlRecord } from '../../../shared/ipc';
-import { ActionFeedbackButton } from '../components/ActionFeedbackButton';
+import { useEffect, useState } from "react";
+import type { FileUrlRecord } from "../../../shared/ipc";
+import { ActionFeedbackButton } from "../components/ActionFeedbackButton";
 
 interface UrlManagerWindowProps {
   fileIds: number[];
 }
 
-export function UrlManagerWindow({ fileIds }: UrlManagerWindowProps): JSX.Element {
+export function UrlManagerWindow({
+  fileIds,
+}: UrlManagerWindowProps): JSX.Element {
   const [urls, setUrls] = useState<FileUrlRecord[]>([]);
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState("");
   const [editingUrlId, setEditingUrlId] = useState<number | null>(null);
-  const [editingText, setEditingText] = useState('');
-  const [message, setMessage] = useState('未加载');
-  const fileIdKey = fileIds.join(',');
+  const [editingText, setEditingText] = useState("");
+  const [message, setMessage] = useState("未加载");
+  const fileIdKey = fileIds.join(",");
 
   useEffect(() => {
     void loadUrls();
@@ -21,17 +23,19 @@ export function UrlManagerWindow({ fileIds }: UrlManagerWindowProps): JSX.Elemen
   async function loadUrls(): Promise<void> {
     if (!window.asteria || fileIds.length === 0) {
       setUrls([]);
-      setMessage('文件无效');
+      setMessage("文件无效");
       return;
     }
 
     try {
       const nextUrls = await window.asteria.listFileUrls(fileIds);
       setUrls(nextUrls);
-      setMessage(fileIds.length > 1 ? `${fileIds.length} 个文件的共同url` : 'url列表');
+      setMessage(
+        fileIds.length > 1 ? `${fileIds.length} 个文件的共同url` : "url列表",
+      );
     } catch (error) {
       setUrls([]);
-      setMessage(error instanceof Error ? error.message : '加载失败');
+      setMessage(error instanceof Error ? error.message : "加载失败");
     }
   }
 
@@ -42,7 +46,7 @@ export function UrlManagerWindow({ fileIds }: UrlManagerWindowProps): JSX.Elemen
 
     const nextUrls = await window.asteria.addFileUrl(fileIds, input);
     setUrls(nextUrls);
-    setInput('');
+    setInput("");
   }
 
   async function saveUrl(url: FileUrlRecord): Promise<void> {
@@ -50,10 +54,15 @@ export function UrlManagerWindow({ fileIds }: UrlManagerWindowProps): JSX.Elemen
       return;
     }
 
-    const nextUrls = await window.asteria.updateFileUrl(fileIds, url.id, url.url, editingText);
+    const nextUrls = await window.asteria.updateFileUrl(
+      fileIds,
+      url.id,
+      url.url,
+      editingText,
+    );
     setUrls(nextUrls);
     setEditingUrlId(null);
-    setEditingText('');
+    setEditingText("");
   }
 
   async function removeUrl(url: FileUrlRecord): Promise<void> {
@@ -61,7 +70,11 @@ export function UrlManagerWindow({ fileIds }: UrlManagerWindowProps): JSX.Elemen
       return;
     }
 
-    const nextUrls = await window.asteria.removeFileUrl(fileIds, url.id, url.url);
+    const nextUrls = await window.asteria.removeFileUrl(
+      fileIds,
+      url.id,
+      url.url,
+    );
     setUrls(nextUrls);
   }
 
@@ -75,7 +88,7 @@ export function UrlManagerWindow({ fileIds }: UrlManagerWindowProps): JSX.Elemen
           value={input}
           onChange={(event) => setInput(event.target.value)}
           onKeyDown={(event) => {
-            if (event.key === 'Enter') {
+            if (event.key === "Enter") {
               void addUrl();
             }
           }}
@@ -88,7 +101,10 @@ export function UrlManagerWindow({ fileIds }: UrlManagerWindowProps): JSX.Elemen
       <div className="min-h-0 overflow-auto p-2">
         {urls.length > 0 ? (
           urls.map((url) => (
-            <div className="grid min-h-6 grid-cols-[minmax(0,1fr)_48px_58px_58px] border-b border-l border-r border-(--line) bg-(--panel)" key={`${url.id}:${url.url}`}>
+            <div
+              className="grid min-h-6 grid-cols-[minmax(0,1fr)_48px_58px_58px] border-b border-l border-r border-(--line) bg-(--panel)"
+              key={`${url.id}:${url.url}`}
+            >
               {editingUrlId === url.id ? (
                 <input
                   className="h-6 min-w-0 border-0 border-r border-(--line) bg-(--surface-inset-bg) px-1.5 text-(--ink)"
@@ -96,17 +112,28 @@ export function UrlManagerWindow({ fileIds }: UrlManagerWindowProps): JSX.Elemen
                   value={editingText}
                   onChange={(event) => setEditingText(event.target.value)}
                   onKeyDown={(event) => {
-                    if (event.key === 'Enter') {
+                    if (event.key === "Enter") {
                       void saveUrl(url);
                     }
                   }}
                 />
               ) : (
-                <span className="min-w-0 overflow-hidden px-2 leading-6 text-ellipsis whitespace-nowrap" title={url.url}>{url.url}</span>
+                <span
+                  className="min-w-0 overflow-hidden px-2 leading-6 text-ellipsis whitespace-nowrap"
+                  title={url.url}
+                >
+                  {url.url}
+                </span>
               )}
-              <span className="px-2 text-right leading-6 text-(--muted)">{url.fileCount}</span>
+              <span className="px-2 text-right leading-6 text-(--muted)">
+                {url.fileCount}
+              </span>
               {editingUrlId === url.id ? (
-                <ActionFeedbackButton className="h-6 border-0 border-r border-(--line) bg-(--panel-strong) px-2 text-[11px]" label="保存" onAction={() => saveUrl(url)} />
+                <ActionFeedbackButton
+                  className="h-6 border-0 border-r border-(--line) bg-(--panel-strong) px-2 text-[11px]"
+                  label="保存"
+                  onAction={() => saveUrl(url)}
+                />
               ) : (
                 <button
                   className="h-6 border-0 border-r border-(--line) bg-(--panel-strong) px-2 text-[11px]"
@@ -119,7 +146,11 @@ export function UrlManagerWindow({ fileIds }: UrlManagerWindowProps): JSX.Elemen
                   修改
                 </button>
               )}
-              <button className="h-6 border-0 bg-(--panel-strong) px-2 text-[11px]" type="button" onClick={() => void removeUrl(url)}>
+              <button
+                className="h-6 border-0 bg-(--panel-strong) px-2 text-[11px]"
+                type="button"
+                onClick={() => void removeUrl(url)}
+              >
                 删除
               </button>
             </div>
@@ -128,7 +159,9 @@ export function UrlManagerWindow({ fileIds }: UrlManagerWindowProps): JSX.Elemen
           <div className="p-2 text-(--muted)">没有url</div>
         )}
       </div>
-      <footer className="flex h-6 items-center border-t border-(--line) px-2 text-(--muted)">{message}</footer>
+      <footer className="flex h-6 items-center border-t border-(--line) px-2 text-(--muted)">
+        {message}
+      </footer>
     </section>
   );
 }

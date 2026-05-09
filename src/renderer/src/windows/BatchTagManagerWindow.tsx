@@ -1,40 +1,44 @@
-import { useEffect, useRef, useState } from 'react';
-import type { BatchFileTagRecord } from '../../../shared/ipc';
-import { TagTokenInput } from '../components/TagTokenInput';
-import { useBoxSelection } from '../hooks/useBoxSelection';
-import { useShortcut } from '../hooks/useShortcut';
-import { useTagTokenInput } from '../hooks/useTagTokenInput';
-import { mergeIds } from '../utils/ids';
+import { useEffect, useRef, useState } from "react";
+import type { BatchFileTagRecord } from "../../../shared/ipc";
+import { TagTokenInput } from "../components/TagTokenInput";
+import { useBoxSelection } from "../hooks/useBoxSelection";
+import { useShortcut } from "../hooks/useShortcut";
+import { useTagTokenInput } from "../hooks/useTagTokenInput";
+import { mergeIds } from "../utils/ids";
 import {
   formatTagLabel,
   getTagNamespaceClassName,
-  getTagNamespaceStyle
-} from '../utils/tags';
+  getTagNamespaceStyle,
+} from "../utils/tags";
 
 interface BatchTagManagerWindowProps {
   fileIds: number[];
 }
 
-const batchRootClass = 'grid h-full min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_auto_24px] border border-(--line) bg-(--panel)';
-const batchListClass = 'relative flex min-h-0 flex-wrap content-start gap-1 overflow-auto bg-(--surface-bg) p-1.5';
+const batchRootClass =
+  "grid h-full min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_auto_24px] border border-(--line) bg-(--panel)";
+const batchListClass =
+  "relative flex min-h-0 flex-wrap content-start gap-1 overflow-auto bg-(--surface-bg) p-1.5";
 const batchTagItemClass =
-  'inline-grid min-h-5 max-w-full grid-cols-[minmax(0,1fr)_auto] items-center border border-(--line-strong) bg-(--tag-bg) text-[11px] text-(--ink)';
-const batchTagPendingClass = 'border-(--danger)';
+  "inline-grid min-h-5 max-w-full grid-cols-[minmax(0,1fr)_auto] items-center border border-(--line-strong) bg-(--tag-bg) text-[11px] text-(--ink)";
+const batchTagPendingClass = "border-(--danger)";
 
-export function BatchTagManagerWindow({ fileIds }: BatchTagManagerWindowProps): JSX.Element {
+export function BatchTagManagerWindow({
+  fileIds,
+}: BatchTagManagerWindowProps): JSX.Element {
   const [fileTags, setFileTags] = useState<BatchFileTagRecord[]>([]);
   const [pendingTagIds, setPendingTagIds] = useState<number[]>([]);
   const [lastPendingTagId, setLastPendingTagId] = useState<number | null>(null);
-  const [message, setMessage] = useState('未加载');
+  const [message, setMessage] = useState("未加载");
   const tagListRef = useRef<HTMLDivElement | null>(null);
-  const fileIdKey = fileIds.join(',');
+  const fileIdKey = fileIds.join(",");
   const boxSelection = useBoxSelection({
     containerRef: tagListRef,
-    itemSelector: '[data-box-select-id]',
+    itemSelector: "[data-box-select-id]",
     selectedIds: pendingTagIds,
     startOnlyFromContainer: true,
     onSelect: setPendingTagIds,
-    onLastSelectedId: setLastPendingTagId
+    onLastSelectedId: setLastPendingTagId,
   });
   const tagInput = useTagTokenInput({
     onCommit: async (tokens) => {
@@ -44,7 +48,7 @@ export function BatchTagManagerWindow({ fileIds }: BatchTagManagerWindowProps): 
 
       const nextFileTags = await window.asteria.addTagsToFiles(fileIds, tokens);
       setFileTags(nextFileTags);
-    }
+    },
   });
 
   useEffect(() => {
@@ -54,7 +58,7 @@ export function BatchTagManagerWindow({ fileIds }: BatchTagManagerWindowProps): 
     void loadFileTags();
   }, [fileIdKey]);
 
-  useShortcut('select-all', () => {
+  useShortcut("select-all", () => {
     const tagIds = fileTags.map((tag) => tag.id);
     setPendingTagIds(tagIds);
     setLastPendingTagId(tagIds[tagIds.length - 1] ?? null);
@@ -63,7 +67,7 @@ export function BatchTagManagerWindow({ fileIds }: BatchTagManagerWindowProps): 
   async function loadFileTags(): Promise<void> {
     if (!window.asteria || fileIds.length === 0) {
       setFileTags([]);
-      setMessage('文件无效');
+      setMessage("文件无效");
       return;
     }
 
@@ -77,20 +81,29 @@ export function BatchTagManagerWindow({ fileIds }: BatchTagManagerWindowProps): 
       return;
     }
 
-    const nextFileTags = await window.asteria.removeTagsFromFiles(fileIds, tagIds);
+    const nextFileTags = await window.asteria.removeTagsFromFiles(
+      fileIds,
+      tagIds,
+    );
     setFileTags(nextFileTags);
     setPendingTagIds([]);
     setLastPendingTagId(null);
   }
 
-  function handleTagMouseDown(event: React.MouseEvent<HTMLElement>, tag: BatchFileTagRecord, index: number): void {
+  function handleTagMouseDown(
+    event: React.MouseEvent<HTMLElement>,
+    tag: BatchFileTagRecord,
+    index: number,
+  ): void {
     event.preventDefault();
     event.stopPropagation();
 
     const isPending = pendingTagIds.includes(tag.id);
 
     if (event.shiftKey && lastPendingTagId !== null) {
-      const anchorIndex = fileTags.findIndex((item) => item.id === lastPendingTagId);
+      const anchorIndex = fileTags.findIndex(
+        (item) => item.id === lastPendingTagId,
+      );
 
       if (anchorIndex >= 0) {
         const start = Math.min(anchorIndex, index);
@@ -98,7 +111,7 @@ export function BatchTagManagerWindow({ fileIds }: BatchTagManagerWindowProps): 
         const rangeIds = fileTags.slice(start, end + 1).map((item) => item.id);
 
         setPendingTagIds((currentTagIds) =>
-          event.ctrlKey ? mergeIds(currentTagIds, rangeIds) : rangeIds
+          event.ctrlKey ? mergeIds(currentTagIds, rangeIds) : rangeIds,
         );
         return;
       }
@@ -144,7 +157,9 @@ export function BatchTagManagerWindow({ fileIds }: BatchTagManagerWindowProps): 
             <button
               className={getTagNamespaceClassName(
                 tag,
-                pendingTagIds.includes(tag.id) ? `${batchTagItemClass} ${batchTagPendingClass}` : batchTagItemClass
+                pendingTagIds.includes(tag.id)
+                  ? `${batchTagItemClass} ${batchTagPendingClass}`
+                  : batchTagItemClass,
               )}
               data-box-select-id={tag.id}
               key={tag.id}
@@ -153,15 +168,22 @@ export function BatchTagManagerWindow({ fileIds }: BatchTagManagerWindowProps): 
               type="button"
               onMouseDown={(event) => handleTagMouseDown(event, tag, index)}
             >
-              <span className="min-w-0 overflow-hidden px-1.5 text-ellipsis whitespace-nowrap">{formatTagLabel(tag)}</span>
-              <span className="border-l border-(--line) px-1.5 text-(--muted)">{tag.fileCount}</span>
+              <span className="min-w-0 overflow-hidden px-1.5 text-ellipsis whitespace-nowrap">
+                {formatTagLabel(tag)}
+              </span>
+              <span className="border-l border-(--line) px-1.5 text-(--muted)">
+                {tag.fileCount}
+              </span>
             </button>
           ))
         ) : (
           <div className="p-2 text-(--muted)">没有标签</div>
         )}
         {boxSelection.selectionBox ? (
-          <div className="absolute z-40 border border-(--accent) bg-(--accent-overlay) pointer-events-none" style={boxSelection.selectionBox} />
+          <div
+            className="absolute z-40 border border-(--accent) bg-(--accent-overlay) pointer-events-none"
+            style={boxSelection.selectionBox}
+          />
         ) : null}
       </div>
 
@@ -176,7 +198,9 @@ export function BatchTagManagerWindow({ fileIds }: BatchTagManagerWindowProps): 
         onPickSuggestion={tagInput.addTokenFromSuggestion}
         onTextChange={tagInput.setText}
       />
-      <footer className="flex h-6 items-center border-t border-(--line) px-2 text-(--muted)">{message}</footer>
+      <footer className="flex h-6 items-center border-t border-(--line) px-2 text-(--muted)">
+        {message}
+      </footer>
     </section>
   );
 }

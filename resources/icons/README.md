@@ -1,6 +1,7 @@
 Place Asteria app icons here.
 
 Required file names:
+
 - Windows: resources/icons/app.ico
 - macOS: resources/icons/app.icns
 - Linux / renderer favicon: resources/icons/app.png

@@ -1,17 +1,17 @@
-import { useShortcut } from './useShortcut';
+import { useShortcut } from "./useShortcut";
 
 interface UseStandaloneWindowShortcutsOptions {
   enabled: boolean;
 }
 
 export function useStandaloneWindowShortcuts({
-  enabled
+  enabled,
 }: UseStandaloneWindowShortcutsOptions): void {
   useShortcut(
-    'close-window',
+    "close-window",
     () => {
       window.close();
     },
-    { enabled, allowInEditable: true }
+    { enabled, allowInEditable: true },
   );
 }

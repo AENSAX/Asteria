@@ -7,7 +7,7 @@
     "tabSetEnableMaximize": false,
     "splitterSize": 4,
     "tabSetTabStripHeight": 26,
-    "tabSetHeaderHeight": 0
+    "tabSetHeaderHeight": 0,
   },
   "borders": [],
   "layout": {
@@ -26,10 +26,10 @@
             "name": "空页面",
             "component": "empty-page",
             "enableClose": false,
-            "enableDrag": false
-          }
-        ]
-      }
-    ]
-  }
+            "enableDrag": false,
+          },
+        ],
+      },
+    ],
+  },
 }

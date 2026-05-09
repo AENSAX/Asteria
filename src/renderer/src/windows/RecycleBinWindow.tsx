@@ -1,32 +1,36 @@
-import { useEffect, useRef, useState } from 'react';
-import type { DatabaseFilePage, DatabaseFileRecord } from '../../../shared/ipc';
-import { useBoxSelection } from '../hooks/useBoxSelection';
-import { useShortcut } from '../hooks/useShortcut';
-import { formatBytes } from '../utils/format';
-import { mergeIds } from '../utils/ids';
+import { useEffect, useRef, useState } from "react";
+import type { DatabaseFilePage, DatabaseFileRecord } from "../../../shared/ipc";
+import { useBoxSelection } from "../hooks/useBoxSelection";
+import { useShortcut } from "../hooks/useShortcut";
+import { formatBytes } from "../utils/format";
+import { mergeIds } from "../utils/ids";
 
 export function RecycleBinWindow(): JSX.Element {
   const [page, setPage] = useState<DatabaseFilePage | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
   const [pendingFileIds, setPendingFileIds] = useState<number[]>([]);
-  const [lastPendingFileId, setLastPendingFileId] = useState<number | null>(null);
-  const [message, setMessage] = useState('未加载');
+  const [lastPendingFileId, setLastPendingFileId] = useState<number | null>(
+    null,
+  );
+  const [message, setMessage] = useState("未加载");
   const [bulkOperating, setBulkOperating] = useState(false);
   const tableAreaRef = useRef<HTMLDivElement | null>(null);
-  const totalPages = page ? Math.max(1, Math.ceil(page.total / page.pageSize)) : 1;
+  const totalPages = page
+    ? Math.max(1, Math.ceil(page.total / page.pageSize))
+    : 1;
   const boxSelection = useBoxSelection({
     containerRef: tableAreaRef,
-    itemSelector: '[data-box-select-id]',
+    itemSelector: "[data-box-select-id]",
     selectedIds: pendingFileIds,
     onSelect: setPendingFileIds,
-    onLastSelectedId: setLastPendingFileId
+    onLastSelectedId: setLastPendingFileId,
   });
 
   useEffect(() => {
     void loadPage(pageNumber);
   }, [pageNumber]);
 
-  useShortcut('select-all', () => {
+  useShortcut("select-all", () => {
     const fileIds = page?.files.map((file) => file.id) ?? [];
     setPendingFileIds(fileIds);
     setLastPendingFileId(fileIds[fileIds.length - 1] ?? null);
@@ -34,14 +38,14 @@ export function RecycleBinWindow(): JSX.Element {
 
   async function loadPage(nextPageNumber: number): Promise<void> {
     if (!window.asteria) {
-      setMessage('preload unavailable');
+      setMessage("preload unavailable");
       return;
     }
 
     const nextPage = await window.asteria.listTrashedFiles(nextPageNumber);
     setPage(nextPage);
     setPendingFileIds((currentIds) =>
-      currentIds.filter((id) => nextPage.files.some((file) => file.id === id))
+      currentIds.filter((id) => nextPage.files.some((file) => file.id === id)),
     );
     setMessage(`${nextPage.total} 个文件`);
   }
@@ -49,7 +53,7 @@ export function RecycleBinWindow(): JSX.Element {
   function handleRowMouseDown(
     event: React.MouseEvent<HTMLTableRowElement>,
     file: DatabaseFileRecord,
-    index: number
+    index: number,
   ): void {
     event.preventDefault();
 
@@ -60,21 +64,29 @@ export function RecycleBinWindow(): JSX.Element {
     const isPending = pendingFileIds.includes(file.id);
 
     if (event.shiftKey && lastPendingFileId !== null) {
-      const anchorIndex = page.files.findIndex((item) => item.id === lastPendingFileId);
+      const anchorIndex = page.files.findIndex(
+        (item) => item.id === lastPendingFileId,
+      );
 
       if (anchorIndex >= 0) {
         const start = Math.min(anchorIndex, index);
         const end = Math.max(anchorIndex, index);
-        const rangeIds = page.files.slice(start, end + 1).map((item) => item.id);
+        const rangeIds = page.files
+          .slice(start, end + 1)
+          .map((item) => item.id);
 
-        setPendingFileIds((currentIds) => (event.ctrlKey ? mergeIds(currentIds, rangeIds) : rangeIds));
+        setPendingFileIds((currentIds) =>
+          event.ctrlKey ? mergeIds(currentIds, rangeIds) : rangeIds,
+        );
         return;
       }
     }
 
     if (event.ctrlKey) {
       setPendingFileIds((currentIds) =>
-        isPending ? currentIds.filter((id) => id !== file.id) : [...currentIds, file.id]
+        isPending
+          ? currentIds.filter((id) => id !== file.id)
+          : [...currentIds, file.id],
       );
       setLastPendingFileId(file.id);
       return;
@@ -101,8 +113,8 @@ export function RecycleBinWindow(): JSX.Element {
     }
 
     const confirmed = await window.asteria.confirmDialog({
-      title: '确认彻底删除',
-      message: `确认彻底删除${pendingFileIds.length}个文件吗`
+      title: "确认彻底删除",
+      message: `确认彻底删除${pendingFileIds.length}个文件吗`,
     });
 
     if (!confirmed) {
@@ -121,10 +133,17 @@ export function RecycleBinWindow(): JSX.Element {
     }
 
     const firstPage = await window.asteria.listTrashedFiles(1);
-    const totalPageCount = Math.max(1, Math.ceil(firstPage.total / firstPage.pageSize));
+    const totalPageCount = Math.max(
+      1,
+      Math.ceil(firstPage.total / firstPage.pageSize),
+    );
     const fileIds = firstPage.files.map((file) => file.id);
 
-    for (let nextPageNumber = 2; nextPageNumber <= totalPageCount; nextPageNumber += 1) {
+    for (
+      let nextPageNumber = 2;
+      nextPageNumber <= totalPageCount;
+      nextPageNumber += 1
+    ) {
       const nextPage = await window.asteria.listTrashedFiles(nextPageNumber);
       fileIds.push(...nextPage.files.map((file) => file.id));
     }
@@ -162,8 +181,8 @@ export function RecycleBinWindow(): JSX.Element {
     }
 
     const confirmed = await window.asteria.confirmDialog({
-      title: '确认清空回收站',
-      message: `确认彻底删除回收站中的 ${page.total} 个文件吗`
+      title: "确认清空回收站",
+      message: `确认彻底删除回收站中的 ${page.total} 个文件吗`,
     });
 
     if (!confirmed) {
@@ -199,59 +218,119 @@ export function RecycleBinWindow(): JSX.Element {
         <table className="w-full table-fixed border-collapse text-[11px]">
           <thead>
             <tr>
-              <th className="h-[26px] border-b border-r border-(--line) bg-(--surface-bg) px-2 text-left font-medium text-(--muted)">ID</th>
-              <th className="h-[26px] border-b border-r border-(--line) bg-(--surface-bg) px-2 text-left font-medium text-(--muted)">扩展名</th>
-              <th className="h-[26px] border-b border-r border-(--line) bg-(--surface-bg) px-2 text-left font-medium text-(--muted)">大小</th>
-              <th className="h-[26px] border-b border-r border-(--line) bg-(--surface-bg) px-2 text-left font-medium text-(--muted)">导入时间</th>
-              <th className="h-[26px] border-b border-r border-(--line) bg-(--surface-bg) px-2 text-left font-medium text-(--muted)">SHA256</th>
+              <th className="h-[26px] border-b border-r border-(--line) bg-(--surface-bg) px-2 text-left font-medium text-(--muted)">
+                ID
+              </th>
+              <th className="h-[26px] border-b border-r border-(--line) bg-(--surface-bg) px-2 text-left font-medium text-(--muted)">
+                扩展名
+              </th>
+              <th className="h-[26px] border-b border-r border-(--line) bg-(--surface-bg) px-2 text-left font-medium text-(--muted)">
+                大小
+              </th>
+              <th className="h-[26px] border-b border-r border-(--line) bg-(--surface-bg) px-2 text-left font-medium text-(--muted)">
+                导入时间
+              </th>
+              <th className="h-[26px] border-b border-r border-(--line) bg-(--surface-bg) px-2 text-left font-medium text-(--muted)">
+                SHA256
+              </th>
             </tr>
           </thead>
           <tbody>
             {page?.files.length ? (
               page.files.map((file, index) => (
                 <tr
-                  className={pendingFileIds.includes(file.id) ? 'bg-(--danger-bg) text-(--danger-ink)' : ''}
+                  className={
+                    pendingFileIds.includes(file.id)
+                      ? "bg-(--danger-bg) text-(--danger-ink)"
+                      : ""
+                  }
                   data-box-select-id={file.id}
                   key={file.id}
-                  onMouseDown={(event) => handleRowMouseDown(event, file, index)}
+                  onMouseDown={(event) =>
+                    handleRowMouseDown(event, file, index)
+                  }
                 >
-                  <td className="h-[26px] overflow-hidden border-b border-r border-(--line) px-2">{file.id}</td>
-                  <td className="h-[26px] overflow-hidden border-b border-r border-(--line) px-2">{file.extension ?? '-'}</td>
-                  <td className="h-[26px] overflow-hidden border-b border-r border-(--line) px-2">{formatBytes(file.sizeBytes)}</td>
-                  <td className="h-[26px] overflow-hidden border-b border-r border-(--line) px-2">{file.importedAt}</td>
-                  <td className="h-[26px] overflow-hidden border-b border-r border-(--line) px-2" title={file.sha256}>{file.sha256}</td>
+                  <td className="h-[26px] overflow-hidden border-b border-r border-(--line) px-2">
+                    {file.id}
+                  </td>
+                  <td className="h-[26px] overflow-hidden border-b border-r border-(--line) px-2">
+                    {file.extension ?? "-"}
+                  </td>
+                  <td className="h-[26px] overflow-hidden border-b border-r border-(--line) px-2">
+                    {formatBytes(file.sizeBytes)}
+                  </td>
+                  <td className="h-[26px] overflow-hidden border-b border-r border-(--line) px-2">
+                    {file.importedAt}
+                  </td>
+                  <td
+                    className="h-[26px] overflow-hidden border-b border-r border-(--line) px-2"
+                    title={file.sha256}
+                  >
+                    {file.sha256}
+                  </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td className="px-2 text-(--muted)" colSpan={5}>没有文件记录</td>
+                <td className="px-2 text-(--muted)" colSpan={5}>
+                  没有文件记录
+                </td>
               </tr>
             )}
           </tbody>
         </table>
         {boxSelection.selectionBox ? (
-          <div className="absolute z-40 border border-(--accent) bg-(--accent-overlay) pointer-events-none" style={boxSelection.selectionBox} />
+          <div
+            className="absolute z-40 border border-(--accent) bg-(--accent-overlay) pointer-events-none"
+            style={boxSelection.selectionBox}
+          />
         ) : null}
       </div>
 
       <footer className="flex h-8 items-center justify-between border-t border-(--line) px-2 text-(--muted)">
         <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
-          第 {page?.page ?? 1} / {totalPages} 页，总计 {page?.total ?? 0} 个文件，已选 {pendingFileIds.length}，{message}
+          第 {page?.page ?? 1} / {totalPages} 页，总计 {page?.total ?? 0}{" "}
+          个文件，已选 {pendingFileIds.length}，{message}
         </span>
         <div className="flex gap-1.5">
-          <button className="h-6 cursor-default border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px]" disabled={pendingFileIds.length === 0} type="button" onClick={() => void restorePendingFiles()}>
+          <button
+            className="h-6 cursor-default border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px]"
+            disabled={pendingFileIds.length === 0}
+            type="button"
+            onClick={() => void restorePendingFiles()}
+          >
             还原
           </button>
-          <button className="h-6 cursor-default border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px]" disabled={pendingFileIds.length === 0} type="button" onClick={() => void deletePendingFiles()}>
+          <button
+            className="h-6 cursor-default border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px]"
+            disabled={pendingFileIds.length === 0}
+            type="button"
+            onClick={() => void deletePendingFiles()}
+          >
             彻底删除
           </button>
-          <button className="h-6 cursor-default border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px]" disabled={!page || page.total === 0 || bulkOperating} type="button" onClick={() => void restoreAllFiles()}>
+          <button
+            className="h-6 cursor-default border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px]"
+            disabled={!page || page.total === 0 || bulkOperating}
+            type="button"
+            onClick={() => void restoreAllFiles()}
+          >
             一键还原
           </button>
-          <button className="h-6 cursor-default border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px]" disabled={!page || page.total === 0 || bulkOperating} type="button" onClick={() => void deleteAllFiles()}>
+          <button
+            className="h-6 cursor-default border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px]"
+            disabled={!page || page.total === 0 || bulkOperating}
+            type="button"
+            onClick={() => void deleteAllFiles()}
+          >
             一键彻底删除
           </button>
-          <button className="h-6 cursor-default border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px]" disabled={!page || page.page <= 1} type="button" onClick={() => setPageNumber((value) => value - 1)}>
+          <button
+            className="h-6 cursor-default border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px]"
+            disabled={!page || page.page <= 1}
+            type="button"
+            onClick={() => setPageNumber((value) => value - 1)}
+          >
             上一页
           </button>
           <button

@@ -1,4 +1,8 @@
-import { AUDIO_EXTENSIONS, IMAGE_EXTENSIONS, VIDEO_EXTENSIONS } from '../../../shared/media';
+import {
+  AUDIO_EXTENSIONS,
+  IMAGE_EXTENSIONS,
+  VIDEO_EXTENSIONS,
+} from "../../../shared/media";
 
 export function isImageExtension(extension: string): boolean {
   return IMAGE_EXTENSIONS.has(extension);
