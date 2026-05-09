@@ -232,22 +232,15 @@ export function SettingsWindow(): JSX.Element {
     await window.asteria.openPageLayoutConfig(selectedLayoutConfigId);
   }
 
-  async function setSelectedAsDefaultLayoutConfig(): Promise<void> {
+  async function updateLayoutSetting(kind: 'default' | 'newPage', enabled: boolean, id: string): Promise<void> {
     if (!window.asteria) {
       return;
     }
 
-    const nextSettings = await window.asteria.setDefaultPageLayoutConfig(selectedLayoutConfigId);
-    setLayoutSettings(nextSettings);
-    setLayoutConfigs(await window.asteria.listPageLayoutConfigs());
-  }
-
-  async function setSelectedAsNewPageLayoutConfig(): Promise<void> {
-    if (!window.asteria) {
-      return;
-    }
-
-    const nextSettings = await window.asteria.setNewPageLayoutConfig(selectedLayoutConfigId);
+    const nextSettings =
+      kind === 'default'
+        ? await window.asteria.setDefaultPageLayoutConfig(enabled ? id : null)
+        : await window.asteria.setNewPageLayoutConfig(enabled ? id : null);
     setLayoutSettings(nextSettings);
     setLayoutConfigs(await window.asteria.listPageLayoutConfigs());
   }
@@ -432,26 +425,38 @@ export function SettingsWindow(): JSX.Element {
                 <ActionFeedbackButton label="保存" onAction={saveBrowserPageSize} />
               </label>
             </div>
-            <div className="interface-config-title">页面配置</div>
+            <div className="interface-config-title">
+              <span>页面配置</span>
+              <span className="layout-config-status">{layoutMessage}</span>
+            </div>
             <div className="layout-config-area">
               <div className="layout-config-list">
-                {layoutConfigs.length > 0 ? (
-                  layoutConfigs.map((config) => (
-                    <button
-                      className={config.id === selectedLayoutConfigId ? 'layout-config-item active' : 'layout-config-item'}
-                      key={config.id}
-                      title={config.path}
-                      type="button"
-                      onClick={() => setSelectedLayoutConfigId(config.id)}
-                    >
-                      <span>{config.name}</span>
-                      <span>{config.isDefault ? '默认' : ''}</span>
-                      <span>{config.isNewPage ? '新页' : ''}</span>
-                    </button>
-                  ))
-                ) : (
-                  <div className="layout-config-empty">没有配置</div>
-                )}
+                <div className="layout-config-list-body">
+                  {layoutConfigs.length > 0 ? (
+                    layoutConfigs.map((config) => (
+                      <div
+                        className={config.id === selectedLayoutConfigId ? 'layout-config-item active' : 'layout-config-item'}
+                        key={config.id}
+                      >
+                        <button
+                          className="layout-config-item-name"
+                          title={config.path}
+                          type="button"
+                          onClick={() => setSelectedLayoutConfigId(config.id)}
+                        >
+                          <span>{config.name}</span>
+                        </button>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="layout-config-empty">没有配置</div>
+                  )}
+                </div>
+                <div className="layout-config-side-actions">
+                  <button type="button" onClick={() => void createLayoutConfig()}>
+                    新建配置
+                  </button>
+                </div>
               </div>
 
               <div className="layout-config-detail">
@@ -468,10 +473,36 @@ export function SettingsWindow(): JSX.Element {
                   </button>
                 </div>
 
+                <div className="layout-config-check-row">
+                  <label className="layout-config-check layout-config-check--detail">
+                    <input
+                      checked={selectedLayoutConfig ? selectedLayoutConfig.id === layoutSettings.defaultConfigId : false}
+                      disabled={!selectedLayoutConfig}
+                      type="checkbox"
+                      onChange={(event) =>
+                        selectedLayoutConfig
+                          ? void updateLayoutSetting('default', event.target.checked, selectedLayoutConfig.id)
+                          : undefined
+                      }
+                    />
+                    <span>默认导入页</span>
+                  </label>
+                  <label className="layout-config-check layout-config-check--detail">
+                    <input
+                      checked={selectedLayoutConfig ? selectedLayoutConfig.id === layoutSettings.newPageConfigId : false}
+                      disabled={!selectedLayoutConfig}
+                      type="checkbox"
+                      onChange={(event) =>
+                        selectedLayoutConfig
+                          ? void updateLayoutSetting('newPage', event.target.checked, selectedLayoutConfig.id)
+                          : undefined
+                      }
+                    />
+                    <span>默认新标签页</span>
+                  </label>
+                </div>
+
                 <div className="layout-config-actions">
-                  <button type="button" onClick={() => void createLayoutConfig()}>
-                    新建配置
-                  </button>
                   <button disabled={!selectedLayoutConfig} type="button" onClick={() => void openSelectedLayoutConfig()}>
                     打开配置文件
                   </button>
@@ -479,30 +510,6 @@ export function SettingsWindow(): JSX.Element {
                     删除配置
                   </button>
                 </div>
-
-                <div className="layout-config-actions">
-                  <button disabled={!selectedLayoutConfig} type="button" onClick={() => void setSelectedAsDefaultLayoutConfig()}>
-                    设为默认配置
-                  </button>
-                  <button disabled={!selectedLayoutConfig} type="button" onClick={() => void setSelectedAsNewPageLayoutConfig()}>
-                    设为新页面配置
-                  </button>
-                </div>
-
-                <dl className="layout-config-info">
-                  <div>
-                    <dt>默认配置</dt>
-                    <dd>{layoutSettings.defaultConfigId ?? '-'}</dd>
-                  </div>
-                  <div>
-                    <dt>新页面配置</dt>
-                    <dd>{layoutSettings.newPageConfigId ?? '-'}</dd>
-                  </div>
-                  <div>
-                    <dt>状态</dt>
-                    <dd>{layoutMessage}</dd>
-                  </div>
-                </dl>
               </div>
             </div>
           </section>

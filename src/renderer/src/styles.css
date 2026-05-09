@@ -1375,6 +1375,9 @@ progress::-webkit-progress-value {
 }
 
 .interface-config-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   height: 24px;
   padding: 0 8px;
   border-bottom: 1px solid var(--line);
@@ -1462,18 +1465,31 @@ progress::-webkit-progress-value {
   min-height: 0;
 }
 
+.layout-config-status {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 400;
+}
+
 .layout-config-list {
+  display: flex;
+  flex-direction: column;
   min-height: 0;
-  overflow: auto;
   border-right: 1px solid var(--line);
   background: var(--surface-bg);
 }
 
+.layout-config-list-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
 .layout-config-item {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 38px 38px;
+  grid-template-columns: minmax(0, 1fr);
   width: 100%;
-  height: 26px;
+  min-height: 26px;
   padding: 0;
   border: 0;
   border-bottom: 1px solid var(--line);
@@ -1489,19 +1505,58 @@ progress::-webkit-progress-value {
   background: var(--surface-raised-bg);
 }
 
-.layout-config-item span {
+.layout-config-item-name,
+.layout-config-check {
   min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+}
+
+.layout-config-item-name {
+  overflow: hidden;
   padding: 0 6px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.layout-config-item-name span {
+  display: block;
   overflow: hidden;
   line-height: 26px;
-  text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.layout-config-item span:not(:first-child) {
+.layout-config-check {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  justify-content: center;
+  padding: 0 4px;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.layout-config-check input {
+  margin: 0;
+}
+
+.layout-config-check span {
   color: var(--muted);
-  text-align: right;
+}
+
+.layout-config-check-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.layout-config-check--detail {
+  justify-content: flex-start;
 }
 
 .layout-config-empty {
@@ -1531,8 +1586,14 @@ progress::-webkit-progress-value {
   grid-template-columns: repeat(3, minmax(82px, 1fr));
 }
 
+.layout-config-side-actions {
+  padding: 8px;
+  border-top: 1px solid var(--line);
+}
+
 .layout-config-row input,
-.layout-config-detail button {
+.layout-config-detail button,
+.layout-config-side-actions button {
   min-width: 0;
   height: 24px;
   padding: 0 6px;
@@ -1547,47 +1608,18 @@ progress::-webkit-progress-value {
   cursor: default;
 }
 
+.layout-config-side-actions button {
+  width: 100%;
+  background: var(--panel-strong);
+  cursor: default;
+}
+
 .layout-config-detail button:disabled {
   color: var(--disabled-ink);
 }
 
 .layout-config-row input::placeholder {
   color: var(--disabled-ink);
-}
-
-.layout-config-info {
-  display: grid;
-  gap: 0;
-  margin: 2px 0 0;
-}
-
-.layout-config-info div {
-  display: grid;
-  grid-template-columns: 84px minmax(0, 1fr);
-  min-height: 24px;
-  border-right: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
-  border-left: 1px solid var(--line);
-}
-
-.layout-config-info div:first-child {
-  border-top: 1px solid var(--line);
-}
-
-.layout-config-info dt,
-.layout-config-info dd {
-  min-width: 0;
-  margin: 0;
-  padding: 0 6px;
-  overflow: hidden;
-  line-height: 24px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.layout-config-info dt {
-  color: var(--muted);
-  background: var(--surface-bg);
 }
 
 .shortcut-settings-panel {

@@ -2,7 +2,14 @@ import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { Actions, DockLocation, Layout, Model, type TabNode } from 'flexlayout-react';
 import { parse } from 'jsonc-parser';
 import defaultPageTemplateText from '../../../config/page-templates/default-page.jsonc?raw';
-import type { ImportProgress, ImportQueueFileRecord, SortDirection, TagRecord, WorkStatus } from '../../shared/ipc';
+import type {
+  ImportProgress,
+  ImportQueueFileRecord,
+  PageLayoutSettings,
+  SortDirection,
+  TagRecord,
+  WorkStatus
+} from '../../shared/ipc';
 import { ActionFeedbackButton } from './components/ActionFeedbackButton';
 import { useStandaloneWindowShortcuts } from './hooks/useStandaloneWindowShortcuts';
 import { readDroppedImportData } from './utils/dropImport';
@@ -325,6 +332,10 @@ function WorkbenchApp(): JSX.Element {
     default: defaultPageTemplateText,
     newPage: defaultPageTemplateText
   });
+  const [pageLayoutSettings, setPageLayoutSettings] = useState<PageLayoutSettings>({
+    defaultConfigId: null,
+    newPageConfigId: null
+  });
   const [workbenchLoaded, setWorkbenchLoaded] = useState(false);
   const [viewContextMenu, setViewContextMenu] = useState<{
     x: number;
@@ -430,7 +441,7 @@ function WorkbenchApp(): JSX.Element {
     }
 
     return window.asteria.onPageLayoutChanged(() => {
-      void reloadPageLayoutTemplates();
+      void reloadPageLayoutState();
     });
   }, []);
 
@@ -457,8 +468,9 @@ function WorkbenchApp(): JSX.Element {
   }, []);
 
   async function initializeWorkbench(): Promise<void> {
-    const templateText = await loadPageLayoutTemplates();
-    setPageTemplateText(templateText);
+    const pageLayoutState = await loadPageLayoutState();
+    setPageTemplateText(pageLayoutState.templateText);
+    setPageLayoutSettings(pageLayoutState.settings);
 
     const savedState = readSavedWorkbenchState();
     const hasImportQueue = window.asteria
@@ -501,21 +513,33 @@ function WorkbenchApp(): JSX.Element {
     setWorkbenchLoaded(true);
   }
 
-  async function reloadPageLayoutTemplates(): Promise<void> {
-    const templateText = await loadPageLayoutTemplates();
-    setPageTemplateText(templateText);
+  async function reloadPageLayoutState(): Promise<void> {
+    const pageLayoutState = await loadPageLayoutState();
+    setPageTemplateText(pageLayoutState.templateText);
+    setPageLayoutSettings(pageLayoutState.settings);
   }
 
-  async function loadPageLayoutTemplates(): Promise<{ default: string; newPage: string }> {
+  async function loadPageLayoutState(): Promise<{
+    settings: PageLayoutSettings;
+    templateText: { default: string; newPage: string };
+  }> {
     let defaultTemplate = defaultPageTemplateText;
     let newPageTemplate = defaultPageTemplateText;
+    let settings: PageLayoutSettings = {
+      defaultConfigId: null,
+      newPageConfigId: null
+    };
 
     if (window.asteria) {
       try {
-        [defaultTemplate, newPageTemplate] = await Promise.all([
+        const [loadedSettings, loadedDefaultTemplate, loadedNewPageTemplate] = await Promise.all([
+          window.asteria.getPageLayoutSettings(),
           window.asteria.getPageLayoutTemplate('default'),
           window.asteria.getPageLayoutTemplate('newPage')
         ]);
+        settings = loadedSettings;
+        defaultTemplate = loadedDefaultTemplate;
+        newPageTemplate = loadedNewPageTemplate;
       } catch {
         defaultTemplate = defaultPageTemplateText;
         newPageTemplate = defaultPageTemplateText;
@@ -523,8 +547,11 @@ function WorkbenchApp(): JSX.Element {
     }
 
     return {
-      default: defaultTemplate,
-      newPage: newPageTemplate
+      settings,
+      templateText: {
+        default: defaultTemplate,
+        newPage: newPageTemplate
+      }
     };
   }
 
@@ -542,7 +569,7 @@ function WorkbenchApp(): JSX.Element {
 
   async function startFileImport(): Promise<void> {
     setOpenMenu(null);
-    openView('file-import');
+    const importPage = openImportView();
 
     if (!window.asteria) {
       setProgress({ ...idleProgress, phase: 'failed', message: 'preload unavailable' });
@@ -558,7 +585,7 @@ function WorkbenchApp(): JSX.Element {
     try {
       const result = await window.asteria.importFiles();
       setProgress(result);
-      await activateImportQueuePreview();
+      await activateImportQueuePreview(importPage);
     } catch (error) {
       setProgress({
         ...idleProgress,
@@ -570,7 +597,7 @@ function WorkbenchApp(): JSX.Element {
 
   async function startFolderImport(): Promise<void> {
     setOpenMenu(null);
-    openView('file-import');
+    const importPage = openImportView();
 
     if (!window.asteria) {
       setProgress({ ...idleProgress, phase: 'failed', message: 'preload unavailable' });
@@ -586,7 +613,7 @@ function WorkbenchApp(): JSX.Element {
     try {
       const result = await window.asteria.importFolder();
       setProgress(result);
-      await activateImportQueuePreview();
+      await activateImportQueuePreview(importPage);
     } catch (error) {
       setProgress({
         ...idleProgress,
@@ -596,7 +623,7 @@ function WorkbenchApp(): JSX.Element {
     }
   }
 
-  async function importDroppedData(dataTransfer: DataTransfer): Promise<void> {
+  async function importDroppedData(dataTransfer: DataTransfer, importPage: PageItem | null): Promise<void> {
     if (!window.asteria) {
       setProgress({ ...idleProgress, phase: 'failed', message: 'preload unavailable' });
       return;
@@ -635,7 +662,7 @@ function WorkbenchApp(): JSX.Element {
       }
 
       setProgress(result);
-      await activateImportQueuePreview();
+      await activateImportQueuePreview(importPage);
     } catch (error) {
       setProgress({
         ...idleProgress,
@@ -664,8 +691,8 @@ function WorkbenchApp(): JSX.Element {
   function handleDrop(event: React.DragEvent<HTMLElement>): void {
     event.preventDefault();
     setDragActive(false);
-    openView('file-import');
-    void importDroppedData(event.dataTransfer);
+    const importPage = openImportView();
+    void importDroppedData(event.dataTransfer, importPage);
   }
 
   async function openDatabaseManager(): Promise<void> {
@@ -740,7 +767,7 @@ function WorkbenchApp(): JSX.Element {
 
   function openFileImportView(): void {
     setOpenMenu(null);
-    openView('file-import');
+    openImportView();
   }
 
   function createPage(): void {
@@ -844,6 +871,13 @@ function WorkbenchApp(): JSX.Element {
     return createPageItemFromTemplate(pageNumber, `页面 ${pageNumber}`, pageTemplateText.newPage);
   }
 
+  function createImportPage(): PageItem {
+    const pageNumber = pageCounterRef.current;
+    pageCounterRef.current += 1;
+
+    return createPageItemFromTemplate(pageNumber, `页面 ${pageNumber}`, pageTemplateText.default);
+  }
+
   function createPageItemFromTemplate(pageNumber: number, title: string, templateText: string): PageItem {
     return {
       id: `page-${pageNumber}`,
@@ -861,7 +895,10 @@ function WorkbenchApp(): JSX.Element {
   }
 
   function openView(component: OpenableViewComponent): void {
-    let page = getOrCreateActivePage();
+    openViewOnPage(getOrCreateActivePage(), component);
+  }
+
+  function openViewOnPage(page: PageItem, component: OpenableViewComponent): void {
     const existingTabId = findViewTabId(page.model, component);
 
     if (existingTabId) {
@@ -898,7 +935,21 @@ function WorkbenchApp(): JSX.Element {
     refreshLayout();
   }
 
-  async function activateImportQueuePreview(): Promise<void> {
+  function openImportView(): PageItem {
+    if (pageLayoutSettings.defaultConfigId) {
+      const page = createImportPage();
+      setPages((currentPages) => [...currentPages, page]);
+      setActivePageId(page.id);
+      openViewOnPage(page, 'file-import');
+      return page;
+    }
+
+    const page = getOrCreateActivePage();
+    openViewOnPage(page, 'file-import');
+    return page;
+  }
+
+  async function activateImportQueuePreview(page: PageItem | null): Promise<void> {
     if (!window.asteria) {
       return;
     }
@@ -909,13 +960,15 @@ function WorkbenchApp(): JSX.Element {
       return;
     }
 
-    const page = getOrCreateActivePage();
+    const targetPage = page ?? getOrCreateActivePage();
     setPages((currentPages) =>
       currentPages.map((currentPage) =>
-        currentPage.id === page.id ? { ...currentPage, importQueueActive: true, searchFilters: [] } : currentPage
+        currentPage.id === targetPage.id
+          ? { ...currentPage, importQueueActive: true, searchFilters: [] }
+          : currentPage
       )
     );
-    openView('file-browser');
+    openViewOnPage(targetPage, 'file-browser');
   }
 
   async function commitImportQueueFromActivePage(queueFiles: ImportQueueFileRecord[]): Promise<void> {
