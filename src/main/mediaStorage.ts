@@ -1,8 +1,6 @@
-import { app } from 'electron';
-import { spawn } from 'node:child_process';
 import { copyFile, mkdir, stat } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
+import sharp from 'sharp';
 import {
   getConvertImportedImagesToPng,
   getFileStoragePath
@@ -95,58 +93,13 @@ function shouldConvertImageToPng(extension: string | null): boolean {
 
 async function convertImageToPng(sourcePath: string, targetPath: string): Promise<void> {
   await mkdir(dirname(targetPath), { recursive: true });
-  await runFfmpeg([
-    '-y',
-    '-hide_banner',
-    '-loglevel',
-    'error',
-    '-i',
-    sourcePath,
-    '-frames:v',
-    '1',
-    targetPath
-  ], sourcePath);
-}
 
-function runFfmpeg(args: string[], sourcePath: string): Promise<void> {
-  const ffmpegPath = getBundledFfmpegPath();
-
-  return new Promise((resolveRun, rejectRun) => {
-    const child = spawn(ffmpegPath, args, {
-      windowsHide: true
-    });
-    const stderrChunks: Buffer[] = [];
-
-    child.stderr.on('data', (chunk: Buffer) => {
-      stderrChunks.push(chunk);
-    });
-
-    child.on('error', (error) => {
-      rejectRun(new Error(`ffmpeg 启动失败: ${error.message}`));
-    });
-
-    child.on('close', (code) => {
-      if (code === 0) {
-        resolveRun();
-        return;
-      }
-
-      const stderr = Buffer.concat(stderrChunks).toString('utf8').trim();
-      rejectRun(new Error(`图片转 PNG 失败: ${basename(sourcePath)}${stderr ? `\n${stderr}` : ''}`));
-    });
-  });
-}
-
-function getBundledFfmpegPath(): string {
-  const executableName = process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg';
-  const candidates = [
-    join(process.resourcesPath, 'ffmpeg', executableName),
-    join(app.getAppPath(), 'resources', 'ffmpeg', executableName),
-    join(process.cwd(), 'resources', 'ffmpeg', executableName)
-  ];
-  const bundledPath = candidates.find((candidate) => existsSync(candidate));
-
-  return bundledPath ?? 'ffmpeg';
+  try {
+    await sharp(sourcePath).png().toFile(targetPath);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`图片转 PNG 失败: ${message}`);
+  }
 }
 
 function beginImageConversion(sourcePath: string): void {

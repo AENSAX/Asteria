@@ -48,19 +48,6 @@ ASTERIA_RENDERER_LOGS=0
 - `ASTERIA_DEVTOOLS=1`：启动时打开开发者工具。
 - `ASTERIA_RENDERER_LOGS=1`：将 renderer console 输出到主进程终端。
 
-## ffmpeg
-
-仓库不提交 ffmpeg 二进制文件。开发或打包前请自行准备 ffmpeg：
-
-- Windows：将 `ffmpeg.exe` 放到 `resources/ffmpeg/ffmpeg.exe`
-- Linux/macOS：将 `ffmpeg` 放到 `resources/ffmpeg/ffmpeg`
-
-Asteria 会按以下顺序查找 ffmpeg：
-
-1. 打包后的应用资源目录：`process.resourcesPath/ffmpeg`
-2. 项目资源目录：`resources/ffmpeg`
-3. 系统 `PATH` 中的 `ffmpeg`
-
 ## 检查与构建
 
 ```bash
