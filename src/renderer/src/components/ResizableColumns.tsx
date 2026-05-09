@@ -77,19 +77,19 @@ export function ResizableColumns({
 
   return (
     <section
-      className={`${className} resizable-columns`}
+      className={`${className} grid min-h-0 min-w-0`}
       ref={rootRef}
       style={{ gridTemplateColumns: `${leftWidth}px 5px minmax(0, 1fr)` }}
     >
-      <div className="resizable-column-pane">{left}</div>
+      <div className="min-h-0 min-w-0 overflow-hidden [&>*]:h-full [&>*]:w-full [&>*]:min-h-0 [&>*]:min-w-0">{left}</div>
       <div
         aria-label="调整宽度"
         aria-orientation="vertical"
-        className="resizable-column-splitter"
+        className="h-full min-w-[5px] cursor-col-resize border-x border-[var(--line)] bg-[var(--statusbar-bg)] hover:bg-[var(--splitter-hover-bg)]"
         role="separator"
         onPointerDown={startResize}
       />
-      <div className="resizable-column-pane">{right}</div>
+      <div className="min-h-0 min-w-0 overflow-hidden [&>*]:h-full [&>*]:w-full [&>*]:min-h-0 [&>*]:min-w-0">{right}</div>
     </section>
   );
 }

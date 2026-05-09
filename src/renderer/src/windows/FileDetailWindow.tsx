@@ -25,6 +25,25 @@ interface FileDetailWindowProps {
   fileId: number;
 }
 
+const detailShellClass = 'grid h-full min-h-0 min-w-0 grid-cols-[148px_minmax(0,1fr)] border border-[var(--line)] bg-[var(--panel)]';
+const detailTagsClass = 'grid min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_auto] border-r border-[var(--line)] bg-[var(--surface-bg)]';
+const tagListClass = 'relative min-h-0 overflow-auto p-1.5';
+const fileTagGroupClass = 'mb-2 border-b border-[var(--border-dark)]';
+const fileTagHeaderClass =
+  'mb-1.5 grid h-6 grid-cols-[minmax(0,1fr)_auto] border-y border-[var(--border-dark)] border-t-[var(--line-strong)] bg-[var(--group-header-bg)] px-1.5 leading-[22px] font-semibold text-[var(--group-header-ink)]';
+const fileTagGroupBodyClass = 'flex flex-wrap content-start gap-1';
+const fileTagItemClass =
+  'inline-flex max-w-full min-h-[18px] cursor-default overflow-hidden border border-[var(--line-strong)] bg-[var(--tag-bg)] px-1.5 text-[11px] text-[var(--ink)]';
+const fileTagPendingClass = 'border-[var(--danger)]';
+const detailContentClass = 'relative grid min-h-0 min-w-0 place-items-center overflow-hidden bg-[var(--surface-media-bg)]';
+const detailMessageClass = 'text-[var(--muted)]';
+const detailAudioClass = 'w-[min(520px,calc(100%-32px))]';
+const detailImageStageClass = 'grid h-full w-full min-h-0 min-w-0 place-items-center overflow-hidden cursor-grab';
+const detailVideoStageClass = detailImageStageClass;
+const detailMediaClass = 'max-h-full max-w-full object-contain';
+const screeningStatusClass =
+  'absolute bottom-2 right-2 h-[22px] min-w-[54px] border border-[var(--line-strong)] bg-[var(--surface-bg)] px-1.5 text-center leading-5 text-[var(--muted)]';
+
 export function FileDetailWindow({ fileId }: FileDetailWindowProps): JSX.Element {
   const [currentFileId, setCurrentFileId] = useState(fileId);
   const [file, setFile] = useState<FileDetailRecord | null>(null);
@@ -348,17 +367,17 @@ export function FileDetailWindow({ fileId }: FileDetailWindowProps): JSX.Element
 
   return (
     <ResizableColumns
-      className="file-detail-window"
+      className={detailShellClass}
       defaultLeftWidth={148}
       minLeftWidth={110}
       minRightWidth={260}
       storageKey="asteria:file-detail-tags-width"
       left={<FileDetailTagColumn fileId={currentFileId} />}
       right={(
-        <main className="file-detail-content" onContextMenu={openContextMenu}>
+        <main className={detailContentClass} onContextMenu={openContextMenu}>
           {file ? (
             <>
-              <FileRatingStack className="file-detail-rating-stack" ratings={file.ratings} />
+              <FileRatingStack className="top-1.5 left-1.5 z-[2] max-w-[calc(100%-12px)]" ratings={file.ratings} />
               <FavoriteButton active={Boolean(file.isFavorite)} onToggle={() => void toggleFavorite()} />
               <DetailMedia
                 file={file}
@@ -371,7 +390,7 @@ export function FileDetailWindow({ fileId }: FileDetailWindowProps): JSX.Element
               />
             </>
           ) : (
-            <div className="file-detail-message">{message}</div>
+            <div className={detailMessageClass}>{message}</div>
           )}
           {contextMenu && file ? (
             <FileContextMenu
@@ -449,23 +468,23 @@ export function ScreeningDetailWindow({ fileIds }: ScreeningDetailWindowProps): 
 
   if (index >= fileIds.length) {
     return (
-      <section className="screening-window">
-        <div className="file-detail-message">筛选完成</div>
+      <section className="relative">
+        <div className={detailMessageClass}>筛选完成</div>
       </section>
     );
   }
 
   return (
     <ResizableColumns
-      className="file-detail-window screening-window"
+      className={`${detailShellClass} relative`}
       defaultLeftWidth={148}
       minLeftWidth={110}
       minRightWidth={260}
       storageKey="asteria:file-detail-tags-width"
-      left={currentFileId ? <FileDetailTagColumn fileId={currentFileId} /> : <aside className="file-detail-tags" />}
+      left={currentFileId ? <FileDetailTagColumn fileId={currentFileId} /> : <aside className={detailTagsClass} />}
       right={(
         <main
-          className="file-detail-content"
+          className={detailContentClass}
           onContextMenu={(event) => event.preventDefault()}
           onMouseDown={(event) => {
             if (event.button === 0) {
@@ -477,8 +496,8 @@ export function ScreeningDetailWindow({ fileIds }: ScreeningDetailWindowProps): 
             }
           }}
         >
-          {file ? <ScreeningMedia file={file} /> : <div className="file-detail-message">文件不存在</div>}
-          <div className="screening-status">
+          {file ? <ScreeningMedia file={file} /> : <div className={detailMessageClass}>文件不存在</div>}
+          <div className={screeningStatusClass}>
             {index + 1} / {fileIds.length}
           </div>
         </main>
@@ -491,18 +510,18 @@ function ScreeningMedia({ file }: { file: FileDetailRecord }): JSX.Element {
   const extension = file.extension?.toLowerCase() ?? '';
 
   if (isImageExtension(extension)) {
-    return <img alt="" className="file-detail-media screening-media" src={file.mediaUrl} />;
+    return <img alt="" className={detailMediaClass} src={file.mediaUrl} />;
   }
 
   if (isVideoExtension(extension)) {
-    return <video className="file-detail-media screening-media" controls src={file.mediaUrl} />;
+    return <video className={detailMediaClass} controls src={file.mediaUrl} />;
   }
 
   if (isAudioExtension(extension)) {
-    return <audio className="file-detail-audio" controls src={file.mediaUrl} />;
+    return <audio className={detailAudioClass} controls src={file.mediaUrl} />;
   }
 
-  return <div className="file-detail-message">无法预览</div>;
+  return <div className={detailMessageClass}>无法预览</div>;
 }
 
 interface FileDetailTagColumnProps {
@@ -640,19 +659,19 @@ function FileDetailTagColumn({ fileId }: FileDetailTagColumnProps): JSX.Element 
   }
 
   return (
-    <aside className="file-detail-tags" aria-label="文件标签">
+    <aside className={detailTagsClass} aria-label="文件标签">
       <div
-        className="file-tag-list"
+        className={tagListClass}
         ref={tagListRef}
         onMouseDownCapture={boxSelection.handleMouseDownCapture}
       >
         {groupedFileTags.map((group) => (
-          <section className="file-tag-group" key={group.styleName}>
-            <header>
-              <span>{group.displayName}</span>
-              <span>{group.tags.length}</span>
+          <section className={fileTagGroupClass} key={group.styleName}>
+            <header className={fileTagHeaderClass}>
+              <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{group.displayName}</span>
+              <span className="pl-1.5 text-right">{group.tags.length}</span>
             </header>
-            <div>
+            <div className={fileTagGroupBodyClass}>
               {group.tags.map((tag) => {
                 const visualIndex = orderedFileTags.findIndex((item) => item.id === tag.id);
 
@@ -660,7 +679,7 @@ function FileDetailTagColumn({ fileId }: FileDetailTagColumnProps): JSX.Element 
                   <button
                     className={getTagNamespaceClassName(
                       tag,
-                      pendingTagIds.includes(tag.id) ? 'file-tag-item pending' : 'file-tag-item'
+                      pendingTagIds.includes(tag.id) ? `${fileTagItemClass} ${fileTagPendingClass}` : fileTagItemClass
                     )}
                     data-box-select-id={tag.id}
                     key={tag.id}
@@ -677,9 +696,9 @@ function FileDetailTagColumn({ fileId }: FileDetailTagColumnProps): JSX.Element 
           </section>
         ))}
         {boxSelection.selectionBox ? (
-          <div className="box-selection-rect" style={boxSelection.selectionBox} />
-        ) : null}
-      </div>
+            <div className="absolute z-40 border border-[var(--accent)] bg-[var(--accent-overlay)] pointer-events-none" style={boxSelection.selectionBox} />
+          ) : null}
+        </div>
 
       <TagTokenInput
         ariaLabel="输入标签"
@@ -795,10 +814,10 @@ function DetailMedia({
   }
 
   if (isAudioExtension(extension)) {
-    return <audio className="file-detail-audio" controls src={file.mediaUrl} />;
+    return <audio className={detailAudioClass} controls src={file.mediaUrl} />;
   }
 
-  return <div className="file-detail-message">无法预览</div>;
+  return <div className={detailMessageClass}>无法预览</div>;
 }
 
 interface DetailVideoProps {
@@ -927,7 +946,7 @@ function DetailVideo({
 
   return (
     <div
-      className="file-detail-video-stage"
+      className={detailVideoStageClass}
       ref={stageRef}
       onClickCapture={(event) => {
         if (!isVideoControlArea(event)) {
@@ -948,7 +967,7 @@ function DetailVideo({
     >
       <video
         autoPlay
-        className="file-detail-media file-detail-video"
+        className={detailMediaClass}
         controls
         ref={videoRef}
         src={file.mediaUrl}
@@ -1066,7 +1085,7 @@ function DetailImage({
 
   return (
     <div
-      className="file-detail-image-stage"
+      className={detailImageStageClass}
       ref={stageRef}
       onPointerDown={onImagePointerDown}
       onPointerMove={onImagePointerMove}
@@ -1075,7 +1094,7 @@ function DetailImage({
     >
       <img
         alt=""
-        className="file-detail-media file-detail-image"
+        className={detailMediaClass}
         ref={imageRef}
         src={file.mediaUrl}
         style={{

@@ -66,9 +66,10 @@ export function UrlManagerWindow({ fileIds }: UrlManagerWindowProps): JSX.Elemen
   }
 
   return (
-    <section className="url-manager-window">
-      <div className="url-create-row">
+    <section className="grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_24px] border border-[var(--line)] bg-[var(--panel)]">
+      <div className="grid grid-cols-[minmax(0,1fr)_58px] gap-1.5 border-b border-[var(--line)] p-2">
         <input
+          className="h-6 min-w-0 border border-[var(--line-strong)] bg-[var(--surface-inset-bg)] px-1.5 text-[var(--ink)]"
           aria-label="新增url"
           placeholder="输入url以增加"
           value={input}
@@ -84,12 +85,13 @@ export function UrlManagerWindow({ fileIds }: UrlManagerWindowProps): JSX.Elemen
         </button>
       </div>
 
-      <div className="url-list">
+      <div className="min-h-0 overflow-auto p-2">
         {urls.length > 0 ? (
           urls.map((url) => (
-            <div className="url-row" key={`${url.id}:${url.url}`}>
+            <div className="grid min-h-6 grid-cols-[minmax(0,1fr)_48px_58px_58px] border-b border-l border-r border-[var(--line)] bg-[var(--panel)]" key={`${url.id}:${url.url}`}>
               {editingUrlId === url.id ? (
                 <input
+                  className="h-6 min-w-0 border-0 border-r border-[var(--line)] bg-[var(--surface-inset-bg)] px-1.5 text-[var(--ink)]"
                   aria-label="修改url"
                   value={editingText}
                   onChange={(event) => setEditingText(event.target.value)}
@@ -100,13 +102,14 @@ export function UrlManagerWindow({ fileIds }: UrlManagerWindowProps): JSX.Elemen
                   }}
                 />
               ) : (
-                <span title={url.url}>{url.url}</span>
+                <span className="min-w-0 overflow-hidden px-2 leading-6 text-ellipsis whitespace-nowrap" title={url.url}>{url.url}</span>
               )}
-              <span>{url.fileCount}</span>
+              <span className="px-2 text-right leading-6 text-[var(--muted)]">{url.fileCount}</span>
               {editingUrlId === url.id ? (
-                <ActionFeedbackButton label="保存" onAction={() => saveUrl(url)} />
+                <ActionFeedbackButton className="h-6 border-0 border-r border-[var(--line)] bg-[var(--panel-strong)] px-2 text-[11px]" label="保存" onAction={() => saveUrl(url)} />
               ) : (
                 <button
+                  className="h-6 border-0 border-r border-[var(--line)] bg-[var(--panel-strong)] px-2 text-[11px]"
                   type="button"
                   onClick={() => {
                     setEditingUrlId(url.id);
@@ -116,16 +119,16 @@ export function UrlManagerWindow({ fileIds }: UrlManagerWindowProps): JSX.Elemen
                   修改
                 </button>
               )}
-              <button type="button" onClick={() => void removeUrl(url)}>
+              <button className="h-6 border-0 bg-[var(--panel-strong)] px-2 text-[11px]" type="button" onClick={() => void removeUrl(url)}>
                 删除
               </button>
             </div>
           ))
         ) : (
-          <div className="managed-tag-empty">没有url</div>
+          <div className="p-2 text-[var(--muted)]">没有url</div>
         )}
       </div>
-      <footer className="view-status">{message}</footer>
+      <footer className="flex h-6 items-center border-t border-[var(--line)] px-2 text-[var(--muted)]">{message}</footer>
     </section>
   );
 }

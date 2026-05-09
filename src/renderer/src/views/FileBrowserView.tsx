@@ -57,6 +57,22 @@ const decodedPreviewCache = new Map<
     lastViewedAt: number;
   }
 >();
+const browserRootClass = 'grid h-full min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_24px] bg-[var(--panel)]';
+const browserGridClass =
+  'relative grid min-h-0 auto-rows-[128px] grid-cols-[repeat(auto-fill,128px)] content-start justify-start gap-2 overflow-auto p-2';
+const browserCellClass =
+  'relative grid h-32 w-32 overflow-hidden border border-[var(--line)] bg-[var(--surface-bg)] cursor-default';
+const browserCellPendingClass = 'border-[var(--accent)] bg-[var(--selection-bg)]';
+const importBadgeClass = 'absolute right-1 bottom-1 z-[2] border border-[var(--line-strong)] bg-[var(--surface-bg)] px-1.5 leading-5 text-[10px] text-[var(--muted)]';
+const importBadgeDuplicateClass = 'border-[var(--warning)] text-[var(--warning-ink)]';
+const browserMediaClass = 'grid h-full w-full place-items-center overflow-hidden [&>img]:block [&>img]:max-h-full [&>img]:max-w-full [&>img]:object-contain [&>span]:text-[var(--muted)]';
+const browserStatusClass = 'flex h-6 min-w-0 items-center justify-end gap-1.5 border-t border-[var(--line)] bg-[var(--surface-bg)] px-2 text-[var(--muted)]';
+const browserSelectClass = 'h-[18px] min-w-[72px] border border-[var(--line-strong)] bg-[var(--surface-inset-bg)] text-[var(--ink)]';
+const browserPagerClass = 'inline-flex min-w-0 items-center gap-1';
+const browserPagerButtonClass = 'h-[18px] min-w-[38px] cursor-default border border-[var(--line-strong)] bg-[var(--panel-strong)] px-1.5 leading-4 text-[var(--ink)]';
+const browserPagerInputClass = 'h-[18px] w-[42px] border border-[var(--line-strong)] bg-[var(--surface-inset-bg)] px-1 text-[var(--ink)] leading-4';
+const contextMenuClass =
+  'fixed z-30 w-[142px] border border-[var(--line-strong)] bg-[var(--panel)] p-1 [&>button]:block [&>button]:h-6 [&>button]:w-full [&>button]:cursor-default [&>button]:border-0 [&>button]:bg-transparent [&>button]:px-2 [&>button]:text-left [&>button]:text-[11px] [&>button]:text-[var(--ink)] [&>button:hover]:bg-[var(--accent-weak)]';
 
 export function FileBrowserView({
   importQueueMode,
@@ -601,9 +617,9 @@ export function FileBrowserView({
   }
 
   return (
-    <section className="module-view page-view">
+    <section className={browserRootClass}>
       <div
-        className="browser-grid"
+        className={browserGridClass}
         ref={gridRef}
         onContextMenu={handleBrowserGridContextMenu}
         onMouseDownCapture={handleBrowserGridMouseDownCapture}
@@ -612,23 +628,23 @@ export function FileBrowserView({
         {pageFiles.length > 0 ? (
           pageFiles.map((file, index) => (
             <article
-              className={pendingFileIds.includes(file.id) ? 'browser-cell pending' : 'browser-cell'}
+              className={`${browserCellClass} ${pendingFileIds.includes(file.id) ? browserCellPendingClass : ''}`}
               data-box-select-id={file.id}
               key={file.id}
               onMouseDown={(event) => handleBrowserFileMouseDown(event, file, index)}
               onContextMenu={(event) => void handleBrowserFileContextMenu(event, file)}
             >
               {isImportQueueFile(file) ? (
-                <div className={file.duplicate ? 'browser-import-badge duplicate' : 'browser-import-badge'}>
+                <div className={`${importBadgeClass} ${file.duplicate ? importBadgeDuplicateClass : ''}`}>
                   {file.duplicate ? '重复' : file.status === 'failed' ? '失败' : '待导入'}
                 </div>
               ) : (
                 <>
-                  <FileRatingStack className="browser-rating-stack" ratings={file.ratings} />
+                  <FileRatingStack ratings={file.ratings} />
                   <FavoriteButton active={Boolean(file.isFavorite)} onToggle={() => void toggleFavorite(file)} />
                 </>
               )}
-              <div className="browser-media">
+              <div className={browserMediaClass}>
                 {renderBrowserMedia(
                   file,
                   visiblePreviewIds.includes(file.id) || isPreviewCached(file, cachedPreviewUrls)
@@ -637,17 +653,18 @@ export function FileBrowserView({
             </article>
           ))
         ) : (
-          <div className="browser-empty">没有文件记录</div>
+          <div className="text-[var(--muted)]">没有文件记录</div>
         )}
         {boxSelection.selectionBox ? (
-          <div className="box-selection-rect" style={boxSelection.selectionBox} />
+          <div className="absolute z-40 border border-[var(--accent)] bg-[var(--accent-overlay)] pointer-events-none" style={boxSelection.selectionBox} />
         ) : null}
       </div>
 
-      <footer className="view-status browser-status">
-        <label>
+      <footer className={browserStatusClass}>
+        <label className="inline-flex min-w-0 items-center gap-1">
           <span>排序</span>
           <select
+            className={browserSelectClass}
             aria-label="浏览排序字段"
             disabled={importQueueMode}
             value={state.sortKey}
@@ -660,6 +677,7 @@ export function FileBrowserView({
           </select>
         </label>
         <select
+          className={browserSelectClass}
           aria-label="浏览排序方向"
           disabled={importQueueMode}
           value={state.sortDirection}
@@ -670,8 +688,9 @@ export function FileBrowserView({
           <option value="desc">降序</option>
           <option value="asc">升序</option>
         </select>
-        <div className="browser-pager">
+        <div className={browserPagerClass}>
           <button
+            className={browserPagerButtonClass}
             disabled={clampedPage <= 1}
             type="button"
             onClick={() => setCurrentPage(1)}
@@ -679,6 +698,7 @@ export function FileBrowserView({
             首页
           </button>
           <button
+            className={browserPagerButtonClass}
             disabled={clampedPage <= 1}
             type="button"
             onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
@@ -686,6 +706,7 @@ export function FileBrowserView({
             上页
           </button>
           <input
+            className={browserPagerInputClass}
             aria-label="浏览页码"
             max={totalPages}
             min={1}
@@ -695,6 +716,7 @@ export function FileBrowserView({
           />
           <span>/ {totalPages}</span>
           <button
+            className={browserPagerButtonClass}
             disabled={clampedPage >= totalPages}
             type="button"
             onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
@@ -702,6 +724,7 @@ export function FileBrowserView({
             下页
           </button>
           <button
+            className={browserPagerButtonClass}
             disabled={clampedPage >= totalPages}
             type="button"
             onClick={() => setCurrentPage(totalPages)}
@@ -709,7 +732,7 @@ export function FileBrowserView({
             末页
           </button>
         </div>
-        <span>
+        <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
           {message}
           {sortedFiles.length > 0
             ? ` · ${pageStartIndex + 1}-${pageEndIndex} / ${sortedFiles.length}`
@@ -719,7 +742,7 @@ export function FileBrowserView({
 
       {blankContextMenu ? (
         <div
-          className="context-menu"
+          className={contextMenuClass}
           style={{ left: blankContextMenu.x, top: blankContextMenu.y }}
           onMouseDown={(event) => event.stopPropagation()}
         >
@@ -737,7 +760,7 @@ export function FileBrowserView({
 
       {contextMenu && importQueueMode ? (
         <div
-          className="context-menu"
+          className={contextMenuClass}
           style={{ left: contextMenu.x, top: contextMenu.y }}
           onMouseDown={(event) => event.stopPropagation()}
         >
@@ -788,7 +811,7 @@ function renderBrowserMedia(file: BrowserDisplayFile, shouldLoadPreview: boolean
     return shouldLoadPreview ? (
       <img alt={file.fileName} loading="lazy" src={previewUrl} />
     ) : (
-      <span className="browser-media-placeholder" />
+      <span />
     );
   }
 
@@ -798,7 +821,7 @@ function renderBrowserMedia(file: BrowserDisplayFile, shouldLoadPreview: boolean
     return shouldLoadPreview ? (
       <img alt={file.fileName} loading="lazy" src={previewUrl} />
     ) : (
-      <span className="browser-media-placeholder" />
+      <span />
     );
   }
 

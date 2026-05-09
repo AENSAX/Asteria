@@ -19,6 +19,32 @@ import {
 
 const MANAGED_TAG_ROW_HEIGHT = 26;
 const MANAGED_TAG_OVERSCAN_PX = 260;
+const managerShellClass = 'grid h-full min-h-0 min-w-0 grid-cols-[180px_minmax(0,1fr)] bg-[var(--panel)]';
+const managerSidebarClass = 'flex min-h-0 min-w-0 flex-col border-r border-[var(--line)] bg-[var(--surface-bg)]';
+const managerSidebarHeaderClass = 'h-7 border-b border-[var(--line)] bg-[var(--panel-strong)] px-2 leading-7 text-[11px] font-semibold';
+const managerListClass = 'min-h-0 overflow-auto';
+const managerListItemClass =
+  'grid min-h-[26px] w-full grid-cols-[18px_minmax(0,1fr)_42px] items-center border-0 border-b border-[var(--line)] bg-transparent px-2 text-left text-[11px] text-[var(--ink)]';
+const managerListItemActiveClass = 'bg-[var(--surface-raised-bg)]';
+const managerPanelClass = 'grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_minmax(0,1fr)_28px] bg-[var(--panel)]';
+const managerToolbarClass = 'grid grid-rows-[auto_auto] gap-1 border-b border-[var(--line)] bg-[var(--panel)] p-2';
+const managerInputRowClass = 'grid grid-cols-[minmax(0,1fr)_auto] gap-1.5';
+const managerSortRowClass = 'grid grid-cols-[120px_120px_auto_minmax(0,1fr)] items-center gap-1.5';
+const managerInputClass =
+  'h-6 min-w-0 border border-[var(--line-strong)] bg-[var(--surface-inset-bg)] px-1.5 text-[var(--ink)]';
+const managerButtonClass =
+  'h-6 min-w-[72px] cursor-default border border-[var(--line-strong)] bg-[var(--panel-strong)] px-2 text-[11px] text-[var(--ink)]';
+const managerSelectClass =
+  'h-6 min-w-0 border border-[var(--line-strong)] bg-[var(--surface-inset-bg)] px-1.5 text-[var(--ink)]';
+const managerMessageClass = 'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[var(--muted)]';
+const managedTagListClass = 'relative min-h-0 overflow-auto bg-[var(--surface-bg)]';
+const managedTagRowClass =
+  'absolute left-0 right-0 grid h-[26px] grid-cols-[minmax(0,1fr)_42px] items-center border-b border-[var(--line)] bg-transparent text-[11px] text-[var(--ink)]';
+const managedTagRowPendingClass = 'bg-[var(--danger-bg)]';
+const managedTagRowTextClass = 'min-w-0 overflow-hidden px-2 text-ellipsis whitespace-nowrap';
+const managedTagRowCountClass = 'min-w-0 overflow-hidden px-2 text-right text-ellipsis whitespace-nowrap text-[var(--muted)]';
+const managedTagEmptyClass = 'p-2 text-[var(--muted)]';
+const managedTagFooterClass = 'flex h-7 items-center justify-between border-t border-[var(--line)] bg-[var(--surface-bg)] px-2 text-[var(--muted)]';
 
 export function TagManagerWindow(): JSX.Element {
   const [styles, setStyles] = useState<TagStyleRecord[]>([]);
@@ -309,31 +335,32 @@ export function TagManagerWindow(): JSX.Element {
 
   return (
     <ResizableColumns
-      className="tag-manager-window"
+      className={managerShellClass}
       defaultLeftWidth={180}
       minLeftWidth={130}
       minRightWidth={360}
       storageKey="asteria:tag-manager-sidebar-width"
       left={(
-        <aside className="tag-style-panel">
-        <header>标签风格</header>
-        <div className="tag-style-list">
+        <aside className={managerSidebarClass}>
+        <header className={managerSidebarHeaderClass}>标签风格</header>
+        <div className={managerListClass}>
           {styles.map((style) => (
             <button
-              className={style.id === activeStyleId ? 'tag-style-item active' : 'tag-style-item'}
+              className={`${managerListItemClass} ${style.id === activeStyleId ? managerListItemActiveClass : ''}`}
               aria-current={style.id === activeStyleId ? 'true' : undefined}
               key={style.id}
               type="button"
               onClick={() => setActiveStyleId(style.id)}
             >
-              <span className="tag-style-enabled">{style.isDefault ? '√' : ''}</span>
-              <span>{style.displayName}</span>
-              <span>{style.tagCount}</span>
+              <span className="text-center text-[var(--success-ink)]">{style.isDefault ? '√' : ''}</span>
+              <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{style.displayName}</span>
+              <span className="text-right text-[var(--muted)]">{style.tagCount}</span>
             </button>
           ))}
         </div>
-        <div className="tag-style-create">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-1.5 border-t border-[var(--line)] p-2">
           <input
+            className={managerInputClass}
             aria-label="新建风格"
             placeholder="输入风格以新建"
             value={styleInput}
@@ -348,8 +375,9 @@ export function TagManagerWindow(): JSX.Element {
             新建
           </button>
         </div>
-        <div className="tag-style-edit">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-1.5 border-t border-[var(--line)] p-2">
           <input
+            className={managerInputClass}
             aria-label="重命名风格"
             placeholder="输入风格以重命名"
             value={styleRenameInput}
@@ -370,10 +398,11 @@ export function TagManagerWindow(): JSX.Element {
         </aside>
       )}
       right={(
-        <main className="tag-manager-content">
-        <header className="tag-manager-toolbar">
-          <div className="tag-create-row">
+        <main className={managerPanelClass}>
+        <header className={managerToolbarClass}>
+          <div className={managerInputRowClass}>
             <input
+              className={managerInputClass}
               aria-label="新建标签"
               placeholder="输入标签以新建"
               value={tagInput}
@@ -388,8 +417,9 @@ export function TagManagerWindow(): JSX.Element {
               新建标签
             </button>
           </div>
-          <div className="tag-sort-row">
+          <div className={managerSortRowClass}>
             <select
+              className={managerSelectClass}
               aria-label="排序字段"
               value={sortKey}
               onChange={(event) => setSortKey(event.target.value as ManagedTagSortKey)}
@@ -399,6 +429,7 @@ export function TagManagerWindow(): JSX.Element {
               <option value="fileCount">引用数量</option>
             </select>
             <select
+              className={managerSelectClass}
               aria-label="排序方向"
               value={sortDirection}
               onChange={(event) => setSortDirection(event.target.value as SortDirection)}
@@ -409,21 +440,21 @@ export function TagManagerWindow(): JSX.Element {
             <button disabled={activeStyleId === null} type="button" onClick={() => void activateStyle()}>
               启用风格
             </button>
-            <span>{message}</span>
+            <span className={managerMessageClass}>{message}</span>
           </div>
         </header>
 
         <div
-          className="managed-tag-list"
+          className={managedTagListClass}
           ref={tagListRef}
           onMouseDownCapture={boxSelection.handleMouseDownCapture}
           onScroll={scheduleTagViewportUpdate}
         >
           {tags.length > 0 ? (
-            <div className="managed-tag-virtual-spacer" style={{ height: managedTagListHeight }}>
+            <div className="relative min-h-0" style={{ height: managedTagListHeight }}>
             {visibleTags.map(({ index, tag }) => (
               <div
-                className={`${getTagNamespaceClassName(tag, 'managed-tag-row')}${pendingTagIds.includes(tag.id) ? ' pending' : ''}`}
+                className={`${getTagNamespaceClassName(tag, managedTagRowClass)}${pendingTagIds.includes(tag.id) ? ` ${managedTagRowPendingClass}` : ''}`}
                 data-box-select-id={tag.id}
                 key={tag.id}
                 style={{
@@ -432,20 +463,20 @@ export function TagManagerWindow(): JSX.Element {
                 }}
                 onMouseDown={(event) => handleTagMouseDown(event, tag)}
               >
-                <span title={formatTagLabel(tag)}>{formatTagLabel(tag)}</span>
-                <span>{tag.fileCount}</span>
+                <span className={managedTagRowTextClass} title={formatTagLabel(tag)}>{formatTagLabel(tag)}</span>
+                <span className={managedTagRowCountClass}>{tag.fileCount}</span>
               </div>
             ))
             }
             </div>
           ) : (
-            <div className="managed-tag-empty">没有标签</div>
+            <div className={managedTagEmptyClass}>没有标签</div>
           )}
           {boxSelection.selectionBox ? (
-            <div className="selection-box" style={boxSelection.selectionBox} />
+            <div className="absolute z-40 border border-[var(--accent)] bg-[var(--accent-overlay)] pointer-events-none" style={boxSelection.selectionBox} />
           ) : null}
         </div>
-        <footer className="managed-tag-actions">
+        <footer className={managedTagFooterClass}>
           <span>已选 {pendingTagIds.length} 个标签</span>
           <button disabled={pendingTagIds.length === 0} type="button" onClick={() => void deleteSelectedTags()}>
             删除

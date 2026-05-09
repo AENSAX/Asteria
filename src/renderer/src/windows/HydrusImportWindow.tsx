@@ -19,6 +19,28 @@ const idleProgress: HydrusImportProgress = {
   message: '未开始'
 };
 
+const hydrusShellClass = 'grid h-full min-h-0 min-w-0 grid-cols-[260px_minmax(0,1fr)] overflow-hidden bg-[var(--bg)] text-[var(--ink)]';
+const hydrusSidebarClass = 'grid auto-rows-min gap-2 min-h-0 min-w-0 border-r border-[var(--line)] bg-[var(--panel)] p-2';
+const hydrusFieldClass =
+  'grid gap-1.5 text-[11px] text-[var(--muted)] [&>input]:h-6 [&>input]:min-w-0 [&>input]:border [&>input]:border-[var(--line-strong)] [&>input]:bg-[var(--surface-media-bg)] [&>input]:px-1.5 [&>input]:text-[var(--ink)] [&>textarea]:min-h-[84px] [&>textarea]:min-w-0 [&>textarea]:resize-none [&>textarea]:border [&>textarea]:border-[var(--line-strong)] [&>textarea]:bg-[var(--surface-media-bg)] [&>textarea]:p-1.5 [&>textarea]:text-[var(--ink)]';
+const hydrusCheckClass = 'grid grid-cols-[14px_1fr] items-center gap-1.5 text-[11px] text-[var(--ink)]';
+const hydrusContentClass = 'grid min-h-0 min-w-0 grid-rows-[auto_auto_auto_auto_auto_minmax(0,1fr)] gap-2 overflow-hidden p-2';
+const hydrusToolbarClass = 'flex h-6 items-center gap-1.5';
+const hydrusButtonClass = 'h-6 cursor-default border border-[var(--line-strong)] bg-[var(--surface-raised-bg)] px-2 text-[11px] text-[var(--ink)]';
+const hydrusProgressClass = 'grid h-5 grid-cols-[minmax(0,1fr)_42px] items-center gap-1.5';
+const hydrusStatsClass = 'grid grid-cols-[repeat(6,minmax(54px,1fr))] gap-1 text-[11px]';
+const hydrusStatClass = 'grid h-6 grid-cols-[44px_minmax(0,1fr)] border border-[var(--line)]';
+const hydrusStatLabelClass = 'truncate border-r border-[var(--line)] px-1.5 leading-5 text-[var(--muted)]';
+const hydrusStatValueClass = 'truncate px-1.5 leading-5';
+const hydrusWideStatClass = 'col-span-6';
+const hydrusPanelClass = 'grid min-h-0 min-w-0 overflow-hidden border border-[var(--line)]';
+const hydrusPanelHeaderClass = 'h-6 border-b border-[var(--line)] bg-[var(--surface-raised-bg)] px-1.5 leading-6';
+const hydrusStatusClass = 'grid grid-cols-4 gap-0 text-[var(--muted)]';
+const hydrusStatusOkClass = 'text-[var(--success-ink)]';
+const hydrusDebugClass = 'grid min-h-0 min-w-0 grid-rows-[24px_minmax(0,1fr)] border border-[var(--line)] overflow-hidden';
+const hydrusDebugHeaderClass = 'grid grid-cols-[minmax(0,1fr)_48px] border-b border-[var(--line)] bg-[var(--surface-raised-bg)] px-1.5';
+const hydrusDebugListClass = 'min-h-0 overflow-auto bg-[var(--surface-deep-bg)]';
+
 export function HydrusImportWindow(): JSX.Element {
   const [baseUrl, setBaseUrl] = useState('http://127.0.0.1:45869');
   const [accessKey, setAccessKey] = useState('');
@@ -224,14 +246,14 @@ export function HydrusImportWindow(): JSX.Element {
 
   return (
     <ResizableColumns
-      className="hydrus-import-window"
+      className={hydrusShellClass}
       defaultLeftWidth={260}
       minLeftWidth={180}
       minRightWidth={420}
       storageKey="asteria:hydrus-import-sidebar-width"
       left={(
-        <aside className="hydrus-import-sidebar">
-        <label>
+        <aside className={hydrusSidebarClass}>
+        <label className={hydrusFieldClass}>
           <span>地址</span>
           <input
             aria-label="Hydrus 地址"
@@ -240,7 +262,7 @@ export function HydrusImportWindow(): JSX.Element {
             onChange={(event) => setBaseUrl(event.target.value)}
           />
         </label>
-        <label>
+        <label className={hydrusFieldClass}>
           <span>Access Key</span>
           <input
             aria-label="Hydrus Access Key"
@@ -249,7 +271,7 @@ export function HydrusImportWindow(): JSX.Element {
             onChange={(event) => setAccessKey(event.target.value)}
           />
         </label>
-        <label>
+        <label className={hydrusFieldClass}>
           <span>标签风格</span>
           <input
             aria-label="标签风格"
@@ -258,7 +280,7 @@ export function HydrusImportWindow(): JSX.Element {
             onChange={(event) => setTagStyleName(event.target.value)}
           />
         </label>
-        <label>
+        <label className={hydrusFieldClass}>
           <span>数量限制</span>
           <input
             aria-label="数量限制"
@@ -269,7 +291,7 @@ export function HydrusImportWindow(): JSX.Element {
             onChange={(event) => setLimit(Number(event.target.value))}
           />
         </label>
-        <label>
+        <label className={hydrusFieldClass}>
           <span>元数据分片</span>
           <input
             aria-label="元数据分片"
@@ -280,7 +302,7 @@ export function HydrusImportWindow(): JSX.Element {
             onChange={(event) => setMetadataBatchSize(Number(event.target.value))}
           />
         </label>
-        <label className="hydrus-inline-check">
+        <label className={hydrusCheckClass}>
           <input
             checked={forceDuplicate}
             type="checkbox"
@@ -291,22 +313,22 @@ export function HydrusImportWindow(): JSX.Element {
         </aside>
       )}
       right={(
-        <main className="hydrus-import-content">
-        <div className="hydrus-import-toolbar">
+        <main className={hydrusContentClass}>
+        <div className={hydrusToolbarClass}>
           <ActionFeedbackButton label="保存" onAction={saveSettings} />
-          <button disabled={importing} type="button" onClick={() => void testConnection()}>
+          <button className={hydrusButtonClass} disabled={importing} type="button" onClick={() => void testConnection()}>
             测试连接
           </button>
-          <button disabled={importing} type="button" onClick={() => void startImport()}>
+          <button className={hydrusButtonClass} disabled={importing} type="button" onClick={() => void startImport()}>
             开始导入
           </button>
-          <button disabled={!importing} type="button" onClick={() => void cancelImport()}>
+          <button className={hydrusButtonClass} disabled={!importing} type="button" onClick={() => void cancelImport()}>
             取消
           </button>
-          <span>{progress.message}</span>
+          <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[var(--muted)]">{progress.message}</span>
         </div>
 
-        <label className="hydrus-search-tags">
+        <label className={hydrusFieldClass}>
           <span>搜索标签</span>
           <textarea
             aria-label="Hydrus 搜索标签"
@@ -316,70 +338,70 @@ export function HydrusImportWindow(): JSX.Element {
           />
         </label>
 
-        <div className="hydrus-progress">
+        <div className={hydrusProgressClass}>
           <progress max={100} value={percent} />
-          <span>{percent}%</span>
+          <span className="text-right text-[var(--muted)]">{percent}%</span>
         </div>
 
-        <dl className="hydrus-import-stats">
-          <div>
-            <dt>总数</dt>
-            <dd>{progress.total}</dd>
+        <dl className={hydrusStatsClass}>
+          <div className={hydrusStatClass}>
+            <dt className={hydrusStatLabelClass}>总数</dt>
+            <dd className={hydrusStatValueClass}>{progress.total}</dd>
           </div>
-          <div>
-            <dt>已处理</dt>
-            <dd>{progress.processed}</dd>
+          <div className={hydrusStatClass}>
+            <dt className={hydrusStatLabelClass}>已处理</dt>
+            <dd className={hydrusStatValueClass}>{progress.processed}</dd>
           </div>
-          <div>
-            <dt>新增</dt>
-            <dd>{progress.imported}</dd>
+          <div className={hydrusStatClass}>
+            <dt className={hydrusStatLabelClass}>新增</dt>
+            <dd className={hydrusStatValueClass}>{progress.imported}</dd>
           </div>
-          <div>
-            <dt>重复对象</dt>
-            <dd>{progress.duplicated}</dd>
+          <div className={hydrusStatClass}>
+            <dt className={hydrusStatLabelClass}>重复对象</dt>
+            <dd className={hydrusStatValueClass}>{progress.duplicated}</dd>
           </div>
-          <div>
-            <dt>跳过</dt>
-            <dd>{progress.skipped}</dd>
+          <div className={hydrusStatClass}>
+            <dt className={hydrusStatLabelClass}>跳过</dt>
+            <dd className={hydrusStatValueClass}>{progress.skipped}</dd>
           </div>
-          <div>
-            <dt>失败</dt>
-            <dd>{progress.failed}</dd>
+          <div className={hydrusStatClass}>
+            <dt className={hydrusStatLabelClass}>失败</dt>
+            <dd className={hydrusStatValueClass}>{progress.failed}</dd>
           </div>
-          <div className="wide">
-            <dt>当前</dt>
-            <dd>{progress.currentFile ?? '-'}</dd>
+          <div className={`${hydrusStatClass} ${hydrusWideStatClass}`}>
+            <dt className={hydrusStatLabelClass}>当前</dt>
+            <dd className={hydrusStatValueClass}>{progress.currentFile ?? '-'}</dd>
           </div>
         </dl>
 
-        <section className="hydrus-status-panel">
-          <header>连接状态</header>
+        <section className={hydrusPanelClass}>
+          <header className={hydrusPanelHeaderClass}>连接状态</header>
           {status ? (
-            <div className={status.ok ? 'hydrus-status ok' : 'hydrus-status'}>
+            <div className={`${hydrusStatusClass} ${status.ok ? hydrusStatusOkClass : ''}`}>
               <span>{status.message}</span>
               <span>Hydrus: {status.hydrusVersion ?? '-'}</span>
               <span>API: {status.apiVersion ?? '-'}</span>
               <span title={status.permissions}>权限: {status.permissions || '-'}</span>
             </div>
           ) : (
-            <div className="hydrus-status">未测试</div>
+            <div className={hydrusStatusClass}>未测试</div>
           )}
         </section>
 
-        <section className="hydrus-debug-panel">
-          <header>
+        <section className={hydrusDebugClass}>
+          <header className={hydrusDebugHeaderClass}>
             <span>Debug</span>
-            <button type="button" onClick={() => setDebugLines([])}>
+            <button className={hydrusButtonClass} type="button" onClick={() => setDebugLines([])}>
               清空
             </button>
           </header>
-          <div className="hydrus-debug-list">
+          <div className={hydrusDebugListClass}>
             {debugLines.length > 0 ? (
               debugLines.map((line, index) => (
-                <div key={`${index}:${line}`}>{line}</div>
+                <div className="min-h-5 border-b border-[var(--splitter-hover-bg)] px-1.5 leading-5 text-[var(--muted)]" key={`${index}:${line}`}>{line}</div>
               ))
             ) : (
-              <div>没有 debug 信息</div>
+              <div className="px-1.5 text-[var(--muted)]">没有 debug 信息</div>
             )}
           </div>
         </section>

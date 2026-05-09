@@ -14,6 +14,8 @@ const feedbackLabels: Record<FeedbackKind, string> = {
   apply: '√已应用',
   save: '√已保存'
 };
+const successClass =
+  'border border-[var(--success)] bg-[var(--success-weak)] text-[var(--success-feedback-ink)] hover:border-[var(--success)] hover:bg-[var(--success-weak)] active:border-[var(--success)] active:bg-[var(--success-weak)] active:text-[var(--success-feedback-ink)]';
 
 export function ActionFeedbackButton({
   afterFeedback,
@@ -60,7 +62,7 @@ export function ActionFeedbackButton({
   return (
     <button
       {...buttonProps}
-      className={[className, responded ? 'action-feedback-success' : '']
+      className={[className, responded ? successClass : '']
         .filter(Boolean)
         .join(' ')}
       disabled={disabled}

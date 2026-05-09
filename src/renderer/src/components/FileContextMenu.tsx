@@ -46,7 +46,11 @@ export function FileContextMenu({
   onTrash
 }: FileContextMenuProps): JSX.Element {
   return (
-    <div className="context-menu" style={{ left: x, top: y }} onMouseDown={(event) => event.stopPropagation()}>
+    <div
+      className="fixed z-30 w-[142px] border border-[var(--line-strong)] bg-[var(--panel)] p-1 [&>button]:block [&>button]:h-6 [&>button]:w-full [&>button]:cursor-default [&>button]:border-0 [&>button]:bg-transparent [&>button]:px-2 [&>button]:text-left [&>button]:text-[11px] [&>button]:text-[var(--ink)] [&>button:hover]:bg-[var(--accent-weak)]"
+      style={{ left: x, top: y }}
+      onMouseDown={(event) => event.stopPropagation()}
+    >
       <button type="button" onClick={() => onManageUrl(fileIds)}>
         管理url
       </button>

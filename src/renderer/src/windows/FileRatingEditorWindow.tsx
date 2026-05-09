@@ -75,16 +75,16 @@ export function FileRatingEditorWindow({
   }
 
   return (
-    <section className="file-rating-editor-window">
-      <div className="file-rating-editor-meta">
+    <section className="grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_32px] bg-[var(--panel)] text-[11px] text-[var(--ink)]">
+      <div className="flex items-center justify-between border-b border-[var(--line)] bg-[var(--surface-bg)] px-2 py-1 text-[var(--muted)]">
         <span>{group ? `分级:${group.name}` : '分级'}</span>
         <span>{normalizedFileIds.length} 个文件</span>
       </div>
 
-      <div className="rating-select-list">
+      <div className="min-h-0 overflow-auto p-2">
         {entries.length > 0 ? (
           entries.map((entry) => (
-            <label key={entry.id}>
+            <label className="flex items-center gap-1.5 border-b border-[var(--line)] py-1.5" key={entry.id}>
               <input
                 checked={selectedEntryIds.includes(entry.id)}
                 type="checkbox"
@@ -94,15 +94,16 @@ export function FileRatingEditorWindow({
             </label>
           ))
         ) : (
-          <div className="rating-select-empty">{message || '没有条目'}</div>
+          <div className="p-2 text-[var(--muted)]">{message || '没有条目'}</div>
         )}
       </div>
 
-      <footer>
-        <button type="button" onClick={() => window.close()}>
+      <footer className="flex items-center justify-end gap-1.5 border-t border-[var(--line)] bg-[var(--surface-bg)] px-2">
+        <button className="h-6 cursor-default border border-[var(--line-strong)] bg-[var(--panel-strong)] px-2 text-[11px]" type="button" onClick={() => window.close()}>
           取消
         </button>
         <ActionFeedbackButton
+          className="h-6 cursor-default border border-[var(--line-strong)] bg-[var(--panel-strong)] px-2 text-[11px]"
           afterFeedback={() => window.close()}
           disabled={!group || normalizedFileIds.length === 0}
           label="保存"

@@ -18,6 +18,25 @@ const idleProgress: EHentaiImportProgress = {
   currentFile: null,
   message: '未开始'
 };
+const importShellClass = 'grid h-full min-h-0 min-w-0 grid-cols-[280px_minmax(0,1fr)] overflow-hidden bg-[var(--bg)] text-[var(--ink)]';
+const sidebarClass = 'grid auto-rows-min gap-2 min-h-0 min-w-0 border-r border-[var(--line)] bg-[var(--panel)] p-2';
+const fieldClass =
+  'grid gap-1.5 text-[11px] text-[var(--muted)] [&>input]:h-6 [&>input]:min-w-0 [&>input]:border [&>input]:border-[var(--line-strong)] [&>input]:bg-[var(--surface-media-bg)] [&>input]:px-1.5 [&>input]:text-[var(--ink)] [&>textarea]:min-w-0 [&>textarea]:resize-none [&>textarea]:border [&>textarea]:border-[var(--line-strong)] [&>textarea]:bg-[var(--surface-media-bg)] [&>textarea]:p-1.5 [&>textarea]:text-[var(--ink)] [&>small]:text-[10px] [&>small]:leading-[14px] [&>small]:text-[var(--disabled-strong-ink)]';
+const checkClass = 'grid grid-cols-[14px_1fr] items-center gap-1.5 text-[11px] text-[var(--ink)]';
+const contentClass = 'grid min-h-0 min-w-0 grid-rows-[auto_auto_auto_auto_auto_minmax(0,1fr)] gap-2 overflow-hidden p-2';
+const toolbarClass = 'flex h-6 items-center gap-1.5';
+const buttonClass = 'h-6 cursor-default border border-[var(--line-strong)] bg-[var(--surface-raised-bg)] px-2 text-[11px] text-[var(--ink)]';
+const progressClass = 'grid h-5 grid-cols-[minmax(0,1fr)_42px] items-center gap-1.5';
+const statsClass = 'grid grid-cols-[repeat(6,minmax(54px,1fr))] gap-1 text-[11px]';
+const statClass = 'grid h-6 grid-cols-[44px_minmax(0,1fr)] border border-[var(--line)]';
+const statLabelClass = 'truncate border-r border-[var(--line)] px-1.5 leading-5 text-[var(--muted)]';
+const statValueClass = 'truncate px-1.5 leading-5';
+const panelClass = 'grid min-h-0 min-w-0 overflow-hidden border border-[var(--line)]';
+const panelHeaderClass = 'h-6 border-b border-[var(--line)] bg-[var(--surface-raised-bg)] px-1.5 leading-6';
+const statusClass = 'grid grid-cols-4 gap-0 text-[var(--muted)]';
+const debugClass = 'grid min-h-0 min-w-0 grid-rows-[24px_minmax(0,1fr)] border border-[var(--line)] overflow-hidden';
+const debugHeaderClass = 'grid grid-cols-[minmax(0,1fr)_48px] border-b border-[var(--line)] bg-[var(--surface-raised-bg)] px-1.5';
+const debugListClass = 'min-h-0 overflow-auto bg-[var(--surface-deep-bg)]';
 
 export function EHentaiImportWindow(): JSX.Element {
   const [galleryUrl, setGalleryUrl] = useState('');
@@ -173,34 +192,34 @@ export function EHentaiImportWindow(): JSX.Element {
 
   return (
     <ResizableColumns
-      className="hydrus-import-window ehentai-import-window"
+      className={importShellClass}
       defaultLeftWidth={280}
       minLeftWidth={220}
       minRightWidth={420}
       storageKey="asteria:ehentai-import-sidebar-width"
       left={(
-        <aside className="hydrus-import-sidebar ehentai-import-sidebar">
-          <label>
+        <aside className={sidebarClass}>
+          <label className={fieldClass}>
             <span>Gallery 链接</span>
             <textarea
               aria-label="E-Hentai gallery 链接"
-              className="ehentai-compact-textarea"
+              className="h-[46px]"
               placeholder="输入 https://e-hentai.org/g/..."
               value={galleryUrl}
               onChange={(event) => setGalleryUrl(event.target.value)}
             />
           </label>
-          <label>
+          <label className={fieldClass}>
             <span>Cookie</span>
             <textarea
               aria-label="E-Hentai cookie"
-              className="ehentai-cookie-input"
+              className="h-28"
               placeholder="输入浏览器复制出的 Cookie"
               value={cookie}
               onChange={(event) => setCookie(event.target.value)}
             />
           </label>
-          <label className="hydrus-inline-check">
+          <label className={checkClass}>
             <input
               checked={importGalleryTags}
               type="checkbox"
@@ -208,7 +227,7 @@ export function EHentaiImportWindow(): JSX.Element {
             />
             <span>导入 gallery 标签</span>
           </label>
-          <label className="hydrus-inline-check">
+          <label className={checkClass}>
             <input
               checked={forceDuplicate}
               type="checkbox"
@@ -216,7 +235,7 @@ export function EHentaiImportWindow(): JSX.Element {
             />
             <span>重复文件创建新对象</span>
           </label>
-          <label>
+          <label className={fieldClass}>
             <span>起始序号</span>
             <input
               aria-label="起始序号"
@@ -227,7 +246,7 @@ export function EHentaiImportWindow(): JSX.Element {
             />
             <small>从 gallery 第几张开始，最小为 1；中断后可填下一张序号继续。</small>
           </label>
-          <label>
+          <label className={fieldClass}>
             <span>数量限制</span>
             <input
               aria-label="数量限制"
@@ -239,7 +258,7 @@ export function EHentaiImportWindow(): JSX.Element {
             />
             <small>本次最多导入多少张，0 表示从起始序号开始直到结尾。</small>
           </label>
-          <label>
+          <label className={fieldClass}>
             <span>请求超时 ms</span>
             <input
               aria-label="请求超时"
@@ -252,92 +271,92 @@ export function EHentaiImportWindow(): JSX.Element {
         </aside>
       )}
       right={(
-        <main className="hydrus-import-content ehentai-import-content">
-          <div className="hydrus-import-toolbar">
+        <main className={contentClass}>
+          <div className={toolbarClass}>
             <ActionFeedbackButton label="保存" onAction={saveSettings} />
-            <button disabled={importing} type="button" onClick={() => void testGallery()}>
+            <button className={buttonClass} disabled={importing} type="button" onClick={() => void testGallery()}>
               检测链接
             </button>
-            <button disabled={importing} type="button" onClick={() => void startImport()}>
+            <button className={buttonClass} disabled={importing} type="button" onClick={() => void startImport()}>
               开始导入
             </button>
-            <button disabled={!importing} type="button" onClick={() => void cancelImport()}>
+            <button className={buttonClass} disabled={!importing} type="button" onClick={() => void cancelImport()}>
               取消
             </button>
-            <span>{progress.message}</span>
+            <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[var(--muted)]">{progress.message}</span>
           </div>
 
-          <div className="hydrus-progress">
+          <div className={progressClass}>
             <progress max={100} value={percent} />
-            <span>{percent}%</span>
+            <span className="text-right text-[var(--muted)]">{percent}%</span>
           </div>
 
-          <dl className="hydrus-import-stats">
-            <div>
-              <dt>总数</dt>
-              <dd>{progress.total}</dd>
+          <dl className={statsClass}>
+            <div className={statClass}>
+              <dt className={statLabelClass}>总数</dt>
+              <dd className={statValueClass}>{progress.total}</dd>
             </div>
-            <div>
-              <dt>已处理</dt>
-              <dd>{progress.processed}</dd>
+            <div className={statClass}>
+              <dt className={statLabelClass}>已处理</dt>
+              <dd className={statValueClass}>{progress.processed}</dd>
             </div>
-            <div>
-              <dt>新增</dt>
-              <dd>{progress.imported}</dd>
+            <div className={statClass}>
+              <dt className={statLabelClass}>新增</dt>
+              <dd className={statValueClass}>{progress.imported}</dd>
             </div>
-            <div>
-              <dt>重复对象</dt>
-              <dd>{progress.duplicated}</dd>
+            <div className={statClass}>
+              <dt className={statLabelClass}>重复对象</dt>
+              <dd className={statValueClass}>{progress.duplicated}</dd>
             </div>
-            <div>
-              <dt>跳过</dt>
-              <dd>{progress.skipped}</dd>
+            <div className={statClass}>
+              <dt className={statLabelClass}>跳过</dt>
+              <dd className={statValueClass}>{progress.skipped}</dd>
             </div>
-            <div>
-              <dt>失败</dt>
-              <dd>{progress.failed}</dd>
+            <div className={statClass}>
+              <dt className={statLabelClass}>失败</dt>
+              <dd className={statValueClass}>{progress.failed}</dd>
             </div>
-            <div className="wide">
-              <dt>当前</dt>
-              <dd>{progress.currentFile ?? '-'}</dd>
+            <div className={`${statClass} col-span-6`}>
+              <dt className={statLabelClass}>当前</dt>
+              <dd className={statValueClass}>{progress.currentFile ?? '-'}</dd>
             </div>
           </dl>
 
-          <section className="hydrus-status-panel">
-            <header>Gallery 状态</header>
+          <section className={panelClass}>
+            <header className={panelHeaderClass}>Gallery 状态</header>
             {status ? (
-              <div className={status.ok ? 'hydrus-status ok ehentai-status' : 'hydrus-status ehentai-status'}>
+              <div className={`${statusClass} ${status.ok ? 'text-[var(--success-ink)]' : ''}`}>
                 <span>{status.message}</span>
                 <span title={status.galleryTitle}>{status.galleryTitle || '-'}</span>
                 <span>首页: {status.imageCount}</span>
                 <span>风格: e-hentai</span>
               </div>
             ) : (
-              <div className="hydrus-status">未检测</div>
+              <div className={statusClass}>未检测</div>
             )}
           </section>
 
-          <section className="hydrus-status-panel ehentai-note-panel">
-            <header>导入规则</header>
-            <div className="ehentai-note">
+          <section className={panelClass}>
+            <header className={panelHeaderClass}>导入规则</header>
+            <div className="p-1.5 leading-[18px] text-[var(--muted)]">
               默认写入 e-hentai 风格标签 gallery:gallery名字；勾选导入 gallery 标签后，会同时写入页面中的标签。重复文件默认跳过，勾选重复文件创建新对象后会复用物理文件。请求冷却固定为 10000ms。
             </div>
           </section>
 
-          <section className="hydrus-debug-panel">
-            <header>
+          <section className={debugClass}>
+            <header className={debugHeaderClass}>
               <span>日志</span>
-              <button type="button" onClick={() => setLogs([])}>
+              <button className={buttonClass} type="button" onClick={() => setLogs([])}>
                 清空
               </button>
             </header>
-            <div className="hydrus-debug-list">
+            <div className={debugListClass}>
               {logs.length > 0 ? (
                 logs.map((line, index) => (
-                  <div key={`${index}:${line}`}>{line}</div>
+                  <div className="min-h-5 border-b border-[var(--splitter-hover-bg)] px-1.5 leading-5 text-[var(--muted)]" key={`${index}:${line}`}>{line}</div>
                 ))
               ) : (
-                <div>没有日志</div>
+                <div className="px-1.5 text-[var(--muted)]">没有日志</div>
               )}
             </div>
           </section>

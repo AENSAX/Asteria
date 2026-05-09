@@ -12,6 +12,16 @@ interface FormatSegment {
 }
 
 const defaultFilenameFormat = '{index}-{hash}';
+const exportRootClass = 'grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_32px] bg-[var(--panel)] text-[11px] text-[var(--ink)]';
+const exportConfigClass = 'grid gap-1.5 border-b border-[var(--line)] bg-[var(--surface-bg)] p-2';
+const exportRowClass = 'grid grid-cols-[72px_minmax(0,1fr)_32px] items-center gap-1.5';
+const exportInputClass = 'h-6 min-w-0 border border-[var(--line-strong)] bg-[var(--surface-inset-bg)] px-1.5 text-[var(--ink)]';
+const exportButtonClass = 'h-6 min-w-[58px] cursor-default border border-[var(--line-strong)] bg-[var(--panel-strong)] px-2 text-[11px] text-[var(--ink)]';
+const exportPreviewClass = 'flex min-h-6 flex-wrap items-center gap-1 border border-[var(--line)] bg-[var(--surface-inset-bg)] p-1';
+const exportTokenClass = 'border border-[var(--line-strong)] bg-[var(--tag-bg)] px-1.5 leading-[18px]';
+const exportTokenInvalidClass = 'border-[var(--danger)] text-[var(--danger-ink)]';
+const exportProgressClass = 'grid gap-1.5 border-b border-[var(--line)] p-2';
+const exportFooterClass = 'flex items-center justify-end gap-1.5 border-t border-[var(--line)] bg-[var(--surface-bg)] px-2';
 
 function createIdleProgress(jobId: string, total: number): ExportProgress {
   return {
@@ -107,29 +117,31 @@ export function ExportWindow({ fileIds }: ExportWindowProps): JSX.Element {
   }
 
   return (
-    <section className="export-window">
-      <div className="export-config">
-        <div className="export-row">
+    <section className={exportRootClass}>
+      <div className={exportConfigClass}>
+        <div className={exportRowClass}>
           <span>文件</span>
           <span>{normalizedFileIds.length}</span>
         </div>
 
-        <label className="export-row">
+        <label className={exportRowClass}>
           <span>路径</span>
           <input
+            className={exportInputClass}
             disabled={exporting}
             placeholder="输入导出路径"
             value={directory}
             onChange={(event) => setDirectory(event.target.value)}
           />
-          <button disabled={exporting} type="button" onClick={() => void browseDirectory()}>
+          <button className={exportButtonClass} disabled={exporting} type="button" onClick={() => void browseDirectory()}>
             ...
           </button>
         </label>
 
-        <label className="export-row">
+        <label className={`${exportRowClass} grid-cols-[72px_minmax(0,1fr)]`}>
           <span>文件名</span>
           <input
+            className={exportInputClass}
             disabled={exporting}
             placeholder="输入导出文件名格式"
             value={filenameFormat}
@@ -137,47 +149,48 @@ export function ExportWindow({ fileIds }: ExportWindowProps): JSX.Element {
           />
         </label>
 
-        <div className="export-format-preview">
+        <div className={exportPreviewClass}>
           {formatSegments.length > 0 ? (
             formatSegments.map((segment, index) =>
               segment.kind === 'variable' ? (
                 <span
-                  className={segment.valid ? 'export-format-token' : 'export-format-token invalid'}
+                  className={segment.valid ? exportTokenClass : `${exportTokenClass} ${exportTokenInvalidClass}`}
                   key={`${segment.value}-${index}`}
                 >
                   {segment.value}
                 </span>
               ) : (
-                <span className="export-format-text" key={`${segment.value}-${index}`}>
+                <span className="text-[var(--muted)]" key={`${segment.value}-${index}`}>
                   {segment.value}
                 </span>
               )
             )
           ) : (
-            <span className="export-format-empty">无格式</span>
+            <span className="text-[var(--muted)]">无格式</span>
           )}
         </div>
       </div>
 
-      <div className="export-progress">
-        <div className="progress-row">
+      <div className={exportProgressClass}>
+        <div className="grid grid-cols-[minmax(0,1fr)_42px] items-center gap-2">
           <progress max={100} value={percent} />
-          <span>{percent}%</span>
+          <span className="text-right text-[var(--muted)]">{percent}%</span>
         </div>
-        <div className="export-progress-meta">
+        <div className="grid grid-cols-[70px_minmax(0,1fr)_minmax(0,1fr)] gap-1.5 text-[var(--muted)]">
           <span>
             {progress.processed} / {progress.total}
           </span>
-          <span>{progress.message}</span>
-          <span>{progress.currentFile ?? ''}</span>
+          <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{progress.message}</span>
+          <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{progress.currentFile ?? ''}</span>
         </div>
       </div>
 
-      <footer>
-        <button type="button" onClick={() => void cancelExport()}>
+      <footer className={exportFooterClass}>
+        <button className={exportButtonClass} type="button" onClick={() => void cancelExport()}>
           {exporting ? '取消' : '关闭'}
         </button>
         <button
+          className={exportButtonClass}
           disabled={exporting || normalizedFileIds.length === 0 || !directory.trim() || !formatValid}
           type="button"
           onClick={() => void startExport()}

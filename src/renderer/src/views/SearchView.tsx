@@ -51,6 +51,10 @@ const operatorTokenClass =
 const suggestionListClass =
   'absolute left-0 top-full z-[4] border border-[var(--line-strong)] bg-[var(--panel)] [&>button]:block [&>button]:h-6 [&>button]:w-full [&>button]:cursor-default [&>button]:border-0 [&>button]:border-b [&>button]:border-[var(--line)] [&>button]:bg-transparent [&>button]:px-1.5 [&>button]:text-left [&>button]:text-[11px] [&>button:last-child]:border-b-0 [&>button:hover]:bg-[var(--accent-weak)]';
 const selectedSuggestionClass = 'bg-[var(--accent-weak)]';
+const suggestionItemClass = 'text-[var(--ink)]';
+const tagTokenClass =
+  'inline-flex min-h-[18px] max-w-full overflow-hidden border border-[var(--line-strong)] bg-[var(--tag-bg)] px-1.5 text-[11px] text-[var(--ink)]';
+const pendingTagTokenClass = 'border-[var(--danger)]';
 const filterListClass =
   'min-h-0 overflow-auto border border-[var(--line)] bg-[var(--surface-bg)] [&>div]:flex [&>div]:min-h-[26px] [&>div]:w-full [&>div]:flex-wrap [&>div]:items-center [&>div]:gap-1 [&>div]:border-0 [&>div]:border-b [&>div]:border-[var(--line)] [&>div]:px-1.5 [&>div]:text-[11px] [&>div]:last:border-b-0 [&>div:hover]:bg-[var(--button-hover)]';
 const pendingFilterClass = 'border-[var(--danger)] bg-[var(--danger-bg)]';
@@ -383,7 +387,9 @@ export function SearchView({
               <button
                 className={getTagNamespaceClassName(
                   tag,
-                  index === selectedSuggestionIndex ? `tag-suggestion ${selectedSuggestionClass}` : 'tag-suggestion'
+                  index === selectedSuggestionIndex
+                    ? `${suggestionItemClass} ${selectedSuggestionClass}`
+                    : suggestionItemClass
                 )}
                 key={`${tag.kind}-${tag.id}`}
                 style={getSearchTokenStyle(tag)}
@@ -406,8 +412,8 @@ export function SearchView({
                 className={getTagNamespaceClassName(
                   token.token,
                   pendingTokenIndexes.includes(index)
-                    ? 'tag-token search-token-item pending'
-                    : 'tag-token search-token-item'
+                    ? `${tagTokenClass} search-token-item ${pendingTagTokenClass}`
+                    : `${tagTokenClass} search-token-item`
                 )}
                 key={`${token.token.key}-${index}`}
                 style={getSearchTokenStyle(token.token)}
@@ -444,7 +450,7 @@ export function SearchView({
               {filter.tokens.map((token, tokenIndex) =>
                 token.kind === 'tag' ? (
                   <span
-                    className={getTagNamespaceClassName(token.token, `tag-token search-filter-token ${searchFilterTokenClass}`)}
+                    className={getTagNamespaceClassName(token.token, `${tagTokenClass} ${searchFilterTokenClass}`)}
                     key={`${token.token.key}-${tokenIndex}`}
                     style={getSearchTokenStyle(token.token)}
                   >

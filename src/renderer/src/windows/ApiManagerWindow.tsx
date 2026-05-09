@@ -9,6 +9,29 @@ import { ActionFeedbackButton } from '../components/ActionFeedbackButton';
 import { ResizableColumns } from '../components/ResizableColumns';
 
 const defaultServiceName = 'API 服务';
+const apiShellClass = 'grid h-full min-h-0 min-w-0 grid-cols-[190px_minmax(0,1fr)] bg-[var(--panel)]';
+const apiSidebarClass = 'flex min-h-0 min-w-0 flex-col border-r border-[var(--line)] bg-[var(--surface-bg)]';
+const apiSidebarHeaderClass = 'h-7 border-b border-[var(--line)] bg-[var(--panel-strong)] px-2 leading-7 text-[11px] font-semibold';
+const apiSidebarListClass = 'min-h-0 overflow-auto';
+const apiSidebarItemClass =
+  'grid min-h-[26px] w-full grid-cols-[18px_minmax(0,1fr)_48px] items-center border-0 border-b border-[var(--line)] bg-transparent px-2 text-left text-[11px] text-[var(--ink)]';
+const apiSidebarActiveClass = 'bg-[var(--surface-raised-bg)]';
+const apiSidebarCreateClass = 'grid grid-cols-[minmax(0,1fr)_auto] gap-1.5 border-t border-[var(--line)] p-2';
+const apiInputClass = 'h-6 min-w-0 border border-[var(--line-strong)] bg-[var(--surface-inset-bg)] px-1.5 text-[var(--ink)]';
+const apiButtonClass = 'h-6 cursor-default border border-[var(--line-strong)] bg-[var(--panel-strong)] px-2 text-[11px] text-[var(--ink)]';
+const apiContentClass = 'grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] bg-[var(--panel)]';
+const apiToolbarClass = 'flex min-h-0 items-center gap-1.5 border-b border-[var(--line)] bg-[var(--panel)] p-2 text-[11px]';
+const apiInlineCheckClass = 'flex min-w-0 items-center gap-1.5 text-[var(--ink)]';
+const apiAvailabilityClass = 'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[var(--muted)]';
+const apiGridClass = 'grid gap-1.5 border-b border-[var(--line)] bg-[var(--surface-bg)] p-2';
+const apiFieldClass =
+  'grid grid-cols-[84px_minmax(0,1fr)] items-center gap-1.5 [&>span]:text-[var(--muted)] [&>input]:h-6 [&>input]:min-w-0 [&>input]:border [&>input]:border-[var(--line-strong)] [&>input]:bg-[var(--surface-inset-bg)] [&>input]:px-1.5 [&>input]:text-[var(--ink)]';
+const apiPermissionPanelClass = 'grid min-h-0 grid-rows-[24px_minmax(0,1fr)] border border-[var(--line)] bg-[var(--panel)]';
+const apiPermissionHeaderClass = 'flex items-center justify-between border-b border-[var(--line)] bg-[var(--surface-raised-bg)] px-2 text-[11px]';
+const apiPermissionListClass = 'min-h-0 overflow-auto';
+const apiPermissionItemClass =
+  'grid min-h-6 grid-cols-[18px_minmax(0,1fr)] items-center gap-1.5 border-b border-[var(--line)] px-2 text-[11px]';
+const apiEmptyClass = 'p-2 text-[var(--muted)]';
 
 export function ApiManagerWindow(): JSX.Element {
   const [services, setServices] = useState<ApiServiceRecord[]>([]);
@@ -115,34 +138,35 @@ export function ApiManagerWindow(): JSX.Element {
 
   return (
     <ResizableColumns
-      className="api-manager-window"
+      className={apiShellClass}
       defaultLeftWidth={190}
       minLeftWidth={140}
       minRightWidth={400}
       storageKey="asteria:api-manager-sidebar-width"
       left={(
-        <aside className="api-service-panel">
-        <header>服务列表</header>
-        <div className="api-service-list">
+        <aside className={apiSidebarClass}>
+        <header className={apiSidebarHeaderClass}>服务列表</header>
+        <div className={apiSidebarListClass}>
           {services.length > 0 ? (
             services.map((service) => (
               <button
-                className={service.id === selectedServiceId ? 'api-service-item active' : 'api-service-item'}
+                className={`${apiSidebarItemClass} ${service.id === selectedServiceId ? apiSidebarActiveClass : ''}`}
                 key={service.id}
                 type="button"
                 onClick={() => setSelectedServiceId(service.id)}
               >
-                <span className="api-service-enabled-mark">{service.enabled ? '√' : ''}</span>
-                <span>{service.name}</span>
-                <span>{service.port}</span>
+                <span className="text-center text-[var(--success-ink)]">{service.enabled ? '√' : ''}</span>
+                <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{service.name}</span>
+                <span className="text-right text-[var(--muted)]">{service.port}</span>
               </button>
             ))
           ) : (
-            <div className="api-service-empty">没有 API 服务</div>
+            <div className={apiEmptyClass}>没有 API 服务</div>
           )}
         </div>
-        <div className="api-service-create">
+        <div className={apiSidebarCreateClass}>
           <input
+            className={apiInputClass}
             aria-label="新建 API"
             placeholder="输入 API 名称"
             value={serviceInput}
@@ -160,11 +184,11 @@ export function ApiManagerWindow(): JSX.Element {
         </aside>
       )}
       right={(
-        <main className="api-manager-content">
+        <main className={apiContentClass}>
         {draft ? (
           <>
-            <header className="api-manager-toolbar">
-              <label className="api-inline-check">
+            <header className={apiToolbarClass}>
+              <label className={apiInlineCheckClass}>
                 <input
                   checked={draft.enabled}
                   type="checkbox"
@@ -173,19 +197,19 @@ export function ApiManagerWindow(): JSX.Element {
                 <span>启用</span>
               </label>
               <ActionFeedbackButton label="保存" onAction={saveService} />
-              <button type="button" onClick={() => void deleteService()}>
+              <button className={apiButtonClass} type="button" onClick={() => void deleteService()}>
                 删除
               </button>
-              <button disabled={!selectedService} type="button" onClick={() => void loadAvailability(selectedServiceId)}>
+              <button className={apiButtonClass} disabled={!selectedService} type="button" onClick={() => void loadAvailability(selectedServiceId)}>
                 检查
               </button>
-              <span className={availability?.available ? 'api-availability available' : 'api-availability'}>
+              <span className={availability?.available ? 'text-[var(--success-ink)]' : apiAvailabilityClass}>
                 {availability ? availability.reason : message}
               </span>
             </header>
 
-            <div className="api-config-grid">
-              <label>
+            <div className={apiGridClass}>
+              <label className={apiFieldClass}>
                 <span>名称</span>
                 <input
                   aria-label="API 名称"
@@ -194,7 +218,7 @@ export function ApiManagerWindow(): JSX.Element {
                   onChange={(event) => updateDraft({ name: event.target.value })}
                 />
               </label>
-              <label>
+              <label className={apiFieldClass}>
                 <span>地址</span>
                 <input
                   aria-label="API 地址"
@@ -203,7 +227,7 @@ export function ApiManagerWindow(): JSX.Element {
                   onChange={(event) => updateDraft({ address: event.target.value })}
                 />
               </label>
-              <label>
+              <label className={apiFieldClass}>
                 <span>端口</span>
                 <input
                   aria-label="API 端口"
@@ -213,7 +237,7 @@ export function ApiManagerWindow(): JSX.Element {
                   onChange={(event) => updateDraft({ port: Number(event.target.value) })}
                 />
               </label>
-              <label>
+              <label className={apiFieldClass}>
                 <span>校验 token</span>
                 <input
                   aria-label="API token"
@@ -224,14 +248,14 @@ export function ApiManagerWindow(): JSX.Element {
               </label>
             </div>
 
-            <section className="api-permission-panel">
-              <header>
+            <section className={apiPermissionPanelClass}>
+              <header className={apiPermissionHeaderClass}>
                 <span>权限</span>
                 <span>{draft.permissions.length} / {permissions.length}</span>
               </header>
-              <div className="api-permission-list">
+              <div className={apiPermissionListClass}>
                 {permissions.map((permission) => (
-                  <label className="api-permission-item" key={permission.id}>
+                  <label className={apiPermissionItemClass} key={permission.id}>
                     <input
                       checked={draft.permissions.includes(permission.id)}
                       type="checkbox"
@@ -245,7 +269,7 @@ export function ApiManagerWindow(): JSX.Element {
             </section>
           </>
         ) : (
-          <div className="api-service-empty">请新建 API 服务</div>
+          <div className={apiEmptyClass}>请新建 API 服务</div>
         )}
         </main>
       )}

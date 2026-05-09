@@ -30,14 +30,16 @@ export function TagTokenInput({
   onPickSuggestion
 }: TagTokenInputProps): JSX.Element {
   return (
-    <div className="tag-input-area">
+    <div className="relative min-w-0 border-t border-[var(--line)] bg-[var(--surface-input-panel-bg)]">
       {suggestions.length > 0 ? (
-        <div className="tag-suggestions">
+        <div className="absolute bottom-full left-[-1px] right-[-1px] z-[4] border border-[var(--line-strong)] bg-[var(--panel)]">
           {suggestions.map((tag, index) => (
             <button
               className={getTagNamespaceClassName(
                 tag,
-                index === selectedSuggestionIndex ? 'tag-suggestion selected' : 'tag-suggestion'
+                index === selectedSuggestionIndex
+                  ? 'block h-6 w-full border-0 border-b border-[var(--line)] bg-[var(--accent-weak)] px-1.5 text-left text-[11px] text-[var(--ink)]'
+                  : 'block h-6 w-full border-0 border-b border-[var(--line)] bg-transparent px-1.5 text-left text-[11px] text-[var(--ink)]'
               )}
               key={tag.id}
               style={getTagNamespaceStyle(tag)}
@@ -53,10 +55,13 @@ export function TagTokenInput({
         </div>
       ) : null}
 
-      <div className="tag-token-input">
+      <div className="flex min-h-[30px] flex-wrap items-center gap-1 p-1">
         {tokens.map((token) => (
           <span
-            className={getTagNamespaceClassName(token, 'tag-token')}
+            className={getTagNamespaceClassName(
+              token,
+              'inline-flex min-h-[18px] max-w-full overflow-hidden border border-[var(--line-strong)] bg-[var(--tag-bg)] px-1.5 text-[11px] text-[var(--ink)]'
+            )}
             key={token.key}
             style={getTagNamespaceStyle(token)}
           >
@@ -64,6 +69,7 @@ export function TagTokenInput({
           </span>
         ))}
         <input
+          className="h-5 min-w-[48px] flex-1 border-0 bg-transparent p-0 text-[var(--ink)] outline-0"
           aria-label={ariaLabel}
           placeholder={placeholder}
           value={text}

@@ -4,6 +4,34 @@ import { ActionFeedbackButton } from '../components/ActionFeedbackButton';
 import { ResizableColumns } from '../components/ResizableColumns';
 
 const defaultEntryColor = '#d9dde1';
+const managerShellClass = 'grid h-full min-h-0 min-w-0 grid-cols-[180px_minmax(0,1fr)] bg-[var(--panel)]';
+const sidebarClass = 'flex min-h-0 min-w-0 flex-col border-r border-[var(--line)] bg-[var(--surface-bg)]';
+const sidebarHeaderClass = 'h-7 border-b border-[var(--line)] bg-[var(--panel-strong)] px-2 leading-7 text-[11px] font-semibold';
+const listClass = 'min-h-0 overflow-auto';
+const sidebarItemClass =
+  'grid min-h-[26px] w-full grid-cols-[18px_minmax(0,1fr)_42px] items-center border-0 border-b border-[var(--line)] bg-transparent px-2 text-left text-[11px] text-[var(--ink)]';
+const sidebarItemActiveClass = 'bg-[var(--surface-raised-bg)]';
+const createRowClass = 'grid grid-cols-[minmax(0,1fr)_auto] gap-1.5 border-t border-[var(--line)] p-2';
+const inputClass =
+  'h-6 min-w-0 border border-[var(--line-strong)] bg-[var(--surface-inset-bg)] px-1.5 text-[var(--ink)]';
+const buttonClass =
+  'h-6 min-w-[72px] cursor-default border border-[var(--line-strong)] bg-[var(--panel-strong)] px-2 text-[11px] text-[var(--ink)]';
+const panelClass = 'grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_minmax(0,1fr)] bg-[var(--panel)]';
+const toolbarClass = 'grid gap-1 border-b border-[var(--line)] bg-[var(--panel)] p-2';
+const groupEditRowClass = 'grid grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-1.5';
+const entryCreateRowClass = 'grid grid-cols-[minmax(0,1fr)_auto_24px_auto] gap-1.5 items-center';
+const selectClass =
+  'h-6 min-w-0 border border-[var(--line-strong)] bg-[var(--surface-inset-bg)] px-1.5 text-[var(--ink)]';
+const messageClass = 'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[var(--muted)]';
+const entryListClass = 'min-h-0 overflow-auto bg-[var(--surface-bg)] p-2';
+const emptyClass = 'p-2 text-[var(--muted)]';
+const entryRowClass =
+  'grid grid-cols-[18px_18px_minmax(0,1fr)_24px_auto_auto] items-center gap-1.5 border-b border-[var(--line)] px-2 py-1 text-[11px]';
+const entryRowDraggingClass = 'bg-[var(--selection-bg)]';
+const dragHandleClass = 'cursor-grab text-center text-[var(--muted)]';
+const swatchClass = 'h-4 w-4 border border-[var(--line-strong)]';
+const entryActionClass =
+  'h-6 min-w-[56px] cursor-default border border-[var(--line-strong)] bg-[var(--panel-strong)] px-2 text-[11px] text-[var(--ink)]';
 
 export function RatingManagerWindow(): JSX.Element {
   const [groups, setGroups] = useState<RatingGroupRecord[]>([]);
@@ -160,30 +188,31 @@ export function RatingManagerWindow(): JSX.Element {
 
   return (
     <ResizableColumns
-      className="rating-manager-window"
+      className={managerShellClass}
       defaultLeftWidth={180}
       minLeftWidth={130}
       minRightWidth={380}
       storageKey="asteria:rating-manager-sidebar-width"
       left={(
-        <aside className="rating-group-panel">
-        <header>分级</header>
-        <div className="rating-group-list">
+        <aside className={sidebarClass}>
+        <header className={sidebarHeaderClass}>分级</header>
+        <div className={listClass}>
           {groups.map((group) => (
             <button
-              className={group.id === selectedGroupId ? 'rating-group-item active' : 'rating-group-item'}
+              className={`${sidebarItemClass} ${group.id === selectedGroupId ? sidebarItemActiveClass : ''}`}
               key={group.id}
               type="button"
               onClick={() => setSelectedGroupId(group.id)}
             >
-              <span className="rating-active-mark">{group.isActive ? '√' : ''}</span>
-              <span>{group.name}</span>
-              <span>{group.entryCount}</span>
+              <span className="text-center text-[var(--success-ink)]">{group.isActive ? '√' : ''}</span>
+              <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{group.name}</span>
+              <span className="text-right text-[var(--muted)]">{group.entryCount}</span>
             </button>
           ))}
         </div>
-        <div className="rating-group-create">
+        <div className={createRowClass}>
           <input
+            className={inputClass}
             aria-label="新建分级"
             placeholder="输入分级以新建"
             value={groupInput}
@@ -201,10 +230,11 @@ export function RatingManagerWindow(): JSX.Element {
         </aside>
       )}
       right={(
-        <main className="rating-manager-content">
-        <header className="rating-manager-toolbar">
-          <div className="rating-group-edit-row">
+        <main className={panelClass}>
+        <header className={toolbarClass}>
+          <div className={groupEditRowClass}>
             <input
+              className={inputClass}
               aria-label="分级名称"
               placeholder="输入分级名称"
               value={selectedGroupName}
@@ -221,8 +251,9 @@ export function RatingManagerWindow(): JSX.Element {
             </button>
           </div>
 
-          <div className="rating-entry-create-row">
+          <div className={entryCreateRowClass}>
             <input
+              className={inputClass}
               aria-label="新建条目"
               placeholder="输入分级条目"
               value={entryInput}
@@ -234,6 +265,7 @@ export function RatingManagerWindow(): JSX.Element {
               }}
             />
             <input
+              className="h-6 w-6 border border-[var(--line-strong)] bg-[var(--surface-inset-bg)] p-0"
               aria-label="条目颜色"
               type="color"
               value={entryColor}
@@ -242,11 +274,11 @@ export function RatingManagerWindow(): JSX.Element {
             <button disabled={!selectedGroup} type="button" onClick={() => void createEntry()}>
               新建条目
             </button>
-            <span>{message}</span>
+            <span className={messageClass}>{message}</span>
           </div>
         </header>
 
-        <div className="rating-entry-list">
+        <div className={entryListClass}>
           {entries.length > 0 ? (
             entries.map((entry) => (
               <RatingEntryRow
@@ -262,7 +294,7 @@ export function RatingManagerWindow(): JSX.Element {
               />
             ))
           ) : (
-            <div className="rating-entry-empty">没有条目</div>
+            <div className={emptyClass}>没有条目</div>
           )}
         </div>
         </main>
@@ -302,13 +334,13 @@ function RatingEntryRow({
 
   return (
     <div
-      className={dragging ? 'rating-entry-row dragging' : 'rating-entry-row'}
+      className={`${entryRowClass} ${dragging ? entryRowDraggingClass : ''}`}
       onDragEnd={onDragEnd}
       onDragOver={onDragOver}
       onDrop={onDrop}
     >
       <span
-        className="rating-entry-drag-handle"
+        className={dragHandleClass}
         draggable
         title="拖动调整顺序"
         onDragStart={(event) => {
@@ -318,25 +350,27 @@ function RatingEntryRow({
       >
         ::
       </span>
-      <span className="rating-entry-swatch" style={{ background: entry.color }} />
+      <span className={swatchClass} style={{ background: entry.color }} />
       <input
+        className={inputClass}
         aria-label="条目文字"
         placeholder="输入条目文字"
         value={label}
         onChange={(event) => setLabel(event.target.value)}
       />
       <input
+        className="h-6 w-6 border border-[var(--line-strong)] bg-[var(--surface-inset-bg)] p-0"
         aria-label="条目颜色"
         type="color"
         value={color}
         onChange={(event) => setColor(event.target.value)}
       />
       <ActionFeedbackButton
-        className="rating-entry-action"
+        className={entryActionClass}
         label="保存"
         onAction={() => onUpdate(entry, label, color)}
       />
-      <button className="rating-entry-action" type="button" onClick={() => void onDelete(entry.id)}>
+      <button className={entryActionClass} type="button" onClick={() => void onDelete(entry.id)}>
         删除
       </button>
     </div>

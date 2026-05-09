@@ -15,6 +15,12 @@ interface BatchTagManagerWindowProps {
   fileIds: number[];
 }
 
+const batchRootClass = 'grid h-full min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_auto_24px] border border-[var(--line)] bg-[var(--panel)]';
+const batchListClass = 'relative flex min-h-0 flex-wrap content-start gap-1 overflow-auto bg-[var(--surface-bg)] p-1.5';
+const batchTagItemClass =
+  'inline-grid min-h-5 max-w-full grid-cols-[minmax(0,1fr)_auto] items-center border border-[var(--line-strong)] bg-[var(--tag-bg)] text-[11px] text-[var(--ink)]';
+const batchTagPendingClass = 'border-[var(--danger)]';
+
 export function BatchTagManagerWindow({ fileIds }: BatchTagManagerWindowProps): JSX.Element {
   const [fileTags, setFileTags] = useState<BatchFileTagRecord[]>([]);
   const [pendingTagIds, setPendingTagIds] = useState<number[]>([]);
@@ -120,7 +126,7 @@ export function BatchTagManagerWindow({ fileIds }: BatchTagManagerWindowProps): 
 
   return (
     <section
-      className="batch-tag-window"
+      className={batchRootClass}
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) {
           setPendingTagIds([]);
@@ -129,7 +135,7 @@ export function BatchTagManagerWindow({ fileIds }: BatchTagManagerWindowProps): 
       }}
     >
       <div
-        className="batch-tag-list"
+        className={batchListClass}
         ref={tagListRef}
         onMouseDownCapture={boxSelection.handleMouseDownCapture}
       >
@@ -138,7 +144,7 @@ export function BatchTagManagerWindow({ fileIds }: BatchTagManagerWindowProps): 
             <button
               className={getTagNamespaceClassName(
                 tag,
-                pendingTagIds.includes(tag.id) ? 'batch-tag-item pending' : 'batch-tag-item'
+                pendingTagIds.includes(tag.id) ? `${batchTagItemClass} ${batchTagPendingClass}` : batchTagItemClass
               )}
               data-box-select-id={tag.id}
               key={tag.id}
@@ -147,15 +153,15 @@ export function BatchTagManagerWindow({ fileIds }: BatchTagManagerWindowProps): 
               type="button"
               onMouseDown={(event) => handleTagMouseDown(event, tag, index)}
             >
-              <span>{formatTagLabel(tag)}</span>
-              <span>{tag.fileCount}</span>
+              <span className="min-w-0 overflow-hidden px-1.5 text-ellipsis whitespace-nowrap">{formatTagLabel(tag)}</span>
+              <span className="border-l border-[var(--line)] px-1.5 text-[var(--muted)]">{tag.fileCount}</span>
             </button>
           ))
         ) : (
-          <div className="managed-tag-empty">没有标签</div>
+          <div className="p-2 text-[var(--muted)]">没有标签</div>
         )}
         {boxSelection.selectionBox ? (
-          <div className="box-selection-rect" style={boxSelection.selectionBox} />
+          <div className="absolute z-40 border border-[var(--accent)] bg-[var(--accent-overlay)] pointer-events-none" style={boxSelection.selectionBox} />
         ) : null}
       </div>
 
@@ -170,7 +176,7 @@ export function BatchTagManagerWindow({ fileIds }: BatchTagManagerWindowProps): 
         onPickSuggestion={tagInput.addTokenFromSuggestion}
         onTextChange={tagInput.setText}
       />
-      <footer className="view-status">{message}</footer>
+      <footer className="flex h-6 items-center border-t border-[var(--line)] px-2 text-[var(--muted)]">{message}</footer>
     </section>
   );
 }

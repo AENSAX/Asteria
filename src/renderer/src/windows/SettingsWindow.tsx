@@ -450,7 +450,7 @@ export function SettingsWindow(): JSX.Element {
                   {layoutConfigs.length > 0 ? (
                     layoutConfigs.map((config) => (
                       <div
-                        className={`grid min-h-[26px] w-full grid-cols-[minmax(0,1fr)] border-0 border-b border-l-[3px] border-b-[var(--line)] p-0 text-[11px] text-(--ink) ${config.id === selectedLayoutConfigId ? 'border-l-[var(--accent)] bg-[var(--surface-raised-bg)]' : 'border-l-transparent bg-transparent'}`}
+                        className={`grid min-h-[26px] w-full grid-cols-[minmax(0,1fr)] border-0 border-b border-l-[3px] border-b-[var(--line)] p-0 text-[11px] text-[var(--ink)] ${config.id === selectedLayoutConfigId ? 'border-l-[var(--accent)] bg-[var(--surface-raised-bg)]' : 'border-l-transparent bg-transparent'}`}
                         key={config.id}
                       >
                         <button
