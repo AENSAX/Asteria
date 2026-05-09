@@ -81,7 +81,7 @@ export function getTagNamespaceClassName(
   tag: Pick<TagDraft, "namespace">,
   baseClassName: string,
 ): string {
-  return tag.namespace ? `${baseClassName} namespace-tag-color` : baseClassName;
+  return tag.namespace ? `${baseClassName} border-(--tag-namespace-border) bg-(--tag-namespace-bg) text-(--tag-namespace-ink)` : baseClassName;
 }
 
 export function getTagNamespaceStyle(
