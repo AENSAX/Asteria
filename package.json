@@ -86,5 +86,6 @@
     "electron-vite": "^2.3.0",
     "typescript": "^5.5.4",
     "vite": "^5.4.0"
-  }
+  },
+  "packageManager": "yarn@4.12.0"
 }
