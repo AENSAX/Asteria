@@ -115,13 +115,14 @@ export function SettingsWindow(): JSX.Element {
     }
 
     setShortcutRecordingActive(true);
+    const currentRecordingShortcut = recordingShortcut;
 
     function handleKeyDown(event: KeyboardEvent): void {
       event.preventDefault();
       event.stopPropagation();
 
       const definition = createShortcutDefinitionFromKeyboardEvent(
-        recordingShortcut.action,
+        currentRecordingShortcut.action,
         event,
       );
 
@@ -132,8 +133,8 @@ export function SettingsWindow(): JSX.Element {
       setShortcutSettings((currentSettings) =>
         updateShortcutDefinition(
           currentSettings,
-          recordingShortcut.action,
-          recordingShortcut.index,
+          currentRecordingShortcut.action,
+          currentRecordingShortcut.index,
           definition,
         ),
       );

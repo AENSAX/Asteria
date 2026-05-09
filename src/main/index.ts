@@ -211,9 +211,11 @@ type StorageMigrationResult = Record<StorageMigrationOutcome, number>;
 function createAsteriaWindow(
   options: BrowserWindowConstructorOptions,
 ): BrowserWindow {
+  const icon = getWindowIconPath();
+
   return new BrowserWindow({
     backgroundColor: "#1f2225",
-    icon: getWindowIconPath(),
+    ...(icon ? { icon } : {}),
     ...options,
     webPreferences: {
       preload: join(__dirname, "../preload/index.mjs"),
@@ -677,6 +679,7 @@ function createGenericDialogWindow(
   state: GenericDialogState,
   parent?: BrowserWindow | null,
 ): BrowserWindow {
+  const parentOptions = parent ? { parent } : {};
   const window = createAsteriaWindow({
     width: state.kind === "progress" ? 460 : 560,
     height: state.kind === "progress" ? 170 : 210,
@@ -684,7 +687,7 @@ function createGenericDialogWindow(
     minHeight: 150,
     title: state.title,
     show: false,
-    parent: parent ?? undefined,
+    ...parentOptions,
     modal: false,
     minimizable: false,
     maximizable: false,

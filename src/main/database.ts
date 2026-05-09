@@ -2976,7 +2976,9 @@ function normalizeTagDrafts(tags: TagDraft[]): TagDraft[] {
     }
 
     seen.add(key);
-    normalizedTags.push({ id, namespace, name });
+    normalizedTags.push(
+      id === undefined ? { namespace, name } : { id, namespace, name },
+    );
   }
 
   return normalizedTags;

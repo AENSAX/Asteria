@@ -214,7 +214,11 @@ export function SearchView({
     event.preventDefault();
 
     if (text.trim().length > 0 && suggestions.length > 0) {
-      appendSuggestion(suggestions[selectedSuggestionIndex] ?? suggestions[0]);
+      const suggestion = suggestions[selectedSuggestionIndex] ?? suggestions[0];
+
+      if (suggestion) {
+        appendSuggestion(suggestion);
+      }
       return;
     }
 
@@ -222,18 +226,20 @@ export function SearchView({
   }
 
   function appendSuggestion(tag: SearchHintRecord | TagRecord): void {
+    const tokenDraft = {
+      id: tag.id,
+      namespace: tag.namespace,
+      name: tag.name,
+      styleName: tag.styleName,
+      color: "color" in tag ? tag.color : null,
+    };
+
     appendTagToken(
-      createTagToken({
-        id: tag.id,
-        namespace: tag.namespace,
-        name: tag.name,
-        styleName: tag.styleName,
-        color: "color" in tag ? tag.color : null,
-        searchValue:
-          "kind" in tag && tag.kind === "rating"
-            ? `@rating:${tag.id}`
-            : undefined,
-      }),
+      createTagToken(
+        "kind" in tag && tag.kind === "rating"
+          ? { ...tokenDraft, searchValue: `@rating:${tag.id}` }
+          : tokenDraft,
+      ),
     );
   }
 

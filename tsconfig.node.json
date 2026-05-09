@@ -11,7 +11,8 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "noUncheckedIndexedAccess": true,
-    "exactOptionalPropertyTypes": true
+    "exactOptionalPropertyTypes": true,
+    "rootDir": "."
   },
   "include": [
     "electron.vite.config.ts",

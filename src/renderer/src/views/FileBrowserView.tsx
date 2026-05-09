@@ -1001,16 +1001,25 @@ function sortBrowserFiles(
   const multiplier = direction === "asc" ? 1 : -1;
 
   return [...files].sort((left, right) => {
-    const leftValue =
-      sortKey === "updatedAt" ? left.updatedAt : left.importedAt;
-    const rightValue =
-      sortKey === "updatedAt" ? right.updatedAt : right.importedAt;
+    const leftValue = getBrowserSortValue(left, sortKey);
+    const rightValue = getBrowserSortValue(right, sortKey);
 
     return (
       compareText(leftValue, rightValue) * multiplier ||
       (left.id - right.id) * multiplier
     );
   });
+}
+
+function getBrowserSortValue(
+  file: BrowserDisplayFile,
+  sortKey: BrowserSortKey,
+): string {
+  if (isImportQueueFile(file)) {
+    return "";
+  }
+
+  return sortKey === "updatedAt" ? file.updatedAt : file.importedAt;
 }
 
 function patchFileFavorite(

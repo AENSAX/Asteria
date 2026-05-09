@@ -4,7 +4,8 @@ import {
   DockLocation,
   Layout,
   Model,
-  type TabNode,
+  TabNode,
+  type IJsonModel,
 } from "flexlayout-react";
 import { parse } from "jsonc-parser";
 import defaultPageTemplateText from "../../../config/page-templates/default-page.jsonc?raw";
@@ -90,7 +91,7 @@ interface PageItem {
 interface SavedPageItem {
   id: string;
   title: string;
-  modelJson: object;
+  modelJson: IJsonModel;
   searchFilters: SearchFilter[];
   searchInputState: SearchInputState;
   importQueueActive: boolean;
@@ -166,9 +167,9 @@ function cx(...classes: Array<string | false | null | undefined>): string {
 
 function createPageModel(templateText = defaultPageTemplateText): Model {
   try {
-    return Model.fromJson(parse(templateText) as object);
+    return Model.fromJson(parse(templateText) as IJsonModel);
   } catch {
-    return Model.fromJson(parse(defaultPageTemplateText) as object);
+    return Model.fromJson(parse(defaultPageTemplateText) as IJsonModel);
   }
 }
 
@@ -571,7 +572,7 @@ function WorkbenchApp(): JSX.Element {
       const page = createPageItemFromTemplate(
         1,
         "默认页面",
-        templateText.default,
+        pageLayoutState.templateText.default,
       );
       page.importQueueActive = hasImportQueue;
       setPages([page]);
@@ -1189,6 +1190,7 @@ function WorkbenchApp(): JSX.Element {
       if (
         !tabId &&
         node.getType() === "tab" &&
+        node instanceof TabNode &&
         node.getComponent() === component
       ) {
         tabId = node.getId();
@@ -1375,7 +1377,7 @@ function WorkbenchApp(): JSX.Element {
       pages: pagesRef.current.map((page) => ({
         id: page.id,
         title: page.title,
-        modelJson: page.model.toJson() as object,
+        modelJson: page.model.toJson(),
         searchFilters: page.searchFilters,
         searchInputState: page.searchInputState,
         importQueueActive: page.importQueueActive,

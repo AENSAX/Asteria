@@ -46,16 +46,29 @@ export function createTagToken(
 ): TagToken {
   const idKey = tag.id ? `id:${tag.id}` : "";
   const textKey = `${tag.namespace.trim().toLowerCase()}:${tag.name.trim().toLowerCase()}`;
-
-  return {
-    id: tag.id,
+  const token: TagToken = {
     namespace: tag.namespace.trim(),
     name: tag.name.trim(),
-    styleName: tag.styleName,
-    color: tag.color,
-    searchValue: tag.searchValue,
     key: idKey || textKey,
   };
+
+  if (tag.id !== undefined) {
+    token.id = tag.id;
+  }
+
+  if (tag.styleName !== undefined) {
+    token.styleName = tag.styleName;
+  }
+
+  if (tag.color !== undefined) {
+    token.color = tag.color;
+  }
+
+  if (tag.searchValue !== undefined) {
+    token.searchValue = tag.searchValue;
+  }
+
+  return token;
 }
 
 export function formatTagLabel(

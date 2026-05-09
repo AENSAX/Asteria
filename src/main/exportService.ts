@@ -42,6 +42,10 @@ export async function exportFiles(
   for (let index = 0; index < files.length; index += 1) {
     const file = files[index];
 
+    if (!file) {
+      continue;
+    }
+
     if (job.canceled) {
       const progress = createExportProgress(
         normalizedOptions.jobId,

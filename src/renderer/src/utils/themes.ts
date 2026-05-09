@@ -310,10 +310,15 @@ function isThemeId(value: unknown): value is ThemeId {
 }
 
 function getThemeDefinition(themeId: ThemeId): ThemeDefinition {
-  return (
-    themeDefinitions.find((theme) => theme.id === themeId) ??
-    themeDefinitions[0]
-  );
+  const theme =
+    themeDefinitions.find((definition) => definition.id === themeId) ??
+    themeDefinitions.find((definition) => definition.id === "default");
+
+  if (!theme) {
+    throw new Error("Missing default theme definition.");
+  }
+
+  return theme;
 }
 
 function createThemeVariables(palette: ThemePalette): Record<string, string> {

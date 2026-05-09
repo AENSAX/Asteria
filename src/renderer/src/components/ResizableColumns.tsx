@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { PointerEvent } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 
 interface ResizableColumnsProps {
   className: string;
@@ -68,7 +68,7 @@ export function ResizableColumns({
     };
   }, [minLeftWidth, minRightWidth]);
 
-  function startResize(event: PointerEvent<HTMLDivElement>): void {
+  function startResize(event: ReactPointerEvent<HTMLDivElement>): void {
     if (event.button !== 0) {
       return;
     }

@@ -69,9 +69,11 @@ export function useTagTokenInput({ onCommit }: UseTagTokenInputOptions): {
     event.preventDefault();
 
     if (text.trim().length > 0 && suggestions.length > 0) {
-      addTokenFromSuggestion(
-        suggestions[selectedSuggestionIndex] ?? suggestions[0],
-      );
+      const suggestion = suggestions[selectedSuggestionIndex] ?? suggestions[0];
+
+      if (suggestion) {
+        addTokenFromSuggestion(suggestion);
+      }
       return;
     }
 

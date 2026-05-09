@@ -22,6 +22,8 @@ import type {
   TagDraft,
 } from "../shared/ipc.js";
 
+type RequestRedirect = "error" | "follow" | "manual";
+
 const EHENTAI_TAG_STYLE_NAME = "e-hentai";
 const DEFAULT_REQUEST_DELAY_MS = 10000;
 const DEFAULT_REQUEST_TIMEOUT_MS = 45_000;
@@ -1049,14 +1051,16 @@ function parseGalleryMetadata(html: string): GalleryMetadata {
   let rowMatch: RegExpExecArray | null;
 
   while ((rowMatch = rowPattern.exec(html)) !== null) {
-    const namespace = stripHtml(rowMatch[1]).replace(/:$/u, "").trim();
-    const cellHtml = rowMatch[2];
+    const namespace = stripHtml(rowMatch[1] ?? "")
+      .replace(/:$/u, "")
+      .trim();
+    const cellHtml = rowMatch[2] ?? "";
     const tagPattern =
       /<div[^>]*class=["'][^"']*\bgt\w*\b[^"']*["'][^>]*>([\s\S]*?)<\/div>/gi;
     let tagMatch: RegExpExecArray | null;
 
     while ((tagMatch = tagPattern.exec(cellHtml)) !== null) {
-      const name = stripHtml(tagMatch[1]).trim();
+      const name = stripHtml(tagMatch[1] ?? "").trim();
 
       if (name) {
         tags.push({ namespace, name });
@@ -1080,9 +1084,16 @@ function parseGalleryImagePages(
   let match: RegExpExecArray | null;
 
   while ((match = linkPattern.exec(html)) !== null) {
-    const { pageNumber, fileName } = parseGridTitle(decodeHtml(match[2]));
+    const href = match[1];
+    const title = match[2];
+
+    if (!href || !title) {
+      continue;
+    }
+
+    const { pageNumber, fileName } = parseGridTitle(decodeHtml(title));
     imagePages.push({
-      pageUrl: new URL(decodeHtml(match[1]), baseUrl).toString(),
+      pageUrl: new URL(decodeHtml(href), baseUrl).toString(),
       pageNumber,
       fileName,
     });
@@ -1098,8 +1109,14 @@ function parseGalleryPageIndexes(html: string, galleryUrl: string): number[] {
   let match: RegExpExecArray | null;
 
   while ((match = hrefPattern.exec(html)) !== null) {
+    const href = match[1];
+
+    if (!href) {
+      continue;
+    }
+
     try {
-      const url = new URL(decodeHtml(match[1]), galleryUrl);
+      const url = new URL(decodeHtml(href), galleryUrl);
 
       if (url.hostname !== "e-hentai.org" || url.pathname !== galleryPath) {
         continue;
@@ -1137,14 +1154,14 @@ function readDownloadOriginalUrl(html: string): string | null {
   let match: RegExpExecArray | null;
 
   while ((match = anchorPattern.exec(html)) !== null) {
-    const attributes = parseHtmlAttributes(match[1]);
+    const attributes = parseHtmlAttributes(match[1] ?? "");
     const href = attributes.get("href");
 
     if (!href || !href.includes("/fullimg/")) {
       continue;
     }
 
-    if (/download original/i.test(stripHtml(match[2]))) {
+    if (/download original/i.test(stripHtml(match[2] ?? ""))) {
       return href;
     }
   }
@@ -1174,8 +1191,14 @@ function parseHtmlAttributes(tagHtml: string): Map<string, string> {
   let match: RegExpExecArray | null;
 
   while ((match = attributePattern.exec(tagHtml)) !== null) {
+    const name = match[1];
+
+    if (!name) {
+      continue;
+    }
+
     attributes.set(
-      match[1].toLowerCase(),
+      name.toLowerCase(),
       decodeHtml(match[2] ?? match[3] ?? match[4] ?? ""),
     );
   }
@@ -1303,8 +1326,8 @@ function parseGridTitle(title: string): {
   }
 
   return {
-    pageNumber: Number(match[1]),
-    fileName: match[2].trim() || null,
+    pageNumber: Number(match[1] ?? 0),
+    fileName: match[2]?.trim() || null,
   };
 }
 

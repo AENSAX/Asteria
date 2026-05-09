@@ -32,6 +32,11 @@ import type {
 
 type ModelLayout = "nhwc" | "nchw";
 
+type DownloadResponse = NodeJS.ReadableStream & {
+  headers: Record<string, string | string[]>;
+  resume: () => void;
+};
+
 export interface AiDownloadProgress {
   fileName: string;
   downloadedBytes: number;
@@ -349,7 +354,7 @@ async function loadModelBundle(settings: AiSettings): Promise<ModelBundle> {
   const catalog = await detectAiModels(settings.modelPath, settings.modelName);
   const modelInfo = catalog.selectedModel;
 
-  if (!modelInfo.exists || !modelInfo.modelFilePath) {
+  if (!modelInfo || !modelInfo.exists || !modelInfo.modelFilePath) {
     throw new Error("未检测到模型文件");
   }
 
@@ -602,8 +607,10 @@ function readInputShape(
   session: ort.InferenceSession,
   inputName: string,
 ): { width: number; height: number; layout: ModelLayout } {
-  const metadata = session.inputMetadata?.[inputName];
-  const dimensions = metadata?.dimensions ?? [];
+  const inputIndex = session.inputNames.indexOf(inputName);
+  const metadata =
+    inputIndex >= 0 ? session.inputMetadata[inputIndex] : undefined;
+  const dimensions = metadata?.isTensor ? metadata.shape : [];
   const second = typeof dimensions[1] === "number" ? dimensions[1] : null;
   const third = typeof dimensions[2] === "number" ? dimensions[2] : null;
   const fourth = typeof dimensions[3] === "number" ? dimensions[3] : null;
@@ -872,6 +879,7 @@ function downloadFile(
     }
 
     request.on("response", (response) => {
+      const downloadResponse = response as unknown as DownloadResponse;
       const redirectUrl = readHeader(response.headers.location);
 
       if (
@@ -880,7 +888,7 @@ function downloadFile(
         response.statusCode < 400 &&
         redirectUrl
       ) {
-        response.resume();
+        downloadResponse.resume();
         const nextUrl = new URL(redirectUrl, url).toString();
         clearTimeout(timeout);
         downloadFile(nextUrl, targetPath, redirectCount + 1, onProgress).then(
@@ -891,7 +899,7 @@ function downloadFile(
       }
 
       if (response.statusCode !== 200) {
-        response.resume();
+        downloadResponse.resume();
         rejectOnce(
           new Error(`默认模型下载失败: HTTP ${response.statusCode ?? "-"}`),
         );
@@ -899,7 +907,7 @@ function downloadFile(
       }
 
       clearTimeout(timeout);
-      void writeResponseToFile(response, targetPath, onProgress).then(
+      void writeResponseToFile(downloadResponse, targetPath, onProgress).then(
         resolveOnce,
         rejectOnce,
       );
@@ -912,9 +920,7 @@ function downloadFile(
 }
 
 async function writeResponseToFile(
-  response: NodeJS.ReadableStream & {
-    headers: Record<string, string | string[]>;
-  },
+  response: DownloadResponse,
   targetPath: string,
   onProgress?: (downloadedBytes: number, totalBytes: number) => void,
 ): Promise<void> {

@@ -62,6 +62,12 @@ type VirtualTagRow =
       height: number;
     };
 
+type VirtualTagRowDraft =
+  | Omit<Extract<VirtualTagRow, { kind: "header" }>, "top">
+  | Omit<Extract<VirtualTagRow, { kind: "domain" }>, "top">
+  | Omit<Extract<VirtualTagRow, { kind: "tag" }>, "top">
+  | Omit<Extract<VirtualTagRow, { kind: "empty" }>, "top">;
+
 const TAG_LIST_HEADER_HEIGHT = 28;
 const TAG_LIST_ITEM_HEIGHT = 24;
 const TAG_LIST_EMPTY_HEIGHT = 28;
@@ -394,7 +400,7 @@ function buildVirtualTagRows(
   const rows: VirtualTagRow[] = [];
   let top = 0;
 
-  function push(row: Omit<VirtualTagRow, "top">): void {
+  function push(row: VirtualTagRowDraft): void {
     rows.push({ ...row, top } as VirtualTagRow);
     top += row.height;
   }

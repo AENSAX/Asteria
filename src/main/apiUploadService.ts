@@ -180,12 +180,21 @@ export async function handleBatchUploadRequest(
     pathParts[4] === "files" &&
     pathParts[6] === "chunks"
   ) {
-    return uploadBatchChunk(
-      request,
-      pathParts[3],
-      pathParts[5],
-      Number(pathParts[7]),
-    );
+    const batchId = pathParts[3];
+    const fileId = pathParts[5];
+    const chunkIndex = pathParts[7];
+
+    if (!batchId || !fileId || !chunkIndex) {
+      return {
+        statusCode: 404,
+        body: {
+          error: "not_found",
+          message: "接口不存在",
+        },
+      };
+    }
+
+    return uploadBatchChunk(request, batchId, fileId, Number(chunkIndex));
   }
 
   if (
@@ -193,7 +202,17 @@ export async function handleBatchUploadRequest(
     pathParts.length === 5 &&
     pathParts[4] === "commit"
   ) {
-    return commitBatchUpload(pathParts[3]);
+    const batchId = pathParts[3];
+
+    return batchId
+      ? commitBatchUpload(batchId)
+      : {
+          statusCode: 404,
+          body: {
+            error: "not_found",
+            message: "接口不存在",
+          },
+        };
   }
 
   if (
@@ -201,7 +220,17 @@ export async function handleBatchUploadRequest(
     pathParts.length === 5 &&
     pathParts[4] === "cancel"
   ) {
-    return cancelBatchUpload(pathParts[3]);
+    const batchId = pathParts[3];
+
+    return batchId
+      ? cancelBatchUpload(batchId)
+      : {
+          statusCode: 404,
+          body: {
+            error: "not_found",
+            message: "接口不存在",
+          },
+        };
   }
 
   return {
@@ -486,9 +515,10 @@ export function normalizeApiTags(value: unknown): TagDraft[] {
 
   for (const item of values) {
     if (typeof item === "string") {
-      const [namespace, ...nameParts] = item.includes(":")
+      const [rawNamespace, ...nameParts] = item.includes(":")
         ? item.split(":")
         : ["", item];
+      const namespace = rawNamespace ?? "";
       const name = nameParts.join(":").trim();
 
       if (name) {
@@ -640,7 +670,13 @@ function parseMultipartBody(
     throw new Error("multipart boundary 缺失");
   }
 
-  const boundary = Buffer.from(`--${match[1].replace(/^"|"$/g, "")}`);
+  const boundaryText = match[1];
+
+  if (!boundaryText) {
+    throw new Error("multipart boundary 缺失");
+  }
+
+  const boundary = Buffer.from(`--${boundaryText.replace(/^"|"$/g, "")}`);
   const parts: UploadedPart[] = [];
   let position = body.indexOf(boundary);
 

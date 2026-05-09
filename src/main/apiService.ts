@@ -12,6 +12,7 @@ import {
   listApiFileIdentifiers,
   listApiServices,
   updateApiFileMetadata,
+  type ApiFileMetadataUpdateInput,
 } from "./database.js";
 import type {
   ApiServiceAvailability,
@@ -260,11 +261,21 @@ async function handleFilesRequest(
   const metadataMatch = /^\/api\/files\/([^/]+)\/metadata$/.exec(url.pathname);
 
   if (metadataMatch) {
+    const identifier = metadataMatch[1];
+
+    if (!identifier) {
+      writeJson(response, 404, {
+        error: "not_found",
+        message: "接口不存在",
+      });
+      return;
+    }
+
     await handleFileMetadataUpdateRequest(
       service,
       request,
       response,
-      decodeURIComponent(metadataMatch[1]),
+      decodeURIComponent(identifier),
     );
     return;
   }
@@ -302,7 +313,17 @@ async function handleFilesRequest(
     return;
   }
 
-  const apiIdentifier = decodeURIComponent(match[1]);
+  const identifier = match[1];
+
+  if (!identifier) {
+    writeJson(response, 404, {
+      error: "not_found",
+      message: "接口不存在",
+    });
+    return;
+  }
+
+  const apiIdentifier = decodeURIComponent(identifier);
   const file = getApiFileByIdentifier(apiIdentifier);
 
   if (!file) {
@@ -383,20 +404,22 @@ async function handleFileMetadataUpdateRequest(
     rawBody && typeof rawBody === "object"
       ? (rawBody as Record<string, unknown>)
       : {};
-  const update = {
-    tags: Object.prototype.hasOwnProperty.call(body, "tags")
-      ? normalizeApiTags(body.tags)
-      : undefined,
+  const update: ApiFileMetadataUpdateInput = {
     tagStyleName:
       typeof body.tagStyle === "string" && body.tagStyle.trim()
         ? body.tagStyle.trim()
         : null,
-    urls: Object.prototype.hasOwnProperty.call(body, "urls")
-      ? normalizeApiUrls(body.urls)
-      : Object.prototype.hasOwnProperty.call(body, "url")
-        ? normalizeApiUrls(body.url)
-        : undefined,
   };
+
+  if (Object.prototype.hasOwnProperty.call(body, "tags")) {
+    update.tags = normalizeApiTags(body.tags);
+  }
+
+  if (Object.prototype.hasOwnProperty.call(body, "urls")) {
+    update.urls = normalizeApiUrls(body.urls);
+  } else if (Object.prototype.hasOwnProperty.call(body, "url")) {
+    update.urls = normalizeApiUrls(body.url);
+  }
 
   if (!Array.isArray(update.tags) && !Array.isArray(update.urls)) {
     writeJson(response, 400, {
