@@ -78,23 +78,23 @@ export function FavoritesWindow(): JSX.Element {
   }
 
   return (
-    <section className="module-view favorite-window">
-      <div className="browser-grid favorite-grid">
+    <section className="grid h-full min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_24px] bg-[var(--panel)]">
+      <div className="grid auto-rows-[128px] grid-cols-[repeat(auto-fill,128px)] content-start justify-start gap-2 overflow-auto p-2">
         {files.length > 0 ? (
           files.map((file) => (
-            <article className="browser-cell" key={file.id} title={file.originalPath}>
-              <FileRatingStack className="browser-rating-stack" ratings={file.ratings} />
+            <article className="relative grid h-32 w-32 overflow-hidden border border-[var(--line)] bg-[var(--surface-bg)]" key={file.id} title={file.originalPath}>
+              <FileRatingStack ratings={file.ratings} />
               <FavoriteButton active={Boolean(file.isFavorite)} onToggle={() => void toggleFavorite(file)} />
-              <button className="favorite-media-button" type="button" onClick={() => void openFileDetail(file.id)}>
+              <button className="grid h-full w-full place-items-center border-0 bg-transparent p-0" type="button" onClick={() => void openFileDetail(file.id)}>
                 {renderFavoriteMedia(file)}
               </button>
             </article>
           ))
         ) : (
-          <div className="browser-empty">没有收藏文件</div>
+          <div className="text-[var(--muted)]">没有收藏文件</div>
         )}
       </div>
-      <footer className="view-status">{message}</footer>
+      <footer className="flex h-6 items-center border-t border-[var(--line)] px-2 text-[var(--muted)]">{message}</footer>
     </section>
   );
 }
@@ -121,12 +121,12 @@ function renderFavoriteMedia(file: BrowserFileRecord): JSX.Element {
   const extension = file.extension?.toLowerCase() ?? '';
 
   if (isImageExtension(extension)) {
-    return <img alt={file.fileName} src={file.thumbnailUrl} />;
+    return <img className="block max-h-full max-w-full object-contain" alt={file.fileName} src={file.thumbnailUrl} />;
   }
 
   if (isVideoExtension(extension)) {
-    return <video muted preload="metadata" src={file.mediaUrl} />;
+    return <video className="block max-h-full max-w-full object-contain" muted preload="metadata" src={file.mediaUrl} />;
   }
 
-  return <span>{extension || 'file'}</span>;
+  return <span className="text-[var(--muted)]">{extension || 'file'}</span>;
 }

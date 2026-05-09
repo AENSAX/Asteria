@@ -33,6 +33,21 @@ import {
 
 type SettingsCategory = 'file' | 'interface' | 'appearance' | 'network' | 'shortcut';
 
+const navItemClass =
+  'block h-7 w-full cursor-default border-0 border-b border-[var(--line)] bg-transparent px-2 text-left text-[11px]';
+const activeNavItemClass = `${navItemClass} bg-[var(--panel-strong)]`;
+const panelClass = 'border border-[var(--line)] bg-[var(--panel)]';
+const titleClass = 'h-7 border-b border-[var(--line)] bg-[var(--panel-strong)] px-2 font-semibold leading-7';
+const pathListClass = 'grid gap-2 p-2';
+const pathRowClass =
+  'grid grid-cols-[104px_minmax(0,1fr)_32px_58px] items-center gap-1.5 [&>span]:text-[11px] [&>span]:text-[var(--text)] [&>input]:h-6 [&>input]:min-w-0 [&>input]:border [&>input]:border-[var(--line-strong)] [&>input]:bg-[var(--surface-inset-bg)] [&>input]:px-1.5 [&>input]:text-[var(--ink)] [&>input::placeholder]:text-[var(--disabled-ink)] [&>button]:h-6 [&>button]:min-w-0 [&>button]:cursor-default [&>button]:border [&>button]:border-[var(--line-strong)] [&>button]:bg-[var(--panel-strong)] [&>button]:text-[11px] [&>button:disabled]:text-[var(--disabled-ink)]';
+const checkRowClass =
+  'grid min-h-6 grid-cols-[16px_minmax(0,1fr)_70px] items-center gap-1.5 text-[11px] [&>input]:m-0 [&>input]:h-3.5 [&>input]:w-3.5 [&>span]:text-[var(--text)] [&>button]:h-6 [&>button]:cursor-default [&>button]:border [&>button]:border-[var(--line-strong)] [&>button]:bg-[var(--panel-strong)] [&>button]:text-[11px]';
+const configTitleClass =
+  'flex h-6 items-center justify-between border-b border-[var(--line)] bg-[var(--panel-strong)] px-2 text-[11px] font-semibold leading-6 text-[var(--text)]';
+const smallInputButtonClass =
+  '[&>input]:h-6 [&>input]:min-w-0 [&>input]:border [&>input]:border-[var(--line-strong)] [&>input]:bg-[var(--surface-inset-bg)] [&>input]:px-1.5 [&>input]:text-[var(--ink)] [&>input::placeholder]:text-[var(--disabled-ink)] [&>button]:h-6 [&>button]:min-w-0 [&>button]:cursor-default [&>button]:border [&>button]:border-[var(--line-strong)] [&>button]:bg-[var(--panel-strong)] [&>button]:px-1.5 [&>button]:text-[var(--ink)] [&>button:disabled]:text-[var(--disabled-ink)]';
+
 export function SettingsWindow(): JSX.Element {
   const [category, setCategory] = useState<SettingsCategory>('file');
   const [settings, setSettings] = useState<StorageSettings | null>(null);
@@ -307,43 +322,43 @@ export function SettingsWindow(): JSX.Element {
 
   return (
     <ResizableColumns
-      className="settings-window"
+      className="relative grid h-full min-h-0 min-w-0 grid-cols-[148px_minmax(0,1fr)] border border-[var(--line)] bg-[var(--panel)]"
       defaultLeftWidth={148}
       minLeftWidth={110}
       minRightWidth={360}
       storageKey="asteria:settings-sidebar-width"
       left={(
-        <aside className="settings-nav">
+        <aside className="min-h-0 min-w-0 border-r border-[var(--line)] bg-[var(--surface-bg)]">
         <button
-          className={category === 'file' ? 'settings-nav-item active' : 'settings-nav-item'}
+          className={category === 'file' ? activeNavItemClass : navItemClass}
           type="button"
           onClick={() => setCategory('file')}
         >
           文件
         </button>
         <button
-          className={category === 'interface' ? 'settings-nav-item active' : 'settings-nav-item'}
+          className={category === 'interface' ? activeNavItemClass : navItemClass}
           type="button"
           onClick={() => setCategory('interface')}
         >
           界面
         </button>
         <button
-          className={category === 'appearance' ? 'settings-nav-item active' : 'settings-nav-item'}
+          className={category === 'appearance' ? activeNavItemClass : navItemClass}
           type="button"
           onClick={() => setCategory('appearance')}
         >
           外观
         </button>
         <button
-          className={category === 'network' ? 'settings-nav-item active' : 'settings-nav-item'}
+          className={category === 'network' ? activeNavItemClass : navItemClass}
           type="button"
           onClick={() => setCategory('network')}
         >
           网络
         </button>
         <button
-          className={category === 'shortcut' ? 'settings-nav-item active' : 'settings-nav-item'}
+          className={category === 'shortcut' ? activeNavItemClass : navItemClass}
           type="button"
           onClick={() => setCategory('shortcut')}
         >
@@ -352,12 +367,12 @@ export function SettingsWindow(): JSX.Element {
         </aside>
       )}
       right={(
-        <main className="settings-content">
+        <main className="min-h-0 min-w-0 bg-[var(--bg)] p-2">
         {category === 'file' ? (
-          <section className="settings-panel">
-            <header className="settings-title">文件</header>
-            <div className="settings-path-list">
-              <label className="settings-path-row">
+          <section className={panelClass}>
+            <header className={titleClass}>文件</header>
+            <div className={pathListClass}>
+              <label className={pathRowClass}>
                 <span>文件存储位置</span>
                 <input
                   aria-label="文件存储位置"
@@ -374,7 +389,7 @@ export function SettingsWindow(): JSX.Element {
                   onAction={saveStoragePath}
                 />
               </label>
-              <label className="settings-path-row">
+              <label className={pathRowClass}>
                 <span>缩略图缓存位置</span>
                 <input
                   aria-label="缩略图缓存位置"
@@ -391,7 +406,7 @@ export function SettingsWindow(): JSX.Element {
                   onAction={saveThumbnailPath}
                 />
               </label>
-              <label className="settings-check-row">
+              <label className={checkRowClass}>
                 <input
                   checked={convertImportedImagesToPng}
                   type="checkbox"
@@ -408,11 +423,11 @@ export function SettingsWindow(): JSX.Element {
             </div>
           </section>
         ) : category === 'interface' ? (
-          <section className="settings-panel interface-settings-panel">
-            <header className="settings-title">界面</header>
-            <div className="interface-config-block">
-              <div className="interface-config-title">浏览</div>
-              <label className="interface-config-row">
+          <section className={`${panelClass} grid min-h-0 grid-rows-[28px_auto_24px_minmax(0,1fr)]`}>
+            <header className={titleClass}>界面</header>
+            <div className="grid gap-1.5 border-b border-[var(--line)] bg-[var(--surface-bg)] p-2">
+              <div className={configTitleClass}>浏览</div>
+              <label className={`grid grid-cols-[104px_120px_58px_minmax(0,1fr)] items-center gap-1.5 [&>span]:text-[11px] [&>span]:text-[var(--text)] ${smallInputButtonClass}`}>
                 <span>单页文件数</span>
                 <input
                   aria-label="文件浏览器单页文件数"
@@ -425,42 +440,42 @@ export function SettingsWindow(): JSX.Element {
                 <ActionFeedbackButton label="保存" onAction={saveBrowserPageSize} />
               </label>
             </div>
-            <div className="interface-config-title">
+            <div className={configTitleClass}>
               <span>页面配置</span>
-              <span className="layout-config-status">{layoutMessage}</span>
+              <span className="text-[11px] font-normal text-[var(--muted)]">{layoutMessage}</span>
             </div>
-            <div className="layout-config-area">
-              <div className="layout-config-list">
-                <div className="layout-config-list-body">
+            <div className="grid min-h-0 grid-cols-[260px_minmax(0,1fr)]">
+              <div className="flex min-h-0 flex-col border-r border-[var(--line)] bg-[var(--surface-bg)]">
+                <div className="min-h-0 flex-1 overflow-auto">
                   {layoutConfigs.length > 0 ? (
                     layoutConfigs.map((config) => (
                       <div
-                        className={config.id === selectedLayoutConfigId ? 'layout-config-item active' : 'layout-config-item'}
+                        className={`grid min-h-[26px] w-full grid-cols-[minmax(0,1fr)] border-0 border-b border-l-[3px] border-b-[var(--line)] p-0 text-[11px] text-(--ink) ${config.id === selectedLayoutConfigId ? 'border-l-[var(--accent)] bg-[var(--surface-raised-bg)]' : 'border-l-transparent bg-transparent'}`}
                         key={config.id}
                       >
                         <button
-                          className="layout-config-item-name"
+                          className="min-w-0 cursor-pointer overflow-hidden text-ellipsis whitespace-nowrap border-0 bg-transparent px-1.5 text-left text-[var(--ink)]"
                           title={config.path}
                           type="button"
                           onClick={() => setSelectedLayoutConfigId(config.id)}
                         >
-                          <span>{config.name}</span>
+                          <span className="block overflow-hidden text-ellipsis whitespace-nowrap leading-[26px]">{config.name}</span>
                         </button>
                       </div>
                     ))
                   ) : (
-                    <div className="layout-config-empty">没有配置</div>
+                    <div className="px-2 py-1.5 text-[var(--muted)]">没有配置</div>
                   )}
                 </div>
-                <div className="layout-config-side-actions">
+                <div className={`border-t border-[var(--line)] p-2 ${smallInputButtonClass}`}>
                   <button type="button" onClick={() => void createLayoutConfig()}>
                     新建配置
                   </button>
                 </div>
               </div>
 
-              <div className="layout-config-detail">
-                <div className="layout-config-row">
+              <div className="grid min-w-0 content-start gap-1.5 p-2">
+                <div className={`grid grid-cols-[minmax(0,1fr)_72px] gap-1.5 ${smallInputButtonClass}`}>
                   <input
                     aria-label="配置名称"
                     placeholder="输入配置名称"
@@ -473,8 +488,8 @@ export function SettingsWindow(): JSX.Element {
                   </button>
                 </div>
 
-                <div className="layout-config-check-row">
-                  <label className="layout-config-check layout-config-check--detail">
+                <div className="flex items-center gap-3">
+                  <label className="flex min-w-0 cursor-pointer items-center justify-start gap-1 border-0 bg-transparent p-0 text-[11px] text-[var(--ink)]">
                     <input
                       checked={selectedLayoutConfig ? selectedLayoutConfig.id === layoutSettings.defaultConfigId : false}
                       disabled={!selectedLayoutConfig}
@@ -487,7 +502,7 @@ export function SettingsWindow(): JSX.Element {
                     />
                     <span>默认导入页</span>
                   </label>
-                  <label className="layout-config-check layout-config-check--detail">
+                  <label className="flex min-w-0 cursor-pointer items-center justify-start gap-1 border-0 bg-transparent p-0 text-[11px] text-[var(--ink)]">
                     <input
                       checked={selectedLayoutConfig ? selectedLayoutConfig.id === layoutSettings.newPageConfigId : false}
                       disabled={!selectedLayoutConfig}
@@ -502,7 +517,7 @@ export function SettingsWindow(): JSX.Element {
                   </label>
                 </div>
 
-                <div className="layout-config-actions">
+                <div className={`grid grid-cols-[repeat(3,minmax(82px,1fr))] gap-1.5 ${smallInputButtonClass}`}>
                   <button disabled={!selectedLayoutConfig} type="button" onClick={() => void openSelectedLayoutConfig()}>
                     打开配置文件
                   </button>
@@ -514,11 +529,11 @@ export function SettingsWindow(): JSX.Element {
             </div>
           </section>
         ) : category === 'appearance' ? (
-          <section className="settings-panel appearance-settings-panel">
-            <header className="settings-title">外观</header>
-            <div className="appearance-config-block">
-              <div className="interface-config-title">主题设置</div>
-              <label className="appearance-theme-row">
+          <section className={`${panelClass} grid min-h-0 grid-rows-[28px_auto_minmax(0,1fr)]`}>
+            <header className={titleClass}>外观</header>
+            <div className="grid gap-1.5 border-b border-[var(--line)] bg-[var(--surface-bg)] p-2">
+              <div className={configTitleClass}>主题设置</div>
+              <label className="grid grid-cols-[104px_160px_58px_minmax(0,1fr)] items-center gap-1.5 [&>span]:text-[11px] [&>span]:text-[var(--text)] [&>select]:h-6 [&>select]:min-w-0 [&>select]:border [&>select]:border-[var(--line-strong)] [&>select]:bg-[var(--surface-inset-bg)] [&>select]:px-1.5 [&>select]:text-[var(--ink)] [&>button]:h-6 [&>button]:min-w-0 [&>button]:cursor-default [&>button]:border [&>button]:border-[var(--line-strong)] [&>button]:bg-[var(--panel-strong)]">
                 <span>主题</span>
                 <select
                   aria-label="主题"
@@ -540,9 +555,9 @@ export function SettingsWindow(): JSX.Element {
             </div>
           </section>
         ) : category === 'network' ? (
-          <section className="settings-panel network-settings-panel">
-            <header className="settings-title">网络</header>
-            <label className="network-config-check">
+          <section className={panelClass}>
+            <header className={titleClass}>网络</header>
+            <label className="grid min-h-7 grid-cols-[18px_minmax(0,1fr)] items-center gap-1.5 border-b border-[var(--line)] bg-[var(--surface-bg)] px-2 text-[11px]">
               <input
                 checked={proxyEnabled}
                 type="checkbox"
@@ -550,8 +565,8 @@ export function SettingsWindow(): JSX.Element {
               />
               <span>启用代理</span>
             </label>
-            <div className="settings-path-list">
-              <label className="settings-path-row">
+            <div className={pathListClass}>
+              <label className={pathRowClass}>
                 <span>代理地址</span>
                 <input
                   aria-label="代理地址"
@@ -560,7 +575,7 @@ export function SettingsWindow(): JSX.Element {
                   onChange={(event) => setProxyHost(event.target.value)}
                 />
               </label>
-              <label className="settings-path-row network-path-row">
+              <label className={`${pathRowClass} grid-cols-[104px_minmax(0,1fr)_70px]`}>
                 <span>代理端口</span>
                 <input
                   aria-label="代理端口"
@@ -572,7 +587,7 @@ export function SettingsWindow(): JSX.Element {
                   onChange={(event) => setProxyPort(event.target.value)}
                 />
                 <ActionFeedbackButton
-                  className="settings-action-button"
+                  className="min-w-[70px]"
                   disabled={!networkChanged}
                   label="保存"
                   onAction={saveNetworkSettings}
@@ -581,23 +596,23 @@ export function SettingsWindow(): JSX.Element {
             </div>
           </section>
         ) : (
-          <section className="settings-panel shortcut-settings-panel">
-            <header className="settings-title">快捷键</header>
-            <div className="shortcut-settings-list">
+          <section className={`${panelClass} grid min-h-0 grid-rows-[28px_minmax(0,1fr)_32px]`}>
+            <header className={titleClass}>快捷键</header>
+            <div className="min-h-0 overflow-auto bg-[var(--surface-bg)]">
               {shortcutActionConfigs.map((config) => {
                 const definitions = shortcutSettings[config.action] ?? [];
 
                 return (
-                <div className="shortcut-settings-row" key={config.action}>
-                  <span>{config.label}</span>
-                  <small>{config.description}</small>
-                  <div className="shortcut-settings-bindings">
+                <div className="grid min-h-7 grid-cols-[130px_150px_minmax(0,1fr)] items-center gap-1.5 border-b border-[var(--line)] px-2 py-[3px]" key={config.action}>
+                  <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{config.label}</span>
+                  <small className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[var(--muted)]">{config.description}</small>
+                  <div className="flex min-w-0 flex-wrap gap-1 [&_button]:h-[22px] [&_button]:cursor-default [&_button]:border [&_button]:border-[var(--line-strong)] [&_button]:bg-[var(--surface-inset-bg)] [&_button]:px-1.5 [&_button]:leading-5 [&_button]:text-[var(--ink)] [&_button:disabled]:text-[var(--disabled-ink)]">
                     {definitions.map((definition, index) => (
-                      <span className="shortcut-binding" key={`${config.action}-${index}`}>
+                      <span className="inline-grid h-[22px] min-w-0 grid-cols-[minmax(42px,auto)_20px]" key={`${config.action}-${index}`}>
                         <button
                           className={
                             recordingShortcut?.action === config.action && recordingShortcut.index === index
-                              ? 'recording'
+                              ? 'border-[var(--accent)] text-[var(--active-ink)]'
                               : ''
                           }
                           type="button"
@@ -620,8 +635,8 @@ export function SettingsWindow(): JSX.Element {
                     <button
                       className={
                         recordingShortcut?.action === config.action && recordingShortcut.index === definitions.length
-                          ? 'recording'
-                          : ''
+                        ? 'border-[var(--accent)] text-[var(--active-ink)]'
+                        : ''
                       }
                       type="button"
                       onClick={() => setRecordingShortcut({ action: config.action, index: definitions.length })}
@@ -635,7 +650,7 @@ export function SettingsWindow(): JSX.Element {
                 );
               })}
             </div>
-            <div className="shortcut-settings-actions">
+            <div className="grid grid-cols-[72px_72px_minmax(0,1fr)] items-center gap-1.5 border-t border-[var(--line)] bg-[var(--panel)] px-2 py-1 [&>button]:h-[22px] [&>button]:cursor-default [&>button]:border [&>button]:border-[var(--line-strong)] [&>button]:bg-[var(--panel-strong)] [&>button]:text-[var(--ink)]">
               <ActionFeedbackButton label="保存" onAction={saveShortcuts} />
               <button type="button" onClick={resetShortcuts}>
                 恢复默认

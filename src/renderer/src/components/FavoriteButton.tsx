@@ -7,7 +7,12 @@ export function FavoriteButton({ active, onToggle }: FavoriteButtonProps): JSX.E
   return (
     <button
       aria-label={active ? '取消喜欢' : '喜欢'}
-      className={active ? 'favorite-button active' : 'favorite-button'}
+      className={[
+        'absolute right-1 top-1 z-[2] grid h-5 w-5 place-items-center border border-[var(--line-strong)] bg-[var(--surface-inset-bg)] text-[12px] leading-none text-[var(--favorite)]',
+        active ? 'border-[var(--favorite)] text-[var(--favorite)]' : ''
+      ]
+        .filter(Boolean)
+        .join(' ')}
       title={active ? '取消喜欢' : '喜欢'}
       type="button"
       onClick={(event) => {

@@ -29,39 +29,53 @@ interface VirtualTagRows {
 
 type VirtualTagRow =
   | {
-      kind: 'header';
-      key: string;
-      label: string;
-      top: number;
-      height: number;
-    }
+    kind: 'header';
+    key: string;
+    label: string;
+    top: number;
+    height: number;
+  }
   | {
-      kind: 'domain';
-      key: string;
-      domain: DomainRecord;
-      tag: ManagedTagRecord;
-      top: number;
-      height: number;
-    }
+    kind: 'domain';
+    key: string;
+    domain: DomainRecord;
+    tag: ManagedTagRecord;
+    top: number;
+    height: number;
+  }
   | {
-      kind: 'tag';
-      key: string;
-      tag: ManagedTagRecord;
-      top: number;
-      height: number;
-    }
+    kind: 'tag';
+    key: string;
+    tag: ManagedTagRecord;
+    top: number;
+    height: number;
+  }
   | {
-      kind: 'empty';
-      key: string;
-      label: string;
-      top: number;
-      height: number;
-    };
+    kind: 'empty';
+    key: string;
+    label: string;
+    top: number;
+    height: number;
+  };
 
 const TAG_LIST_HEADER_HEIGHT = 28;
 const TAG_LIST_ITEM_HEIGHT = 24;
 const TAG_LIST_EMPTY_HEIGHT = 28;
 const TAG_LIST_OVERSCAN_PX = 180;
+
+const tagListRootClass = 'grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] bg-[var(--panel)]';
+const tagListToolbarClass =
+  'grid grid-cols-[92px_112px_118px_minmax(0,1fr)] items-center gap-1.5 border-b border-[var(--line)] bg-[var(--panel)] p-1.5';
+const tagListSelectClass =
+  'h-6 min-w-0 border border-[var(--line-strong)] bg-[var(--surface-inset-bg)] px-1.5 text-[var(--ink)]';
+const tagListToolbarLabelClass = 'flex min-w-0 items-center gap-1 whitespace-nowrap text-[var(--ink)]';
+const tagListContentClass = 'min-h-0 overflow-auto bg-[var(--surface-bg)]';
+const tagListHeaderClass =
+  'absolute w-full h-7 border-b border-t border-[var(--border-dark)] bg-[var(--group-header-bg)] px-2 leading-[26px] font-semibold text-[var(--group-header-ink)]';
+const tagListEmptyClass = 'px-2 py-1.5 text-[var(--muted)]';
+const tagListItemClass =
+  'grid h-6 w-full grid-cols-[minmax(0,1fr)_52px] border-0 border-b border-[var(--line)] bg-transparent text-[11px] text-[var(--ink)] hover:bg-[var(--accent-weak)]';
+const tagListItemPendingClass = 'border-[var(--danger)] bg-[var(--danger-bg)]';
 
 export type TagListFilterMode = 'all' | 'namespace' | 'plain' | 'selection';
 
@@ -225,10 +239,11 @@ export function TagListView({
   }
 
   return (
-    <section className="module-view tag-list-view">
-      <div className="tag-list-toolbar">
+    <section className={tagListRootClass}>
+      <div className={tagListToolbarClass}>
         <select
           aria-label="标签显示范围"
+          className={tagListSelectClass}
           value={state.filterMode}
           onChange={(event) =>
             onStateChange({ ...state, filterMode: event.target.value as TagListFilterMode })
@@ -241,6 +256,7 @@ export function TagListView({
         </select>
         <select
           aria-label="字母排序"
+          className={tagListSelectClass}
           value={state.direction}
           onChange={(event) =>
             onStateChange({ ...state, direction: event.target.value as SortDirection })
@@ -249,7 +265,7 @@ export function TagListView({
           <option value="asc">字母升序</option>
           <option value="desc">字母降序</option>
         </select>
-        <label>
+        <label className={tagListToolbarLabelClass}>
           <input
             checked={state.namespaceFirst}
             type="checkbox"
@@ -257,11 +273,13 @@ export function TagListView({
           />
           namespace优先
         </label>
-        <span>{locked ? '不可操作，因为正在导入文件' : message}</span>
+        <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-right text-[var(--muted)]">
+          {locked ? '不可操作，因为正在导入文件' : message}
+        </span>
       </div>
 
-      <div className="tag-list-content" ref={contentRef} onScroll={scheduleViewportUpdate}>
-        <div className="tag-list-virtual-spacer" style={{ height: virtualRows.totalHeight }}>
+      <div className={tagListContentClass} ref={contentRef} onScroll={scheduleViewportUpdate}>
+        <div className="relative min-w-0" style={{ height: virtualRows.totalHeight }}>
           {visibleRows.map((row) => renderVirtualTagRow(row, locked, onAppendSearchTag))}
         </div>
       </div>
@@ -281,7 +299,7 @@ function renderVirtualTagRow(
 
   if (row.kind === 'header') {
     return (
-      <div className="tag-list-group-header" key={row.key} style={style}>
+      <div className={tagListHeaderClass} key={row.key} style={style}>
         {row.label}
       </div>
     );
@@ -289,7 +307,7 @@ function renderVirtualTagRow(
 
   if (row.kind === 'empty') {
     return (
-      <div className="tag-list-empty tag-list-virtual-row" key={row.key} style={style}>
+      <div className={`absolute left-0 right-0 ${tagListEmptyClass}`} key={row.key} style={style}>
         {row.label}
       </div>
     );
@@ -298,7 +316,7 @@ function renderVirtualTagRow(
   if (row.kind === 'domain') {
     return (
       <button
-        className="tag-list-item domain-tag-list-item tag-list-virtual-row"
+        className={`absolute left-0 right-0 ${tagListItemClass}`}
         disabled={locked}
         key={row.key}
         style={style}
@@ -306,15 +324,15 @@ function renderVirtualTagRow(
         type="button"
         onClick={() => onAppendSearchTag(row.tag)}
       >
-        <span>{row.domain.displayName}</span>
-        <span>{row.domain.fileCount}</span>
+        <span className="min-w-0 overflow-hidden px-2 leading-6 text-left text-ellipsis whitespace-nowrap">{row.domain.displayName}</span>
+        <span className="min-w-0 overflow-hidden px-2 leading-6 text-right text-ellipsis whitespace-nowrap text-[var(--muted)]">{row.domain.fileCount}</span>
       </button>
     );
   }
 
   return (
     <button
-      className={getTagNamespaceClassName(row.tag, 'tag-list-item tag-list-virtual-row')}
+      className={getTagNamespaceClassName(row.tag, `absolute left-0 right-0 ${tagListItemClass}`)}
       disabled={locked}
       key={row.key}
       style={{ ...style, ...getTagNamespaceStyle(row.tag) }}
@@ -322,8 +340,8 @@ function renderVirtualTagRow(
       type="button"
       onClick={() => onAppendSearchTag(row.tag)}
     >
-      <span>{formatTagLabel(row.tag)}</span>
-      <span>{row.tag.fileCount}</span>
+      <span className="min-w-0 overflow-hidden px-2 leading-6 text-left text-ellipsis whitespace-nowrap">{formatTagLabel(row.tag)}</span>
+      <span className="min-w-0 overflow-hidden px-2 leading-6 text-right text-ellipsis whitespace-nowrap text-[var(--muted)]">{row.tag.fileCount}</span>
     </button>
   );
 }

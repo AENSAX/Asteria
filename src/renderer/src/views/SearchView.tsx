@@ -41,6 +41,22 @@ export interface SearchAppendTagRequest {
   tag: TagRecord;
 }
 
+const searchRootClass = 'grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_auto_minmax(0,1fr)] bg-[var(--panel)]';
+const lockMessageClass = 'h-6 px-2 leading-6 text-[var(--muted)]';
+const searchInputWrapClass = 'relative min-w-0';
+const tokenInputClass =
+  'flex min-h-[30px] flex-wrap items-center gap-1 p-1 border border-[var(--line-strong)] bg-[var(--surface-inset-bg)] [&>input]:h-5 [&>input]:min-w-[96px] [&>input]:flex-1 [&>input]:border-0 [&>input]:bg-transparent [&>input]:p-0 [&>input]:text-[var(--ink)] [&>input]:outline-0 [&>input::placeholder]:text-[var(--disabled-ink)]';
+const operatorTokenClass =
+  'inline-flex h-[18px] min-w-[18px] items-center justify-center border border-[var(--line-strong)] bg-[var(--surface-bg)] text-[var(--muted)]';
+const suggestionListClass =
+  'absolute left-0 top-full z-[4] border border-[var(--line-strong)] bg-[var(--panel)] [&>button]:block [&>button]:h-6 [&>button]:w-full [&>button]:cursor-default [&>button]:border-0 [&>button]:border-b [&>button]:border-[var(--line)] [&>button]:bg-transparent [&>button]:px-1.5 [&>button]:text-left [&>button]:text-[11px] [&>button:last-child]:border-b-0 [&>button:hover]:bg-[var(--accent-weak)]';
+const selectedSuggestionClass = 'bg-[var(--accent-weak)]';
+const filterListClass =
+  'min-h-0 overflow-auto border border-[var(--line)] bg-[var(--surface-bg)] [&>div]:flex [&>div]:min-h-[26px] [&>div]:w-full [&>div]:flex-wrap [&>div]:items-center [&>div]:gap-1 [&>div]:border-0 [&>div]:border-b [&>div]:border-[var(--line)] [&>div]:px-1.5 [&>div]:text-[11px] [&>div]:last:border-b-0 [&>div:hover]:bg-[var(--button-hover)]';
+const pendingFilterClass = 'border-[var(--danger)] bg-[var(--danger-bg)]';
+const searchFilterEmptyClass = 'h-6 px-2 leading-6 text-[var(--muted)]';
+const searchFilterTokenClass = 'max-w-full';
+
 export function SearchView({
   inputState,
   appendTagRequest,
@@ -358,16 +374,16 @@ export function SearchView({
   }
 
   return (
-    <section className="module-view search-view">
-      {locked ? <div className="view-lock-message">不可操作，因为正在导入文件</div> : null}
-      <div className="search-input-wrap">
+    <section className={searchRootClass}>
+      {locked ? <div className={lockMessageClass}>不可操作，因为正在导入文件</div> : null}
+      <div className={searchInputWrapClass}>
         {suggestions.length > 0 ? (
-          <div className="tag-suggestions search-suggestions">
+          <div className={suggestionListClass}>
             {suggestions.map((tag, index) => (
               <button
                 className={getTagNamespaceClassName(
                   tag,
-                  index === selectedSuggestionIndex ? 'tag-suggestion selected' : 'tag-suggestion'
+                  index === selectedSuggestionIndex ? `tag-suggestion ${selectedSuggestionClass}` : 'tag-suggestion'
                 )}
                 key={`${tag.kind}-${tag.id}`}
                 style={getSearchTokenStyle(tag)}
@@ -383,7 +399,7 @@ export function SearchView({
           </div>
         ) : null}
 
-        <div className="search-token-input" onMouseDown={clearPendingTokens}>
+        <div className={tokenInputClass} onMouseDown={clearPendingTokens}>
           {tokens.map((token, index) =>
             token.kind === 'tag' ? (
               <span
@@ -400,7 +416,7 @@ export function SearchView({
                 {formatTagLabel(token.token)}
               </span>
             ) : (
-              <span className="search-operator-token" key={`${token.value}-${index}`}>
+              <span className={operatorTokenClass} key={`${token.value}-${index}`}>
                 {token.value}
               </span>
             )
@@ -416,15 +432,11 @@ export function SearchView({
         </div>
       </div>
 
-      <div className="search-filter-list" onMouseDown={clearPendingTokens}>
+      <div className={filterListClass} onMouseDown={clearPendingTokens}>
         {filters.length > 0 ? (
           filters.map((filter, index) => (
             <div
-              className={
-                pendingFilterIndexes.includes(index)
-                  ? 'search-filter-item pending'
-                  : 'search-filter-item'
-              }
+              className={`search-filter-item ${pendingFilterIndexes.includes(index) ? pendingFilterClass : ''}`}
               key={`${buildSearchExpression(filter.tokens, '')}-${index}`}
               title={buildSearchExpression(filter.tokens, '')}
               onMouseDown={(event) => handleFilterMouseDown(event, index)}
@@ -432,14 +444,14 @@ export function SearchView({
               {filter.tokens.map((token, tokenIndex) =>
                 token.kind === 'tag' ? (
                   <span
-                    className={getTagNamespaceClassName(token.token, 'tag-token search-filter-token')}
+                    className={getTagNamespaceClassName(token.token, `tag-token search-filter-token ${searchFilterTokenClass}`)}
                     key={`${token.token.key}-${tokenIndex}`}
                     style={getSearchTokenStyle(token.token)}
                   >
                     {formatTagLabel(token.token)}
                   </span>
                 ) : (
-                  <span className="search-operator-token" key={`${token.value}-${tokenIndex}`}>
+                  <span className={operatorTokenClass} key={`${token.value}-${tokenIndex}`}>
                     {token.value}
                   </span>
                 )
@@ -447,7 +459,7 @@ export function SearchView({
             </div>
           ))
         ) : (
-          <div className="search-filter-empty">没有筛选项</div>
+          <div className={searchFilterEmptyClass}>没有筛选项</div>
         )}
       </div>
     </section>

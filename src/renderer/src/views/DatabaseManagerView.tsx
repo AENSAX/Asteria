@@ -41,47 +41,48 @@ export function DatabaseManagerView(): JSX.Element {
   }
 
   return (
-    <section className="module-view standalone-list-window">
-      <div className="database-table-area">
-        <table className="database-table">
+    <section className="grid h-full min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_32px] bg-[var(--panel)]">
+      <div className="min-h-0 min-w-0 overflow-auto">
+        <table className="w-full table-fixed border-collapse text-[11px]">
           <thead>
             <tr>
-              <th>ID</th>
-              <th>扩展名</th>
-              <th>大小</th>
-              <th>导入时间</th>
-              <th>SHA256</th>
+              <th className="h-[26px] border-b border-r border-[var(--line)] bg-[var(--surface-bg)] px-2 text-left font-medium text-[var(--muted)]">ID</th>
+              <th className="h-[26px] border-b border-r border-[var(--line)] bg-[var(--surface-bg)] px-2 text-left font-medium text-[var(--muted)]">扩展名</th>
+              <th className="h-[26px] border-b border-r border-[var(--line)] bg-[var(--surface-bg)] px-2 text-left font-medium text-[var(--muted)]">大小</th>
+              <th className="h-[26px] border-b border-r border-[var(--line)] bg-[var(--surface-bg)] px-2 text-left font-medium text-[var(--muted)]">导入时间</th>
+              <th className="h-[26px] border-b border-r border-[var(--line)] bg-[var(--surface-bg)] px-2 text-left font-medium text-[var(--muted)]">SHA256</th>
             </tr>
           </thead>
           <tbody>
             {databasePage?.files.length ? (
               databasePage.files.map((file) => (
                 <tr key={file.id}>
-                  <td>{file.id}</td>
-                  <td>{file.extension ?? '-'}</td>
-                  <td>{formatBytes(file.sizeBytes)}</td>
-                  <td>{file.importedAt}</td>
-                  <td title={file.sha256}>{file.sha256}</td>
+                  <td className="h-[26px] overflow-hidden border-b border-r border-[var(--line)] px-2 text-left text-[var(--ink)]">{file.id}</td>
+                  <td className="h-[26px] overflow-hidden border-b border-r border-[var(--line)] px-2 text-left text-[var(--ink)]">{file.extension ?? '-'}</td>
+                  <td className="h-[26px] overflow-hidden border-b border-r border-[var(--line)] px-2 text-left text-[var(--ink)]">{formatBytes(file.sizeBytes)}</td>
+                  <td className="h-[26px] overflow-hidden border-b border-r border-[var(--line)] px-2 text-left text-[var(--ink)]">{file.importedAt}</td>
+                  <td className="h-[26px] overflow-hidden border-b border-r border-[var(--line)] px-2 text-left text-[var(--ink)]" title={file.sha256}>{file.sha256}</td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={5}>没有文件记录</td>
+                <td className="h-[26px] px-2 text-[var(--muted)]" colSpan={5}>没有文件记录</td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
 
-      <footer className="database-pager">
-        <span>
+      <footer className="flex h-8 items-center justify-between border-t border-[var(--line)] px-2 text-[var(--muted)]">
+        <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
           第 {databasePage?.page ?? 1} / {databaseTotalPages} 页，总计 {databasePage?.total ?? 0} 个文件，{message}
         </span>
-        <div>
-          <button disabled={!databasePage || databasePage.page <= 1} type="button" onClick={goToPreviousDatabasePage}>
+        <div className="flex gap-1.5">
+          <button className="h-6 min-w-[58px] cursor-default border border-[var(--line-strong)] bg-[var(--panel-strong)]" disabled={!databasePage || databasePage.page <= 1} type="button" onClick={goToPreviousDatabasePage}>
             上一页
           </button>
           <button
+            className="h-6 min-w-[58px] cursor-default border border-[var(--line-strong)] bg-[var(--panel-strong)]"
             disabled={!databasePage || databasePage.page >= databaseTotalPages}
             type="button"
             onClick={goToNextDatabasePage}

@@ -117,6 +117,29 @@ const idleWorkStatus: WorkStatus = {
   completed: 0
 };
 
+const standaloneWindowClass = 'h-full min-h-0 min-w-0 bg-[var(--bg)]';
+const emptyPageClass = 'grid h-full min-h-0 min-w-0 place-items-center bg-[var(--panel)] text-[var(--muted)]';
+const menuButtonClass =
+  'h-full min-w-12 cursor-default border-0 bg-transparent px-3 text-[11px] hover:bg-[var(--panel-strong)]';
+const activeMenuButtonClass = `${menuButtonClass} bg-[var(--panel-strong)]`;
+const menuDropdownClass =
+  'absolute left-0 top-full z-10 min-w-[132px] border border-[var(--line-strong)] bg-[var(--panel)] p-1 [&>button]:h-[26px] [&>button]:w-full [&>button]:cursor-default [&>button]:border-0 [&>button]:bg-transparent [&>button]:px-2.5 [&>button]:text-left [&>button]:text-[11px] [&>button:disabled]:text-[var(--disabled-ink)] [&>button:hover:not(:disabled)]:bg-[var(--accent-weak)]';
+const pageTabClass =
+  'grid h-[30px] min-w-[132px] max-w-[220px] grid-cols-[minmax(0,1fr)_22px] items-stretch border-r border-[var(--line)] bg-transparent text-[var(--muted)]';
+const activePageTabClass = `${pageTabClass} bg-[var(--panel)] text-[var(--ink)]`;
+const pageTabTitleClass =
+  'min-w-0 cursor-default overflow-hidden text-ellipsis whitespace-nowrap border-0 bg-transparent px-2 text-left text-[11px] text-inherit';
+const pageTabCloseClass =
+  'w-[22px] cursor-default border-0 bg-transparent p-0 text-[11px] text-inherit hover:bg-[var(--button-hover)]';
+const contextMenuClass =
+  'fixed z-30 w-[142px] border border-[var(--line-strong)] bg-[var(--panel)] p-1 [&>button]:block [&>button]:h-6 [&>button]:w-full [&>button]:cursor-default [&>button]:border-0 [&>button]:bg-transparent [&>button]:px-2 [&>button]:text-left [&>button]:text-[11px] [&>button]:text-[var(--ink)] [&>button:hover]:bg-[var(--accent-weak)]';
+const contextMenuRenameClass =
+  'grid grid-cols-[minmax(0,1fr)_48px] gap-1 [&>input]:h-6 [&>input]:min-w-0 [&>input]:border [&>input]:border-[var(--line-strong)] [&>input]:bg-[var(--surface-inset-bg)] [&>input]:px-1.5 [&>input]:text-[var(--ink)] [&>input]:outline-0 [&>input::placeholder]:text-[var(--disabled-ink)]';
+
+function cx(...classes: Array<string | false | null | undefined>): string {
+  return classes.filter(Boolean).join(' ');
+}
+
 function createPageModel(templateText = defaultPageTemplateText): Model {
   try {
     return Model.fromJson(parse(templateText) as object);
@@ -160,7 +183,7 @@ export function App(): JSX.Element {
 
   if (windowMode === 'database-manager') {
     return (
-      <main className="standalone-window">
+      <main className={standaloneWindowClass}>
         <DatabaseManagerView />
       </main>
     );
@@ -168,7 +191,7 @@ export function App(): JSX.Element {
 
   if (windowMode === 'file-detail') {
     return (
-      <main className="standalone-window">
+      <main className={standaloneWindowClass}>
         <FileDetailWindow fileId={Number(query.get('id'))} />
       </main>
     );
@@ -176,7 +199,7 @@ export function App(): JSX.Element {
 
   if (windowMode === 'screening') {
     return (
-      <main className="standalone-window">
+      <main className={standaloneWindowClass}>
         <ScreeningDetailWindow fileIds={parseIdList(query.get('ids'))} />
       </main>
     );
@@ -184,7 +207,7 @@ export function App(): JSX.Element {
 
   if (windowMode === 'settings') {
     return (
-      <main className="standalone-window">
+      <main className={standaloneWindowClass}>
         <SettingsWindow />
       </main>
     );
@@ -192,7 +215,7 @@ export function App(): JSX.Element {
 
   if (windowMode === 'tag-manager') {
     return (
-      <main className="standalone-window">
+      <main className={standaloneWindowClass}>
         <TagManagerWindow />
       </main>
     );
@@ -200,7 +223,7 @@ export function App(): JSX.Element {
 
   if (windowMode === 'recycle-bin') {
     return (
-      <main className="standalone-window">
+      <main className={standaloneWindowClass}>
         <RecycleBinWindow />
       </main>
     );
@@ -208,7 +231,7 @@ export function App(): JSX.Element {
 
   if (windowMode === 'rating-manager') {
     return (
-      <main className="standalone-window">
+      <main className={standaloneWindowClass}>
         <RatingManagerWindow />
       </main>
     );
@@ -216,7 +239,7 @@ export function App(): JSX.Element {
 
   if (windowMode === 'api-manager') {
     return (
-      <main className="standalone-window">
+      <main className={standaloneWindowClass}>
         <ApiManagerWindow />
       </main>
     );
@@ -224,7 +247,7 @@ export function App(): JSX.Element {
 
   if (windowMode === 'hydrus-import') {
     return (
-      <main className="standalone-window">
+      <main className={standaloneWindowClass}>
         <HydrusImportWindow />
       </main>
     );
@@ -232,7 +255,7 @@ export function App(): JSX.Element {
 
   if (windowMode === 'ehentai-import') {
     return (
-      <main className="standalone-window">
+      <main className={standaloneWindowClass}>
         <EHentaiImportWindow />
       </main>
     );
@@ -240,7 +263,7 @@ export function App(): JSX.Element {
 
   if (windowMode === 'ai-manager') {
     return (
-      <main className="standalone-window">
+      <main className={standaloneWindowClass}>
         <AiManagerWindow />
       </main>
     );
@@ -248,7 +271,7 @@ export function App(): JSX.Element {
 
   if (windowMode === 'tag-translation') {
     return (
-      <main className="standalone-window">
+      <main className={standaloneWindowClass}>
         <TagTranslationWindow />
       </main>
     );
@@ -256,7 +279,7 @@ export function App(): JSX.Element {
 
   if (windowMode === 'favorites') {
     return (
-      <main className="standalone-window">
+      <main className={standaloneWindowClass}>
         <FavoritesWindow />
       </main>
     );
@@ -264,7 +287,7 @@ export function App(): JSX.Element {
 
   if (windowMode === 'url-manager') {
     return (
-      <main className="standalone-window">
+      <main className={standaloneWindowClass}>
         <UrlManagerWindow fileIds={parseIdList(query.get('ids'))} />
       </main>
     );
@@ -272,7 +295,7 @@ export function App(): JSX.Element {
 
   if (windowMode === 'batch-tag-manager') {
     return (
-      <main className="standalone-window">
+      <main className={standaloneWindowClass}>
         <BatchTagManagerWindow fileIds={parseIdList(query.get('ids'))} />
       </main>
     );
@@ -280,7 +303,7 @@ export function App(): JSX.Element {
 
   if (windowMode === 'file-rating-editor') {
     return (
-      <main className="standalone-window">
+      <main className={standaloneWindowClass}>
         <FileRatingEditorWindow
           fileIds={parseIdList(query.get('ids'))}
           groupId={Number(query.get('groupId'))}
@@ -291,7 +314,7 @@ export function App(): JSX.Element {
 
   if (windowMode === 'export') {
     return (
-      <main className="standalone-window">
+      <main className={standaloneWindowClass}>
         <ExportWindow fileIds={parseIdList(query.get('ids'))} />
       </main>
     );
@@ -299,7 +322,7 @@ export function App(): JSX.Element {
 
   if (windowMode === 'dialog') {
     return (
-      <main className="standalone-window">
+      <main className={standaloneWindowClass}>
         <DialogWindow dialogId={query.get('dialogId') ?? ''} />
       </main>
     );
@@ -1380,7 +1403,7 @@ function WorkbenchApp(): JSX.Element {
     const refreshSequence = activePage?.viewRefreshSequenceByTabId[node.getId()] ?? 0;
 
     if (component === 'empty-page') {
-      return <section className="empty-page">空页面</section>;
+      return <section className={emptyPageClass}>空页面</section>;
     }
 
     if (component === 'file-import') {
@@ -1437,16 +1460,16 @@ function WorkbenchApp(): JSX.Element {
       );
     }
 
-    return <div className="view-error">未知视图</div>;
+    return <div className="grid h-full place-items-center text-[var(--muted)]">未知视图</div>;
   }
 
   return (
-    <div className="app-shell">
-      <header className="menu-bar">
-        <div className="menu-root" ref={menuRef}>
-          <div className="menu-item">
+    <div className="grid h-full min-h-[620px] min-w-[920px] grid-rows-[28px_30px_minmax(0,1fr)_20px]">
+      <header className="flex items-stretch border-b border-[var(--line)] bg-[var(--app-bar-bg)]">
+        <div className="flex" ref={menuRef}>
+          <div className="relative">
             <button
-              className={openMenu === 'file' ? 'menu-button active' : 'menu-button'}
+              className={openMenu === 'file' ? activeMenuButtonClass : menuButtonClass}
               type="button"
               onClick={() => setOpenMenu((menu) => (menu === 'file' ? null : 'file'))}
             >
@@ -1454,7 +1477,7 @@ function WorkbenchApp(): JSX.Element {
             </button>
 
             {openMenu === 'file' ? (
-              <div className="menu-dropdown">
+              <div className={menuDropdownClass}>
                 <button
                   disabled={isImporting}
                   title="选择一个或多个媒体文件"
@@ -1478,9 +1501,9 @@ function WorkbenchApp(): JSX.Element {
             ) : null}
           </div>
 
-          <div className="menu-item">
+          <div className="relative">
             <button
-              className={openMenu === 'page' ? 'menu-button active' : 'menu-button'}
+              className={openMenu === 'page' ? activeMenuButtonClass : menuButtonClass}
               type="button"
               onClick={() => setOpenMenu((menu) => (menu === 'page' ? null : 'page'))}
             >
@@ -1488,7 +1511,7 @@ function WorkbenchApp(): JSX.Element {
             </button>
 
             {openMenu === 'page' ? (
-              <div className="menu-dropdown page-menu">
+              <div className={menuDropdownClass}>
                 <button type="button" onClick={createPage}>
                   新建页面
                 </button>
@@ -1502,9 +1525,9 @@ function WorkbenchApp(): JSX.Element {
             ) : null}
           </div>
 
-          <div className="menu-item">
+          <div className="relative">
             <button
-              className={openMenu === 'view' ? 'menu-button active' : 'menu-button'}
+              className={openMenu === 'view' ? activeMenuButtonClass : menuButtonClass}
               type="button"
               onClick={() => setOpenMenu((menu) => (menu === 'view' ? null : 'view'))}
             >
@@ -1512,7 +1535,7 @@ function WorkbenchApp(): JSX.Element {
             </button>
 
             {openMenu === 'view' ? (
-              <div className="menu-dropdown view-menu">
+              <div className={menuDropdownClass}>
                 <button type="button" onClick={openFileImportView}>
                   导入
                 </button>
@@ -1529,9 +1552,9 @@ function WorkbenchApp(): JSX.Element {
             ) : null}
           </div>
 
-          <div className="menu-item">
+          <div className="relative">
             <button
-              className={openMenu === 'database' ? 'menu-button active' : 'menu-button'}
+              className={openMenu === 'database' ? activeMenuButtonClass : menuButtonClass}
               type="button"
               onClick={() => setOpenMenu((menu) => (menu === 'database' ? null : 'database'))}
             >
@@ -1539,7 +1562,7 @@ function WorkbenchApp(): JSX.Element {
             </button>
 
             {openMenu === 'database' ? (
-              <div className="menu-dropdown database-menu">
+              <div className={menuDropdownClass}>
                 <button type="button" onClick={() => void openDatabaseManager()}>
                   查看数据库
                 </button>
@@ -1553,9 +1576,9 @@ function WorkbenchApp(): JSX.Element {
             ) : null}
           </div>
 
-          <div className="menu-item">
+          <div className="relative">
             <button
-              className={openMenu === 'service' ? 'menu-button active' : 'menu-button'}
+              className={openMenu === 'service' ? activeMenuButtonClass : menuButtonClass}
               type="button"
               onClick={() => setOpenMenu((menu) => (menu === 'service' ? null : 'service'))}
             >
@@ -1563,7 +1586,7 @@ function WorkbenchApp(): JSX.Element {
             </button>
 
             {openMenu === 'service' ? (
-              <div className="menu-dropdown service-menu">
+              <div className={menuDropdownClass}>
                 <button type="button" onClick={() => void openRatingManager()}>
                   分级
                 </button>
@@ -1577,9 +1600,9 @@ function WorkbenchApp(): JSX.Element {
             ) : null}
           </div>
 
-          <div className="menu-item">
+          <div className="relative">
             <button
-              className={openMenu === 'extension' ? 'menu-button active' : 'menu-button'}
+              className={openMenu === 'extension' ? activeMenuButtonClass : menuButtonClass}
               type="button"
               onClick={() => setOpenMenu((menu) => (menu === 'extension' ? null : 'extension'))}
             >
@@ -1587,7 +1610,7 @@ function WorkbenchApp(): JSX.Element {
             </button>
 
             {openMenu === 'extension' ? (
-              <div className="menu-dropdown extension-menu">
+              <div className={menuDropdownClass}>
                 <button type="button" onClick={() => void openHydrusImport()}>
                   从 Hydrus 导入
                 </button>
@@ -1606,18 +1629,18 @@ function WorkbenchApp(): JSX.Element {
         </div>
       </header>
 
-      <nav className="page-tabs" aria-label="页面列表">
+      <nav className="flex min-w-0 items-stretch border-b border-[var(--line)] bg-[var(--page-tabbar-bg)]" aria-label="页面列表">
         {pages.map((page) => (
           <div
-            className={page.id === activePageId ? 'page-tab active' : 'page-tab'}
+            className={page.id === activePageId ? activePageTabClass : pageTabClass}
             key={page.id}
             onContextMenu={(event) => openPageTabContextMenu(event, page)}
             onMouseDown={(event) => handlePageTabMouseDown(event, page.id)}
           >
-            <button className="page-tab-title" type="button" onClick={() => setActivePageId(page.id)}>
+            <button className={pageTabTitleClass} type="button" onClick={() => setActivePageId(page.id)}>
               {page.title}
             </button>
-            <button className="page-tab-close" type="button" onClick={(event) => closePage(page.id, event)}>
+            <button className={pageTabCloseClass} type="button" onClick={(event) => closePage(page.id, event)}>
               x
             </button>
           </div>
@@ -1625,7 +1648,10 @@ function WorkbenchApp(): JSX.Element {
       </nav>
 
       <main
-        className={dragActive ? 'page-content drag-active' : 'page-content'}
+        className={cx(
+          'relative min-h-0 min-w-0 bg-[var(--bg)] p-2',
+          dragActive && 'bg-[var(--selection-bg)] [&_.module-view]:border-[var(--accent)]'
+        )}
         onDragLeave={handleDragLeave}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
@@ -1638,13 +1664,13 @@ function WorkbenchApp(): JSX.Element {
             onModelChange={() => saveWorkbenchState()}
           />
         ) : (
-          <section className="empty-page">没有打开的页面</section>
+          <section className={emptyPageClass}>没有打开的页面</section>
         )}
       </main>
 
       {viewContextMenu ? (
         <div
-          className="context-menu view-tab-context-menu"
+          className={`${contextMenuClass} view-tab-context-menu`}
           style={{ left: viewContextMenu.x, top: viewContextMenu.y }}
           onMouseDown={(event) => event.stopPropagation()}
         >
@@ -1659,12 +1685,12 @@ function WorkbenchApp(): JSX.Element {
 
       {pageContextMenu ? (
         <div
-          className="context-menu page-tab-context-menu"
+          className={`${contextMenuClass} page-tab-context-menu w-[184px]`}
           style={{ left: pageContextMenu.x, top: pageContextMenu.y }}
           onMouseDown={(event) => event.stopPropagation()}
         >
           {pageContextMenu.renaming ? (
-            <div className="context-menu-rename">
+            <div className={contextMenuRenameClass}>
               <input
                 aria-label="页面名称"
                 autoFocus
@@ -1707,8 +1733,8 @@ function WorkbenchApp(): JSX.Element {
           )}
         </div>
       ) : null}
-      <footer className="work-status-bar">
-        <span>{formatWorkStatus(workStatus)}</span>
+      <footer className="flex h-5 min-w-0 items-center border-t border-[var(--line)] bg-[var(--statusbar-bg)] px-2 text-[10px] text-[var(--muted)]">
+        <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{formatWorkStatus(workStatus)}</span>
       </footer>
     </div>
   );
