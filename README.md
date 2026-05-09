@@ -21,15 +21,15 @@ Asteria 是一个本地优先的媒体管理器，面向大量图片、动图和
 ## 启动
 
 ```bash
-npm install
-npm run rebuild:native
-npm run dev
+yarn
+yarn rebuild:native
+yarn dev
 ```
 
 如遇到 `better-sqlite3` native module 不匹配，重新执行：
 
 ```bash
-npm run rebuild:native
+yarn rebuild:native
 ```
 
 ## 开发环境配置
@@ -51,14 +51,14 @@ ASTERIA_RENDERER_LOGS=0
 ## 检查与构建
 
 ```bash
-npm run check
-npm run build
+yarn check
+yarn build
 ```
 
 ## 打包
 
 ```bash
-npm run build
+yarn build
 npx electron-builder --win --x64
 ```
 
