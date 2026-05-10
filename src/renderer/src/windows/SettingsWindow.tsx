@@ -69,7 +69,7 @@ type SettingsWindowState = {
     settings: PageLayoutSettings;
     selectedConfigId: string | null;
     configName: string;
-    message: string;
+    loaded: boolean;
   };
   interface: {
     browserPageSize: string;
@@ -119,7 +119,7 @@ const smallInputButtonClass =
   "[&>input]:h-6 [&>input]:min-w-0 [&>input]:border [&>input]:border-(--line-strong) [&>input]:bg-(--surface-inset-bg) [&>input]:px-1.5 [&>input]:text-(--ink) [&>input::placeholder]:text-(--disabled-ink) [&>button]:h-6 [&>button]:min-w-0 [&>button]:cursor-default [&>button]:border [&>button]:border-(--line-strong) [&>button]:bg-(--panel-strong) [&>button]:px-1.5 [&>button]:text-(--ink) [&>button:disabled]:text-(--disabled-ink)";
 
 export function SettingsWindow(): JSX.Element {
-  const { languageId, t } = useLanguage();
+  const { t } = useLanguage();
   const [category, setCategory] = useState<SettingsCategory>("file");
   const [settingsState, setSettingsState] = useState<SettingsWindowState>(
     () => ({
@@ -140,7 +140,7 @@ export function SettingsWindow(): JSX.Element {
         settings: defaultLayoutSettings,
         selectedConfigId: null,
         configName: "",
-        message: "未加载",
+        loaded: false,
       },
       interface: {
         browserPageSize: String(loadInterfaceSettings().browserPageSize),
@@ -352,7 +352,7 @@ export function SettingsWindow(): JSX.Element {
       configs: nextLayoutConfigs,
       selectedConfigId:
         currentLayout.selectedConfigId ?? nextLayoutConfigs[0]?.id ?? null,
-      message: `${nextLayoutConfigs.length} 个配置`,
+      loaded: true,
     }));
     updateInterfaceState({
       browserPageSize: String(loadInterfaceSettings().browserPageSize),
@@ -440,7 +440,7 @@ export function SettingsWindow(): JSX.Element {
     updateLayoutState({
       configs,
       selectedConfigId: configs[0]?.id ?? null,
-      message: `${configs.length} 个配置`,
+      loaded: true,
     });
   }
 
@@ -464,7 +464,7 @@ export function SettingsWindow(): JSX.Element {
           ?.id ??
         configs[0]?.id ??
         null,
-      message: `${configs.length} 个配置`,
+      loaded: true,
     });
   }
 
@@ -480,7 +480,7 @@ export function SettingsWindow(): JSX.Element {
       configs,
       selectedConfigId: configs[0]?.id ?? null,
       settings: await window.asteria.getPageLayoutSettings(),
-      message: `${configs.length} 个配置`,
+      loaded: true,
     });
   }
 
@@ -593,6 +593,11 @@ export function SettingsWindow(): JSX.Element {
   const selectedLayoutConfig =
     layout.configs.find((config) => config.id === layout.selectedConfigId) ??
     null;
+  const layoutMessage = layout.loaded
+    ? t("settings.interface.layoutConfigCount", {
+        count: layout.configs.length,
+      })
+    : t("settings.interface.layoutConfigNotLoaded");
 
   return (
     <ResizableColumns
@@ -656,8 +661,8 @@ export function SettingsWindow(): JSX.Element {
                 <label className={pathRowClass}>
                   <span>{t("settings.file.fileStoragePath")}</span>
                   <input
-                    aria-label="文件存储位置"
-                    placeholder="输入文件存储位置"
+                    aria-label={t("settings.file.fileStoragePath")}
+                    placeholder={t("settings.file.fileStoragePlaceholder")}
                     value={storage.fileStoragePath}
                     onChange={(event) =>
                       updateStorageState({
@@ -673,15 +678,15 @@ export function SettingsWindow(): JSX.Element {
                   </button>
                   <ActionFeedbackButton
                     disabled={!filePathChanged || storage.savingStoragePath}
-                    label="保存"
+                    label={t("common.save")}
                     onAction={saveStoragePath}
                   />
                 </label>
                 <label className={pathRowClass}>
                   <span>{t("settings.file.thumbnailStoragePath")}</span>
                   <input
-                    aria-label="缩略图缓存位置"
-                    placeholder="输入缩略图缓存位置"
+                    aria-label={t("settings.file.thumbnailStoragePath")}
+                    placeholder={t("settings.file.thumbnailStoragePlaceholder")}
                     value={storage.thumbnailStoragePath}
                     onChange={(event) =>
                       updateStorageState({
@@ -699,7 +704,7 @@ export function SettingsWindow(): JSX.Element {
                     disabled={
                       !thumbnailPathChanged || storage.savingThumbnailPath
                     }
-                    label="保存"
+                    label={t("common.save")}
                     onAction={saveThumbnailPath}
                   />
                 </label>
@@ -728,17 +733,23 @@ export function SettingsWindow(): JSX.Element {
               <section
                 className={`${panelClass} grid min-h-0 grid-rows-[28px_auto_24px_minmax(0,1fr)]`}
               >
-                <header className={titleClass}>界面</header>
+                <header className={titleClass}>
+                  {t("settings.category.interface")}
+                </header>
                 <div className="grid gap-1.5 border-b border-(--line) bg-(--surface-bg) p-2">
-                  <div className={configTitleClass}>浏览</div>
+                  <div className={configTitleClass}>
+                    {t("settings.interface.browser")}
+                  </div>
                   <label
                     className={`grid grid-cols-[104px_120px_58px_minmax(0,1fr)] items-center gap-1.5 [&>span]:text-[11px] [&>span]:text-(--text) ${smallInputButtonClass}`}
                   >
-                    <span>单页文件数</span>
+                    <span>{t("settings.interface.browserPageSize")}</span>
                     <input
-                      aria-label="文件浏览器单页文件数"
+                      aria-label={t("settings.interface.browserPageSize")}
                       min={20}
-                      placeholder="输入单页文件数"
+                      placeholder={t(
+                        "settings.interface.browserPageSizePlaceholder",
+                      )}
                       type="number"
                       value={interfaceSettings.browserPageSize}
                       onChange={(event) =>
@@ -748,15 +759,15 @@ export function SettingsWindow(): JSX.Element {
                       }
                     />
                     <ActionFeedbackButton
-                      label="保存"
+                      label={t("common.save")}
                       onAction={saveBrowserPageSize}
                     />
                   </label>
                 </div>
                 <div className={configTitleClass}>
-                  <span>页面配置</span>
+                  <span>{t("settings.interface.pageLayout")}</span>
                   <span className="text-[11px] font-normal text-(--muted)">
-                    {layout.message}
+                    {layoutMessage}
                   </span>
                 </div>
                 <div className="grid min-h-0 grid-cols-[260px_minmax(0,1fr)]">
@@ -786,7 +797,7 @@ export function SettingsWindow(): JSX.Element {
                         ))
                       ) : (
                         <div className="px-2 py-1.5 text-(--muted)">
-                          没有配置
+                          {t("common.noConfig")}
                         </div>
                       )}
                     </div>
@@ -797,7 +808,7 @@ export function SettingsWindow(): JSX.Element {
                         type="button"
                         onClick={() => void createLayoutConfig()}
                       >
-                        新建配置
+                        {t("settings.interface.newConfig")}
                       </button>
                     </div>
                   </div>
@@ -853,7 +864,7 @@ export function SettingsWindow(): JSX.Element {
                               : undefined
                           }
                         />
-                        <span>默认导入页</span>
+                        <span>{t("settings.interface.defaultImportPage")}</span>
                       </label>
                       <label className="flex min-w-0 cursor-pointer items-center justify-start gap-1 border-0 bg-transparent p-0 text-[11px] text-(--ink)">
                         <input
@@ -875,7 +886,7 @@ export function SettingsWindow(): JSX.Element {
                               : undefined
                           }
                         />
-                        <span>默认新标签页</span>
+                        <span>{t("settings.interface.defaultNewPage")}</span>
                       </label>
                     </div>
 
