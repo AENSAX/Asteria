@@ -6,18 +6,7 @@ import type {
 } from "../../../shared/ipc";
 import { ActionFeedbackButton } from "../components/ActionFeedbackButton";
 import { ResizableColumns } from "../components/ResizableColumns";
-
-const idleProgress: EHentaiImportProgress = {
-  phase: "idle",
-  total: 0,
-  processed: 0,
-  imported: 0,
-  duplicated: 0,
-  skipped: 0,
-  failed: 0,
-  currentFile: null,
-  message: "未开始",
-};
+import { useLanguage } from "../utils/language";
 const importShellClass =
   "grid h-full min-h-0 min-w-0 grid-cols-[280px_minmax(0,1fr)] overflow-hidden bg-(--bg) text-(--ink)";
 const sidebarClass =
@@ -52,6 +41,11 @@ const debugHeaderClass =
 const debugListClass = "min-h-0 overflow-auto bg-(--surface-deep-bg)";
 
 export function EHentaiImportWindow(): JSX.Element {
+  const { t } = useLanguage();
+  const idleProgress = useMemo(
+    () => createIdleProgress(t("window.ehentai.loading")),
+    [t],
+  );
   const [galleryUrl, setGalleryUrl] = useState("");
   const [cookie, setCookie] = useState("");
   const [importGalleryTags, setImportGalleryTags] = useState(true);
@@ -60,8 +54,10 @@ export function EHentaiImportWindow(): JSX.Element {
   const [startIndex, setStartIndex] = useState(1);
   const [limit, setLimit] = useState(0);
   const [status, setStatus] = useState<EHentaiGalleryStatus | null>(null);
-  const [progress, setProgress] = useState<EHentaiImportProgress>(idleProgress);
-  const [logs, setLogs] = useState<string[]>(["等待操作"]);
+  const [progress, setProgress] = useState<EHentaiImportProgress>(() =>
+    createIdleProgress(t("window.ehentai.loading")),
+  );
+  const [logs, setLogs] = useState<string[]>(() => [t("window.ehentai.waiting")]);
   const importing =
     progress.phase === "testing" ||
     progress.phase === "collecting" ||
@@ -76,7 +72,7 @@ export function EHentaiImportWindow(): JSX.Element {
 
   useEffect(() => {
     if (!window.asteria) {
-      appendLog("preload 不可用，请重启应用");
+      appendLog(t("window.ehentai.preloadUnavailable"));
       return undefined;
     }
 
@@ -91,7 +87,7 @@ export function EHentaiImportWindow(): JSX.Element {
 
       setProgress(nextProgress);
     });
-  }, []);
+  }, [t]);
 
   async function loadSettings(): Promise<void> {
     if (!window.asteria) {
@@ -100,7 +96,7 @@ export function EHentaiImportWindow(): JSX.Element {
 
     const settings = await window.asteria.getEHentaiImportSettings();
     applySettings(settings);
-    appendLog("配置已加载");
+    appendLog(t("window.ehentai.loaded"));
   }
 
   async function saveSettings(): Promise<void> {
@@ -111,7 +107,7 @@ export function EHentaiImportWindow(): JSX.Element {
     const settings =
       await window.asteria.updateEHentaiImportSettings(createOptions());
     applySettings(settings);
-    appendLog("配置已保存");
+    appendLog(t("window.ehentai.saved"));
   }
 
   async function testGallery(): Promise<void> {
@@ -123,7 +119,7 @@ export function EHentaiImportWindow(): JSX.Element {
       setProgress({
         ...idleProgress,
         phase: "failed",
-        message: "E-Hentai API 不可用，请重启应用",
+        message: t("window.ehentai.apiUnavailable"),
       });
       return;
     }
@@ -133,9 +129,9 @@ export function EHentaiImportWindow(): JSX.Element {
     setProgress({
       ...idleProgress,
       phase: "testing",
-      message: "检测 gallery 链接",
+      message: t("window.ehentai.detectingGalleryLink"),
     });
-    appendLog("点击检测链接");
+    appendLog(t("window.ehentai.testGallery"));
 
     try {
       const nextStatus =
@@ -147,13 +143,19 @@ export function EHentaiImportWindow(): JSX.Element {
         message: nextStatus.message,
       });
       appendLog(
-        `${nextStatus.ok ? "检测成功" : "检测失败"}：${nextStatus.message}`,
+        t(
+          nextStatus.ok
+            ? "window.ehentai.detectSuccess"
+            : "window.ehentai.detectFailed",
+          { message: nextStatus.message },
+        ),
       );
     } catch (error) {
-      const message = error instanceof Error ? error.message : "检测失败";
+      const message =
+        error instanceof Error ? error.message : t("window.ehentai.importFailed");
       setStatus({ ok: false, message, galleryTitle: "", imageCount: 0 });
       setProgress({ ...idleProgress, phase: "failed", message });
-      appendLog(`检测异常：${message}`);
+      appendLog(t("window.ehentai.detectException", { message }));
     }
   }
 
@@ -166,7 +168,7 @@ export function EHentaiImportWindow(): JSX.Element {
       setProgress({
         ...idleProgress,
         phase: "failed",
-        message: "E-Hentai API 不可用，请重启应用",
+        message: t("window.ehentai.apiUnavailable"),
       });
       return;
     }
@@ -176,28 +178,34 @@ export function EHentaiImportWindow(): JSX.Element {
     setProgress({
       ...idleProgress,
       phase: "testing",
-      message: "准备 E-Hentai 导入",
+      message: t("window.ehentai.preparingImport"),
     });
     appendLog(
-      `开始导入：start=${startIndex} limit=${limit || "不限"} cooldown=10000ms timeout=${requestTimeoutMs}ms`,
+      `${t("window.ehentai.preparingImport")}: start=${startIndex} limit=${
+        limit || "unlimited"
+      } cooldown=10000ms timeout=${requestTimeoutMs}ms`,
     );
 
     try {
       const result = await window.asteria.importFromEHentai(createOptions());
       setProgress(result);
       appendLog(
-        `导入结束：新增=${result.imported} 重复对象=${result.duplicated} 失败=${result.failed}`,
+        t("window.ehentai.importSummary", {
+          imported: result.imported,
+          duplicated: result.duplicated,
+          failed: result.failed,
+        }),
       );
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "E-Hentai 导入失败";
+        error instanceof Error ? error.message : t("window.ehentai.importFailed");
       setProgress({ ...idleProgress, phase: "failed", message });
-      appendLog(`导入异常：${message}`);
+      appendLog(t("window.ehentai.importException", { message }));
     }
   }
 
   async function cancelImport(): Promise<void> {
-    appendLog("点击取消导入");
+    appendLog(t("window.ehentai.cancelImport"));
     await window.asteria?.cancelEHentaiImport();
   }
 
@@ -241,21 +249,21 @@ export function EHentaiImportWindow(): JSX.Element {
       left={
         <aside className={sidebarClass}>
           <label className={fieldClass}>
-            <span>Gallery 链接</span>
+            <span>{t("window.ehentai.galleryUrl")}</span>
             <textarea
-              aria-label="E-Hentai gallery 链接"
+              aria-label={t("window.ehentai.galleryUrl")}
               className="h-[46px]"
-              placeholder="输入 https://e-hentai.org/g/..."
+              placeholder={t("window.ehentai.galleryUrlPlaceholder")}
               value={galleryUrl}
               onChange={(event) => setGalleryUrl(event.target.value)}
             />
           </label>
           <label className={fieldClass}>
-            <span>Cookie</span>
+            <span>{t("window.ehentai.cookie")}</span>
             <textarea
-              aria-label="E-Hentai cookie"
+              aria-label={t("window.ehentai.cookie")}
               className="h-28"
-              placeholder="输入浏览器复制出的 Cookie"
+              placeholder={t("window.ehentai.cookiePlaceholder")}
               value={cookie}
               onChange={(event) => setCookie(event.target.value)}
             />
@@ -266,7 +274,7 @@ export function EHentaiImportWindow(): JSX.Element {
               type="checkbox"
               onChange={(event) => setImportGalleryTags(event.target.checked)}
             />
-            <span>导入 gallery 标签</span>
+            <span>{t("window.ehentai.importGalleryTags")}</span>
           </label>
           <label className={checkClass}>
             <input
@@ -274,37 +282,35 @@ export function EHentaiImportWindow(): JSX.Element {
               type="checkbox"
               onChange={(event) => setForceDuplicate(event.target.checked)}
             />
-            <span>重复文件创建新对象</span>
+            <span>{t("window.ehentai.duplicateAsNewObject")}</span>
           </label>
           <label className={fieldClass}>
-            <span>起始序号</span>
+            <span>{t("window.ehentai.startIndex")}</span>
             <input
-              aria-label="起始序号"
+              aria-label={t("window.ehentai.startIndex")}
               min={1}
               type="number"
               value={startIndex}
               onChange={(event) => setStartIndex(Number(event.target.value))}
             />
-            <small>
-              从 gallery 第几张开始，最小为 1；中断后可填下一张序号继续。
-            </small>
+            <small>{t("window.ehentai.startIndexHint")}</small>
           </label>
           <label className={fieldClass}>
-            <span>数量限制</span>
+            <span>{t("window.ehentai.limit")}</span>
             <input
-              aria-label="数量限制"
+              aria-label={t("window.ehentai.limit")}
               min={0}
-              placeholder="0 表示不限"
+              placeholder={t("window.ehentai.limitPlaceholder")}
               type="number"
               value={limit}
               onChange={(event) => setLimit(Number(event.target.value))}
             />
-            <small>本次最多导入多少张，0 表示从起始序号开始直到结尾。</small>
+            <small>{t("window.ehentai.limitHint")}</small>
           </label>
           <label className={fieldClass}>
-            <span>请求超时 ms</span>
+            <span>{t("window.ehentai.requestTimeout")}</span>
             <input
-              aria-label="请求超时"
+              aria-label={t("window.ehentai.requestTimeout")}
               min={1000}
               type="number"
               value={requestTimeoutMs}
@@ -318,14 +324,14 @@ export function EHentaiImportWindow(): JSX.Element {
       right={
         <main className={contentClass}>
           <div className={toolbarClass}>
-            <ActionFeedbackButton label="保存" onAction={saveSettings} />
+            <ActionFeedbackButton label={t("common.save")} onAction={saveSettings} />
             <button
               className={buttonClass}
               disabled={importing}
               type="button"
               onClick={() => void testGallery()}
             >
-              检测链接
+              {t("window.ehentai.testGallery")}
             </button>
             <button
               className={buttonClass}
@@ -333,7 +339,7 @@ export function EHentaiImportWindow(): JSX.Element {
               type="button"
               onClick={() => void startImport()}
             >
-              开始导入
+              {t("window.ehentai.startImport")}
             </button>
             <button
               className={buttonClass}
@@ -341,7 +347,7 @@ export function EHentaiImportWindow(): JSX.Element {
               type="button"
               onClick={() => void cancelImport()}
             >
-              取消
+              {t("window.ehentai.cancelImport")}
             </button>
             <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-(--muted)">
               {progress.message}
@@ -355,37 +361,39 @@ export function EHentaiImportWindow(): JSX.Element {
 
           <dl className={statsClass}>
             <div className={statClass}>
-              <dt className={statLabelClass}>总数</dt>
+              <dt className={statLabelClass}>{t("window.ehentai.total")}</dt>
               <dd className={statValueClass}>{progress.total}</dd>
             </div>
             <div className={statClass}>
-              <dt className={statLabelClass}>已处理</dt>
+              <dt className={statLabelClass}>{t("window.ehentai.processed")}</dt>
               <dd className={statValueClass}>{progress.processed}</dd>
             </div>
             <div className={statClass}>
-              <dt className={statLabelClass}>新增</dt>
+              <dt className={statLabelClass}>{t("window.ehentai.added")}</dt>
               <dd className={statValueClass}>{progress.imported}</dd>
             </div>
             <div className={statClass}>
-              <dt className={statLabelClass}>重复对象</dt>
+              <dt className={statLabelClass}>{t("window.ehentai.duplicated")}</dt>
               <dd className={statValueClass}>{progress.duplicated}</dd>
             </div>
             <div className={statClass}>
-              <dt className={statLabelClass}>跳过</dt>
+              <dt className={statLabelClass}>{t("window.ehentai.skipped")}</dt>
               <dd className={statValueClass}>{progress.skipped}</dd>
             </div>
             <div className={statClass}>
-              <dt className={statLabelClass}>失败</dt>
+              <dt className={statLabelClass}>{t("window.ehentai.failed")}</dt>
               <dd className={statValueClass}>{progress.failed}</dd>
             </div>
             <div className={`${statClass} col-span-6`}>
-              <dt className={statLabelClass}>当前</dt>
+              <dt className={statLabelClass}>{t("window.ehentai.current")}</dt>
               <dd className={statValueClass}>{progress.currentFile ?? "-"}</dd>
             </div>
           </dl>
 
           <section className={panelClass}>
-            <header className={panelHeaderClass}>Gallery 状态</header>
+            <header className={panelHeaderClass}>
+              {t("window.ehentai.galleryStatus")}
+            </header>
             {status ? (
               <div
                 className={`${statusClass} ${status.ok ? "text-(--success-ink)" : ""}`}
@@ -394,32 +402,32 @@ export function EHentaiImportWindow(): JSX.Element {
                 <span title={status.galleryTitle}>
                   {status.galleryTitle || "-"}
                 </span>
-                <span>首页: {status.imageCount}</span>
-                <span>风格: e-hentai</span>
+                <span>{t("window.ehentai.imageCount", { count: status.imageCount })}</span>
+                <span>{t("window.ehentai.style")}</span>
               </div>
             ) : (
-              <div className={statusClass}>未检测</div>
+              <div className={statusClass}>{t("window.ehentai.notDetected")}</div>
             )}
           </section>
 
           <section className={panelClass}>
-            <header className={panelHeaderClass}>导入规则</header>
+            <header className={panelHeaderClass}>
+              {t("window.ehentai.importRules")}
+            </header>
             <div className="p-1.5 leading-[18px] text-(--muted)">
-              默认写入 e-hentai 风格标签 gallery:gallery名字；勾选导入 gallery
-              标签后，会同时写入页面中的标签。重复文件默认跳过，勾选重复文件创建新对象后会复用物理文件。请求冷却固定为
-              10000ms。
+              {t("window.ehentai.ruleDescription")}
             </div>
           </section>
 
           <section className={debugClass}>
             <header className={debugHeaderClass}>
-              <span>日志</span>
+              <span>{t("window.ehentai.logs")}</span>
               <button
                 className={buttonClass}
                 type="button"
                 onClick={() => setLogs([])}
               >
-                清空
+                {t("window.ehentai.clear")}
               </button>
             </header>
             <div className={debugListClass}>
@@ -433,7 +441,9 @@ export function EHentaiImportWindow(): JSX.Element {
                   </div>
                 ))
               ) : (
-                <div className="px-1.5 text-(--muted)">没有日志</div>
+                <div className="px-1.5 text-(--muted)">
+                  {t("window.ehentai.noLogs")}
+                </div>
               )}
             </div>
           </section>
@@ -458,11 +468,24 @@ function shouldLogProgress(progress: EHentaiImportProgress): boolean {
 
   return (
     isDebugLinkProgress(progress.message) ||
-    progress.message.includes("失败") ||
     progress.processed % 10 === 0
   );
 }
 
 function isDebugLinkProgress(message: string): boolean {
-  return message.includes("链接：");
+  return message.startsWith("link:") || message.startsWith("url:");
+}
+
+function createIdleProgress(message: string): EHentaiImportProgress {
+  return {
+    phase: "idle",
+    total: 0,
+    processed: 0,
+    imported: 0,
+    duplicated: 0,
+    skipped: 0,
+    failed: 0,
+    currentFile: null,
+    message,
+  };
 }

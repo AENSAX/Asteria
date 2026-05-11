@@ -6,18 +6,7 @@ import type {
 } from "../../../shared/ipc";
 import { ActionFeedbackButton } from "../components/ActionFeedbackButton";
 import { ResizableColumns } from "../components/ResizableColumns";
-
-const idleProgress: HydrusImportProgress = {
-  phase: "idle",
-  total: 0,
-  processed: 0,
-  imported: 0,
-  duplicated: 0,
-  skipped: 0,
-  failed: 0,
-  currentFile: null,
-  message: "未开始",
-};
+import { useLanguage } from "../utils/language";
 
 const hydrusShellClass =
   "grid h-full min-h-0 min-w-0 grid-cols-[260px_minmax(0,1fr)] overflow-hidden bg-(--bg) text-(--ink)";
@@ -55,6 +44,11 @@ const hydrusDebugHeaderClass =
 const hydrusDebugListClass = "min-h-0 overflow-auto bg-(--surface-deep-bg)";
 
 export function HydrusImportWindow(): JSX.Element {
+  const { t } = useLanguage();
+  const idleProgress = useMemo(
+    () => createIdleProgress(t("window.hydrus.loading")),
+    [t],
+  );
   const [baseUrl, setBaseUrl] = useState("http://127.0.0.1:45869");
   const [accessKey, setAccessKey] = useState("");
   const [searchText, setSearchText] = useState("");
@@ -63,8 +57,12 @@ export function HydrusImportWindow(): JSX.Element {
   const [metadataBatchSize, setMetadataBatchSize] = useState(100);
   const [forceDuplicate, setForceDuplicate] = useState(false);
   const [status, setStatus] = useState<HydrusConnectionStatus | null>(null);
-  const [progress, setProgress] = useState<HydrusImportProgress>(idleProgress);
-  const [debugLines, setDebugLines] = useState<string[]>(["等待操作"]);
+  const [progress, setProgress] = useState<HydrusImportProgress>(() =>
+    createIdleProgress(t("window.hydrus.loading")),
+  );
+  const [debugLines, setDebugLines] = useState<string[]>(() => [
+    t("window.hydrus.waiting"),
+  ]);
   const importing =
     progress.phase === "testing" ||
     progress.phase === "searching" ||
@@ -81,11 +79,11 @@ export function HydrusImportWindow(): JSX.Element {
 
   useEffect(() => {
     if (!window.asteria) {
-      appendDebug("preload 不可用，请重启应用");
+      appendDebug(t("window.hydrus.preloadUnavailable"));
       return undefined;
     }
 
-    appendDebug("preload 可用");
+    appendDebug(t("window.hydrus.preloadAvailable"));
     void loadSettings();
 
     return window.asteria.onHydrusImportProgress((nextProgress) => {
@@ -96,7 +94,7 @@ export function HydrusImportWindow(): JSX.Element {
       }
       setProgress(nextProgress);
     });
-  }, []);
+  }, [t]);
 
   async function loadSettings(): Promise<void> {
     if (!window.asteria) {
@@ -105,7 +103,7 @@ export function HydrusImportWindow(): JSX.Element {
 
     const settings = await window.asteria.getHydrusImportSettings();
     applySettings(settings);
-    appendDebug("配置已加载");
+    appendDebug(t("window.hydrus.loaded"));
   }
 
   async function saveSettings(): Promise<void> {
@@ -116,12 +114,12 @@ export function HydrusImportWindow(): JSX.Element {
     const settings =
       await window.asteria.updateHydrusImportSettings(createOptions());
     applySettings(settings);
-    appendDebug("配置已保存");
+    appendDebug(t("window.hydrus.saved"));
   }
 
   async function testConnection(): Promise<void> {
     if (importing) {
-      appendDebug("测试连接被忽略：正在执行任务");
+      appendDebug(t("window.hydrus.testConnectionIgnored"));
       return;
     }
 
@@ -131,7 +129,7 @@ export function HydrusImportWindow(): JSX.Element {
     ) {
       const failedStatus = createConnectionStatus(
         false,
-        "Hydrus 导入 API 不可用，请重启应用",
+        t("window.hydrus.apiUnavailable"),
       );
       setStatus(failedStatus);
       setProgress({
@@ -143,19 +141,31 @@ export function HydrusImportWindow(): JSX.Element {
     }
 
     await saveSettings();
-    appendDebug("点击测试连接");
+    appendDebug(t("window.hydrus.testConnection"));
     appendDebug(`baseUrl=${baseUrl}`);
     appendDebug(`accessKeyLength=${accessKey.trim().length}`);
-    const testingStatus = createConnectionStatus(false, "正在测试连接");
+    const testingStatus = createConnectionStatus(
+      false,
+      t("window.hydrus.testingConnection"),
+    );
     setStatus(testingStatus);
-    setProgress({ ...idleProgress, phase: "testing", message: "测试连接" });
+    setProgress({
+      ...idleProgress,
+      phase: "testing",
+      message: t("window.hydrus.testConnection"),
+    });
 
     try {
       appendDebug("invoke hydrus:test-connection");
       const nextStatus =
         await window.asteria.testHydrusConnection(createOptions());
       appendDebug(
-        `连接${nextStatus.ok ? "成功" : "失败"}：${nextStatus.message}`,
+        t(
+          nextStatus.ok
+            ? "window.hydrus.connectionSucceeded"
+            : "window.hydrus.connectionFailed",
+          { message: nextStatus.message },
+        ),
       );
 
       if (!nextStatus.ok) {
@@ -174,7 +184,9 @@ export function HydrusImportWindow(): JSX.Element {
       );
       const failedStatus = createConnectionStatus(
         false,
-        error instanceof Error ? error.message : "测试连接失败",
+        error instanceof Error
+          ? error.message
+          : t("window.hydrus.testConnectionFailed"),
       );
       setStatus(failedStatus);
       setProgress({
@@ -187,7 +199,7 @@ export function HydrusImportWindow(): JSX.Element {
 
   async function startImport(): Promise<void> {
     if (importing) {
-      appendDebug("开始导入被忽略：正在执行任务");
+      appendDebug(t("window.hydrus.startImportIgnored"));
       return;
     }
 
@@ -195,17 +207,17 @@ export function HydrusImportWindow(): JSX.Element {
       !window.asteria ||
       typeof window.asteria.importFromHydrus !== "function"
     ) {
-      appendDebug("importFromHydrus 不存在");
+      appendDebug(t("window.hydrus.importMissing"));
       setProgress({
         ...idleProgress,
         phase: "failed",
-        message: "Hydrus 导入 API 不可用，请重启应用",
+        message: t("window.hydrus.apiUnavailable"),
       });
       return;
     }
 
     await saveSettings();
-    appendDebug("点击开始导入");
+    appendDebug(t("window.hydrus.startImport"));
     appendDebug(
       `searchTags=${createOptions().searchTags.join(",") || "system:everything"}`,
     );
@@ -213,14 +225,19 @@ export function HydrusImportWindow(): JSX.Element {
     setProgress({
       ...idleProgress,
       phase: "testing",
-      message: "准备 Hydrus 导入",
+      message: t("window.hydrus.preparingImport"),
     });
 
     try {
       appendDebug("invoke hydrus:import");
       const result = await window.asteria.importFromHydrus(createOptions());
       appendDebug(
-        `导入结束：新增=${result.imported} 重复对象=${result.duplicated} 跳过=${result.skipped} 失败=${result.failed}`,
+        t("window.hydrus.importSummary", {
+          imported: result.imported,
+          duplicated: result.duplicated,
+          skipped: result.skipped,
+          failed: result.failed,
+        }),
       );
       setProgress(result);
     } catch (error) {
@@ -230,13 +247,14 @@ export function HydrusImportWindow(): JSX.Element {
       setProgress({
         ...idleProgress,
         phase: "failed",
-        message: error instanceof Error ? error.message : "Hydrus 导入失败",
+        message:
+          error instanceof Error ? error.message : t("window.hydrus.importFailed"),
       });
     }
   }
 
   async function cancelImport(): Promise<void> {
-    appendDebug("点击取消导入");
+    appendDebug(t("window.hydrus.cancelImport"));
     await window.asteria?.cancelHydrusImport();
   }
 
@@ -275,11 +293,7 @@ export function HydrusImportWindow(): JSX.Element {
       return false;
     }
 
-    return (
-      nextProgress.message.includes("失败") ||
-      nextProgress.message.includes("异常") ||
-      nextProgress.message.includes("缺少")
-    );
+    return nextProgress.processed % 10 === 0;
   }
 
   function createOptions(): HydrusImportOptions {
@@ -319,49 +333,49 @@ export function HydrusImportWindow(): JSX.Element {
       left={
         <aside className={hydrusSidebarClass}>
           <label className={hydrusFieldClass}>
-            <span>地址</span>
+            <span>{t("window.hydrus.address")}</span>
             <input
-              aria-label="Hydrus 地址"
-              placeholder="输入 Hydrus API 地址"
+              aria-label={t("window.hydrus.address")}
+              placeholder={t("window.hydrus.addressPlaceholder")}
               value={baseUrl}
               onChange={(event) => setBaseUrl(event.target.value)}
             />
           </label>
           <label className={hydrusFieldClass}>
-            <span>Access Key</span>
+            <span>{t("window.hydrus.accessKey")}</span>
             <input
               aria-label="Hydrus Access Key"
-              placeholder="输入 Hydrus Access Key"
+              placeholder={t("window.hydrus.accessKeyPlaceholder")}
               value={accessKey}
               onChange={(event) => setAccessKey(event.target.value)}
             />
           </label>
           <label className={hydrusFieldClass}>
-            <span>标签风格</span>
+            <span>{t("window.hydrus.tagStyle")}</span>
             <input
-              aria-label="标签风格"
-              placeholder="输入迁移标签风格"
+              aria-label={t("window.hydrus.tagStyle")}
+              placeholder={t("window.hydrus.tagStylePlaceholder")}
               value={tagStyleName}
               onChange={(event) => setTagStyleName(event.target.value)}
             />
           </label>
           <label className={hydrusFieldClass}>
-            <span>数量限制</span>
+            <span>{t("window.hydrus.limit")}</span>
             <input
-              aria-label="数量限制"
+              aria-label={t("window.hydrus.limit")}
               min={0}
-              placeholder="0 表示不限"
+              placeholder={t("window.hydrus.limitPlaceholder")}
               type="number"
               value={limit}
               onChange={(event) => setLimit(Number(event.target.value))}
             />
           </label>
           <label className={hydrusFieldClass}>
-            <span>元数据分片</span>
+            <span>{t("window.hydrus.metadataBatchSize")}</span>
             <input
-              aria-label="元数据分片"
+              aria-label={t("window.hydrus.metadataBatchSize")}
               min={1}
-              placeholder="输入元数据分片大小"
+              placeholder={t("window.hydrus.metadataBatchSizePlaceholder")}
               type="number"
               value={metadataBatchSize}
               onChange={(event) =>
@@ -375,21 +389,21 @@ export function HydrusImportWindow(): JSX.Element {
               type="checkbox"
               onChange={(event) => setForceDuplicate(event.target.checked)}
             />
-            <span>重复文件创建新对象</span>
+            <span>{t("window.hydrus.duplicateAsNewObject")}</span>
           </label>
         </aside>
       }
       right={
         <main className={hydrusContentClass}>
           <div className={hydrusToolbarClass}>
-            <ActionFeedbackButton label="保存" onAction={saveSettings} />
+            <ActionFeedbackButton label={t("common.save")} onAction={saveSettings} />
             <button
               className={hydrusButtonClass}
               disabled={importing}
               type="button"
               onClick={() => void testConnection()}
             >
-              测试连接
+              {t("window.hydrus.testConnection")}
             </button>
             <button
               className={hydrusButtonClass}
@@ -397,7 +411,7 @@ export function HydrusImportWindow(): JSX.Element {
               type="button"
               onClick={() => void startImport()}
             >
-              开始导入
+              {t("window.hydrus.startImport")}
             </button>
             <button
               className={hydrusButtonClass}
@@ -405,7 +419,7 @@ export function HydrusImportWindow(): JSX.Element {
               type="button"
               onClick={() => void cancelImport()}
             >
-              取消
+              {t("window.hydrus.cancelImport")}
             </button>
             <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-(--muted)">
               {progress.message}
@@ -413,10 +427,10 @@ export function HydrusImportWindow(): JSX.Element {
           </div>
 
           <label className={hydrusFieldClass}>
-            <span>搜索标签</span>
+            <span>{t("window.hydrus.searchTags")}</span>
             <textarea
-              aria-label="Hydrus 搜索标签"
-              placeholder="输入 Hydrus 搜索标签，使用逗号或换行分隔；空白表示全部"
+              aria-label={t("window.hydrus.searchTags")}
+              placeholder={t("window.hydrus.searchTagsPlaceholder")}
               value={searchText}
               onChange={(event) => setSearchText(event.target.value)}
             />
@@ -429,31 +443,31 @@ export function HydrusImportWindow(): JSX.Element {
 
           <dl className={hydrusStatsClass}>
             <div className={hydrusStatClass}>
-              <dt className={hydrusStatLabelClass}>总数</dt>
+              <dt className={hydrusStatLabelClass}>{t("window.hydrus.total")}</dt>
               <dd className={hydrusStatValueClass}>{progress.total}</dd>
             </div>
             <div className={hydrusStatClass}>
-              <dt className={hydrusStatLabelClass}>已处理</dt>
+              <dt className={hydrusStatLabelClass}>{t("window.hydrus.processed")}</dt>
               <dd className={hydrusStatValueClass}>{progress.processed}</dd>
             </div>
             <div className={hydrusStatClass}>
-              <dt className={hydrusStatLabelClass}>新增</dt>
+              <dt className={hydrusStatLabelClass}>{t("window.hydrus.added")}</dt>
               <dd className={hydrusStatValueClass}>{progress.imported}</dd>
             </div>
             <div className={hydrusStatClass}>
-              <dt className={hydrusStatLabelClass}>重复对象</dt>
+              <dt className={hydrusStatLabelClass}>{t("window.hydrus.duplicated")}</dt>
               <dd className={hydrusStatValueClass}>{progress.duplicated}</dd>
             </div>
             <div className={hydrusStatClass}>
-              <dt className={hydrusStatLabelClass}>跳过</dt>
+              <dt className={hydrusStatLabelClass}>{t("window.hydrus.skipped")}</dt>
               <dd className={hydrusStatValueClass}>{progress.skipped}</dd>
             </div>
             <div className={hydrusStatClass}>
-              <dt className={hydrusStatLabelClass}>失败</dt>
+              <dt className={hydrusStatLabelClass}>{t("window.hydrus.failed")}</dt>
               <dd className={hydrusStatValueClass}>{progress.failed}</dd>
             </div>
             <div className={`${hydrusStatClass} ${hydrusWideStatClass}`}>
-              <dt className={hydrusStatLabelClass}>当前</dt>
+              <dt className={hydrusStatLabelClass}>{t("window.hydrus.current")}</dt>
               <dd className={hydrusStatValueClass}>
                 {progress.currentFile ?? "-"}
               </dd>
@@ -461,7 +475,9 @@ export function HydrusImportWindow(): JSX.Element {
           </dl>
 
           <section className={hydrusPanelClass}>
-            <header className={hydrusPanelHeaderClass}>连接状态</header>
+            <header className={hydrusPanelHeaderClass}>
+              {t("window.hydrus.connectionStatus")}
+            </header>
             {status ? (
               <div
                 className={`${hydrusStatusClass} ${status.ok ? hydrusStatusOkClass : ""}`}
@@ -470,23 +486,25 @@ export function HydrusImportWindow(): JSX.Element {
                 <span>Hydrus: {status.hydrusVersion ?? "-"}</span>
                 <span>API: {status.apiVersion ?? "-"}</span>
                 <span title={status.permissions}>
-                  权限: {status.permissions || "-"}
+                  {t("window.hydrus.permissions")}: {status.permissions || "-"}
                 </span>
               </div>
             ) : (
-              <div className={hydrusStatusClass}>未测试</div>
+              <div className={hydrusStatusClass}>
+                {t("window.hydrus.notTested")}
+              </div>
             )}
           </section>
 
           <section className={hydrusDebugClass}>
             <header className={hydrusDebugHeaderClass}>
-              <span>Debug</span>
+              <span>{t("window.hydrus.debug")}</span>
               <button
                 className={hydrusButtonClass}
                 type="button"
                 onClick={() => setDebugLines([])}
               >
-                清空
+                {t("window.hydrus.clear")}
               </button>
             </header>
             <div className={hydrusDebugListClass}>
@@ -500,7 +518,9 @@ export function HydrusImportWindow(): JSX.Element {
                   </div>
                 ))
               ) : (
-                <div className="px-1.5 text-(--muted)">没有 debug 信息</div>
+                <div className="px-1.5 text-(--muted)">
+                  {t("window.hydrus.noDebugInfo")}
+                </div>
               )}
             </div>
           </section>
@@ -508,6 +528,20 @@ export function HydrusImportWindow(): JSX.Element {
       }
     />
   );
+}
+
+function createIdleProgress(message: string): HydrusImportProgress {
+  return {
+    phase: "idle",
+    total: 0,
+    processed: 0,
+    imported: 0,
+    duplicated: 0,
+    skipped: 0,
+    failed: 0,
+    currentFile: null,
+    message,
+  };
 }
 
 function createConnectionStatus(

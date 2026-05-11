@@ -4,6 +4,7 @@ import { TagTokenInput } from "../components/TagTokenInput";
 import { useBoxSelection } from "../hooks/useBoxSelection";
 import { useShortcut } from "../hooks/useShortcut";
 import { useTagTokenInput } from "../hooks/useTagTokenInput";
+import { useLanguage } from "../utils/language";
 import { mergeIds } from "../utils/ids";
 import {
   formatTagLabel,
@@ -26,10 +27,11 @@ const batchTagPendingClass = "border-(--danger)";
 export function BatchTagManagerWindow({
   fileIds,
 }: BatchTagManagerWindowProps): JSX.Element {
+  const { t } = useLanguage();
   const [fileTags, setFileTags] = useState<BatchFileTagRecord[]>([]);
   const [pendingTagIds, setPendingTagIds] = useState<number[]>([]);
   const [lastPendingTagId, setLastPendingTagId] = useState<number | null>(null);
-  const [message, setMessage] = useState("未加载");
+  const [message, setMessage] = useState(() => t("window.batch.loading"));
   const tagListRef = useRef<HTMLDivElement | null>(null);
   const fileIdKey = fileIds.join(",");
   const boxSelection = useBoxSelection({
@@ -67,13 +69,13 @@ export function BatchTagManagerWindow({
   async function loadFileTags(): Promise<void> {
     if (!window.asteria || fileIds.length === 0) {
       setFileTags([]);
-      setMessage("文件无效");
+      setMessage(t("window.batch.invalid"));
       return;
     }
 
     const nextFileTags = await window.asteria.listBatchFileTags(fileIds);
     setFileTags(nextFileTags);
-    setMessage(`${fileIds.length} 个文件`);
+    setMessage(t("window.batch.count", { count: fileIds.length }));
   }
 
   async function removePendingTags(tagIds: number[]): Promise<void> {
@@ -177,7 +179,7 @@ export function BatchTagManagerWindow({
             </button>
           ))
         ) : (
-          <div className="p-2 text-(--muted)">没有标签</div>
+          <div className="p-2 text-(--muted)">{t("common.noTags")}</div>
         )}
         {boxSelection.selectionBox ? (
           <div
@@ -188,8 +190,8 @@ export function BatchTagManagerWindow({
       </div>
 
       <TagTokenInput
-        ariaLabel="输入标签"
-        placeholder="输入标签以增加"
+        ariaLabel={t("window.batch.input")}
+        placeholder={t("window.batch.placeholder")}
         selectedSuggestionIndex={tagInput.selectedSuggestionIndex}
         suggestions={tagInput.suggestions}
         text={tagInput.text}

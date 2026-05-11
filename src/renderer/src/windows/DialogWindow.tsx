@@ -1,11 +1,13 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { GenericDialogState } from "../../../shared/ipc";
+import { useLanguage } from "../utils/language";
 
 interface DialogWindowProps {
   dialogId: string;
 }
 
 export function DialogWindow({ dialogId }: DialogWindowProps): JSX.Element {
+  const { t } = useLanguage();
   const [state, setState] = useState<GenericDialogState | null>(null);
   const rootRef = useRef<HTMLElement | null>(null);
 
@@ -68,7 +70,7 @@ export function DialogWindow({ dialogId }: DialogWindowProps): JSX.Element {
         className="grid w-fit min-w-[280px] overflow-hidden bg-(--bg) text-[11px] text-(--ink)"
         ref={rootRef}
       >
-        加载中
+        {t("window.dialog.loading")}
       </section>
     );
   }

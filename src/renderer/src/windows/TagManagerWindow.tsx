@@ -9,6 +9,7 @@ import type {
 import { ResizableColumns } from "../components/ResizableColumns";
 import { useBoxSelection } from "../hooks/useBoxSelection";
 import { useShortcut } from "../hooks/useShortcut";
+import { useLanguage } from "../utils/language";
 import { mergeIds } from "../utils/ids";
 import {
   formatTagLabel,
@@ -57,6 +58,7 @@ const managedTagFooterClass =
   "flex h-7 items-center justify-between border-t border-(--line) bg-(--surface-bg) px-2 text-(--muted)";
 
 export function TagManagerWindow(): JSX.Element {
+  const { t } = useLanguage();
   const [styles, setStyles] = useState<TagStyleRecord[]>([]);
   const [activeStyleId, setActiveStyleId] = useState<number | null>(null);
   const [tags, setTags] = useState<ManagedTagRecord[]>([]);
@@ -65,7 +67,7 @@ export function TagManagerWindow(): JSX.Element {
   const [tagInput, setTagInput] = useState("");
   const [sortKey, setSortKey] = useState<ManagedTagSortKey>("name");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
-  const [message, setMessage] = useState("未加载");
+  const [message, setMessage] = useState(() => t("window.tagManager.loading"));
   const [pendingTagIds, setPendingTagIds] = useState<number[]>([]);
   const [lastPendingTagId, setLastPendingTagId] = useState<number | null>(null);
   const [tagViewport, setTagViewport] = useState({ scrollTop: 0, height: 0 });
@@ -148,7 +150,7 @@ export function TagManagerWindow(): JSX.Element {
 
   async function loadStyles(nextActiveStyleId?: number): Promise<void> {
     if (!window.asteria) {
-      setMessage("preload unavailable");
+      setMessage(t("app.status.preloadUnavailable"));
       return;
     }
 
@@ -160,7 +162,7 @@ export function TagManagerWindow(): JSX.Element {
       nextActiveStyleId ??
       (activeExists ? activeStyleId : (nextStyles[0]?.id ?? null));
     setActiveStyleId(fallbackStyleId);
-    setMessage(`${nextStyles.length} 个风格`);
+    setMessage(t("window.tagManager.loadedStyle", { count: nextStyles.length }));
   }
 
   async function loadManagedTags(): Promise<void> {
@@ -190,9 +192,11 @@ export function TagManagerWindow(): JSX.Element {
       setStyles(nextStyles);
       setActiveStyleId(createdStyle?.id ?? null);
       setStyleInput("");
-      setMessage("已创建风格");
+      setMessage(t("window.tagManager.createdStyle"));
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "创建失败");
+      setMessage(
+        error instanceof Error ? error.message : t("window.tagManager.createFailed"),
+      );
     }
   }
 
@@ -210,11 +214,13 @@ export function TagManagerWindow(): JSX.Element {
     try {
       await window.asteria.createManagedTag(activeStyleId, draft);
       setTagInput("");
-      setMessage("已创建标签");
+      setMessage(t("window.tagManager.createdTag"));
       await loadManagedTags();
       await loadStyles(activeStyleId);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "创建失败");
+      setMessage(
+        error instanceof Error ? error.message : t("window.tagManager.createFailed"),
+      );
     }
   }
 
@@ -226,9 +232,11 @@ export function TagManagerWindow(): JSX.Element {
     try {
       const nextStyles = await window.asteria.setActiveTagStyle(activeStyleId);
       setStyles(nextStyles);
-      setMessage("已启用风格");
+      setMessage(t("window.tagManager.activatedStyle"));
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "启用失败");
+      setMessage(
+        error instanceof Error ? error.message : t("window.tagManager.activateFailed"),
+      );
     }
   }
 
@@ -243,9 +251,11 @@ export function TagManagerWindow(): JSX.Element {
         styleRenameInput,
       );
       setStyles(nextStyles);
-      setMessage("已重命名风格");
+      setMessage(t("window.tagManager.renamedStyle"));
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "重命名失败");
+      setMessage(
+        error instanceof Error ? error.message : t("window.tagManager.renameFailed"),
+      );
     }
   }
 
@@ -255,8 +265,11 @@ export function TagManagerWindow(): JSX.Element {
     }
 
     const confirmed = await window.asteria.confirmDialog({
-      title: "确认删除标签风格",
-      message: `这将删除风格“${selectedStyle.displayName}”下的 ${selectedStyle.tagCount} 个标签，并移除相关文件标签关联，确认吗`,
+      title: t("window.tagManager.confirmDeleteStyleTitle"),
+      message: t("window.tagManager.confirmDeleteStyleMessage", {
+        name: selectedStyle.displayName,
+        count: selectedStyle.tagCount,
+      }),
     });
 
     if (!confirmed) {
@@ -269,9 +282,13 @@ export function TagManagerWindow(): JSX.Element {
       setActiveStyleId(result.styles[0]?.id ?? null);
       setPendingTagIds([]);
       setLastPendingTagId(null);
-      setMessage(`已删除风格，删除 ${result.deletedTagCount} 个标签`);
+      setMessage(
+        t("window.tagManager.deletedStyle", { count: result.deletedTagCount }),
+      );
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "删除风格失败");
+      setMessage(
+        error instanceof Error ? error.message : t("window.tagManager.deleteStyleFailed"),
+      );
     }
   }
 
@@ -352,8 +369,10 @@ export function TagManagerWindow(): JSX.Element {
     }
 
     const confirmed = await window.asteria.confirmDialog({
-      title: "确认删除标签",
-      message: `这将删除 ${selectedTags.length} 个标签，并从相关文件中移除这些标签，确认吗`,
+      title: t("window.tagManager.confirmDeleteTagsTitle"),
+      message: t("window.tagManager.confirmDeleteTagsMessage", {
+        count: selectedTags.length,
+      }),
     });
 
     if (!confirmed) {
@@ -365,14 +384,17 @@ export function TagManagerWindow(): JSX.Element {
         selectedTags.map((tag) => tag.id),
       );
       setMessage(
-        `已删除 ${result.deletedTagCount} 个标签，影响 ${result.deletedFileCount} 个文件`,
+        t("window.tagManager.deletedTags", {
+          tagCount: result.deletedTagCount,
+          fileCount: result.deletedFileCount,
+        }),
       );
       setPendingTagIds([]);
       setLastPendingTagId(null);
       await loadManagedTags();
       await loadStyles(activeStyleId ?? undefined);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "删除失败");
+      setMessage(error instanceof Error ? error.message : t("window.tagManager.deleteFailed"));
     }
   }
 
@@ -385,7 +407,9 @@ export function TagManagerWindow(): JSX.Element {
       storageKey="asteria:tag-manager-sidebar-width"
       left={
         <aside className={managerSidebarClass}>
-          <header className={managerSidebarHeaderClass}>标签风格</header>
+          <header className={managerSidebarHeaderClass}>
+            {t("window.tagManager.styleList")}
+          </header>
           <div className={managerListClass}>
             {styles.map((style) => (
               <button
@@ -395,7 +419,7 @@ export function TagManagerWindow(): JSX.Element {
                 type="button"
                 onClick={() => setActiveStyleId(style.id)}
               >
-                <span className="text-center text-(--success-ink)">
+              <span className="text-center text-(--success-ink)">
                   {style.isDefault ? "√" : ""}
                 </span>
                 <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
@@ -410,8 +434,8 @@ export function TagManagerWindow(): JSX.Element {
           <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-1.5 border-t border-(--line) p-2">
             <input
               className={managerInputClass}
-              aria-label="新建风格"
-              placeholder="输入风格以新建"
+              aria-label={t("window.tagManager.newStyle")}
+              placeholder={t("window.tagManager.newStylePlaceholder")}
               value={styleInput}
               onChange={(event) => setStyleInput(event.target.value)}
               onKeyDown={(event) => {
@@ -421,14 +445,14 @@ export function TagManagerWindow(): JSX.Element {
               }}
             />
             <button type="button" onClick={() => void createStyle()}>
-              新建
+              {t("window.tagManager.create")}
             </button>
           </div>
           <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-1.5 border-t border-(--line) p-2">
             <input
               className={managerInputClass}
-              aria-label="重命名风格"
-              placeholder="输入风格以重命名"
+              aria-label={t("window.tagManager.renameStyle")}
+              placeholder={t("window.tagManager.renameStylePlaceholder")}
               value={styleRenameInput}
               onChange={(event) => setStyleRenameInput(event.target.value)}
               onKeyDown={(event) => {
@@ -442,14 +466,14 @@ export function TagManagerWindow(): JSX.Element {
               type="button"
               onClick={() => void renameStyle()}
             >
-              改名
+              {t("window.tagManager.rename")}
             </button>
             <button
               disabled={activeStyleId === null}
               type="button"
               onClick={() => void deleteStyle()}
             >
-              删除
+              {t("window.tagManager.deleteStyle")}
             </button>
           </div>
         </aside>
@@ -460,8 +484,8 @@ export function TagManagerWindow(): JSX.Element {
             <div className={managerInputRowClass}>
               <input
                 className={managerInputClass}
-                aria-label="新建标签"
-                placeholder="输入标签以新建"
+                aria-label={t("window.tagManager.newTag")}
+                placeholder={t("window.tagManager.newTagPlaceholder")}
                 value={tagInput}
                 onChange={(event) => setTagInput(event.target.value)}
                 onKeyDown={(event) => {
@@ -475,39 +499,39 @@ export function TagManagerWindow(): JSX.Element {
                 type="button"
                 onClick={() => void createTag()}
               >
-                新建标签
+                {t("window.tagManager.createTag")}
               </button>
             </div>
             <div className={managerSortRowClass}>
               <select
                 className={managerSelectClass}
-                aria-label="排序字段"
+                aria-label={t("window.tagManager.sortField")}
                 value={sortKey}
                 onChange={(event) =>
                   setSortKey(event.target.value as ManagedTagSortKey)
                 }
               >
-                <option value="name">字母</option>
-                <option value="createdAt">创建时间</option>
-                <option value="fileCount">引用数量</option>
+                <option value="name">{t("window.tagManager.sortName")}</option>
+                <option value="createdAt">{t("window.tagManager.sortCreatedAt")}</option>
+                <option value="fileCount">{t("window.tagManager.sortFileCount")}</option>
               </select>
               <select
                 className={managerSelectClass}
-                aria-label="排序方向"
+                aria-label={t("window.tagManager.sortDirection")}
                 value={sortDirection}
                 onChange={(event) =>
                   setSortDirection(event.target.value as SortDirection)
                 }
               >
-                <option value="asc">增序</option>
-                <option value="desc">降序</option>
+                <option value="asc">{t("window.tagManager.sortAsc")}</option>
+                <option value="desc">{t("window.tagManager.sortDesc")}</option>
               </select>
               <button
                 disabled={activeStyleId === null}
                 type="button"
                 onClick={() => void activateStyle()}
               >
-                启用风格
+                {t("window.tagManager.enableStyle")}
               </button>
               <span className={managerMessageClass}>{message}</span>
             </div>
@@ -548,7 +572,7 @@ export function TagManagerWindow(): JSX.Element {
                 ))}
               </div>
             ) : (
-              <div className={managedTagEmptyClass}>没有标签</div>
+              <div className={managedTagEmptyClass}>{t("window.tagManager.noTags")}</div>
             )}
             {boxSelection.selectionBox ? (
               <div
@@ -558,13 +582,13 @@ export function TagManagerWindow(): JSX.Element {
             ) : null}
           </div>
           <footer className={managedTagFooterClass}>
-            <span>已选 {pendingTagIds.length} 个标签</span>
+            <span>{t("window.tagManager.selectedCount", { count: pendingTagIds.length })}</span>
             <button
               disabled={pendingTagIds.length === 0}
               type="button"
               onClick={() => void deleteSelectedTags()}
             >
-              删除
+              {t("window.tagManager.delete")}
             </button>
           </footer>
         </main>

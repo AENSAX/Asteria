@@ -7,6 +7,7 @@ import type {
 import { ActionFeedbackButton } from "../components/ActionFeedbackButton";
 import { ResizableColumns } from "../components/ResizableColumns";
 import { formatBytes } from "../utils/format";
+import { useLanguage } from "../utils/language";
 
 type AiConfigSection = "model" | "feature";
 
@@ -76,12 +77,13 @@ const aiFooterButtonClass =
   "border-0 border-l border-(--line) bg-(--panel-strong) px-2 text-[11px] text-(--ink)";
 
 export function AiManagerWindow(): JSX.Element {
+  const { t } = useLanguage();
   const [section, setSection] = useState<AiConfigSection>("model");
   const [settings, setSettings] = useState<AiSettings>(fallbackSettings);
   const [modelInfo, setModelInfo] = useState<AiModelInfo>(emptyModelInfo);
   const [modelCatalog, setModelCatalog] =
     useState<AiModelCatalog>(emptyModelCatalog);
-  const [message, setMessage] = useState("未加载");
+  const [message, setMessage] = useState(() => t("window.ai.loading"));
 
   useEffect(() => {
     void loadSettings();
@@ -89,7 +91,7 @@ export function AiManagerWindow(): JSX.Element {
 
   async function loadSettings(): Promise<void> {
     if (!window.asteria) {
-      setMessage("preload unavailable");
+      setMessage(t("app.status.preloadUnavailable"));
       return;
     }
 
@@ -106,7 +108,7 @@ export function AiManagerWindow(): JSX.Element {
       applyModelCatalog(nextCatalog, nextSettings);
     }
 
-    setMessage("配置已加载");
+    setMessage(t("window.ai.loaded"));
   }
 
   async function saveSettings(): Promise<void> {
@@ -116,7 +118,7 @@ export function AiManagerWindow(): JSX.Element {
 
     const nextSettings = await window.asteria.updateAiSettings(settings);
     setSettings(nextSettings);
-    setMessage("配置已保存");
+    setMessage(t("window.ai.saved"));
   }
 
   async function updateAndSaveSettings(
@@ -135,7 +137,7 @@ export function AiManagerWindow(): JSX.Element {
 
     const savedSettings = await window.asteria.updateAiSettings(nextSettings);
     setSettings(savedSettings);
-    setMessage("配置已保存");
+    setMessage(t("window.ai.saved"));
   }
 
   async function selectModelDirectory(): Promise<void> {
@@ -160,7 +162,7 @@ export function AiManagerWindow(): JSX.Element {
       return;
     }
 
-    setMessage("正在检测模型");
+    setMessage(t("window.ai.detecting"));
     const nextCatalog = await window.asteria.detectAiModels(
       settings.modelPath,
       settings.modelName,
@@ -168,8 +170,8 @@ export function AiManagerWindow(): JSX.Element {
     applyModelCatalog(nextCatalog, settings);
     setMessage(
       nextCatalog.models.length > 0
-        ? `已检测到 ${nextCatalog.models.length} 个模型`
-        : "未检测到模型",
+        ? t("window.ai.detected", { count: nextCatalog.models.length })
+        : t("window.ai.noModel"),
     );
   }
 
@@ -178,7 +180,7 @@ export function AiManagerWindow(): JSX.Element {
       return;
     }
 
-    setMessage("正在下载默认模型");
+    setMessage(t("window.ai.downloading"));
     const nextInfo = await window.asteria.downloadDefaultAiModel(
       settings.modelPath,
     );
@@ -187,7 +189,7 @@ export function AiManagerWindow(): JSX.Element {
       nextInfo.modelName,
     );
     applyModelCatalog(nextCatalog, settings);
-    setMessage(nextInfo.exists ? "默认模型已就绪" : "未检测到模型");
+    setMessage(nextInfo.exists ? t("window.ai.ready") : t("window.ai.noModelDetected"));
   }
 
   function applyModelCatalog(
@@ -241,14 +243,14 @@ export function AiManagerWindow(): JSX.Element {
             type="button"
             onClick={() => setSection("model")}
           >
-            模型配置
+            {t("window.ai.modelConfig")}
           </button>
           <button
             className={`${aiNavButtonClass} ${section === "feature" ? aiNavActiveClass : ""}`}
             type="button"
             onClick={() => setSection("feature")}
           >
-            功能配置
+            {t("window.ai.featureConfig")}
           </button>
         </aside>
       }
@@ -258,11 +260,11 @@ export function AiManagerWindow(): JSX.Element {
             <section className={aiPanelClass}>
               <div className={aiGridClass}>
                 <label className={aiPathRowClass}>
-                  <span>路径</span>
+                  <span>{t("window.ai.path")}</span>
                   <input
                     className={aiInputClass}
-                    aria-label="模型路径"
-                    placeholder="输入模型文件夹路径"
+                    aria-label={t("window.ai.path")}
+                    placeholder={t("window.ai.pathPlaceholder")}
                     value={settings.modelPath}
                     onChange={(event) => {
                       updateSettings({ modelPath: event.target.value });
@@ -288,26 +290,26 @@ export function AiManagerWindow(): JSX.Element {
                     type="button"
                     onClick={() => void detectModel()}
                   >
-                    检测模型
+                    {t("window.ai.detectModel")}
                   </button>
                   <button
                     className={aiButtonClass}
                     type="button"
                     onClick={() => void downloadDefaultModel()}
                   >
-                    下载默认模型
+                    {t("window.ai.downloadDefault")}
                   </button>
                 </div>
 
                 <label className={aiFieldClass}>
-                  <span>模型</span>
+                  <span>{t("window.ai.model")}</span>
                   <select
                     className={aiSelectClass}
-                    aria-label="选择模型"
+                    aria-label={t("window.ai.selectModel")}
                     value={settings.modelName}
                     onChange={(event) => selectModel(event.target.value)}
                   >
-                    <option value="">未选择</option>
+                    <option value="">{t("window.ai.noneSelected")}</option>
                     {modelCatalog.models.map((model) => (
                       <option
                         key={model.modelFilePath ?? model.modelName}
@@ -320,13 +322,13 @@ export function AiManagerWindow(): JSX.Element {
                 </label>
 
                 <label className={aiFieldClass}>
-                  <span>普通阈值</span>
+                  <span>{t("window.ai.generalThreshold")}</span>
                   <input
                     className={aiInputClass}
-                    aria-label="普通阈值"
+                    aria-label={t("window.ai.generalThreshold")}
                     max={1}
                     min={0}
-                    placeholder="输入 0-1"
+                    placeholder={t("window.ai.thresholdPlaceholder")}
                     step={0.01}
                     type="number"
                     value={settings.generalThreshold}
@@ -342,13 +344,13 @@ export function AiManagerWindow(): JSX.Element {
                 </label>
 
                 <label className={aiFieldClass}>
-                  <span>角色阈值</span>
+                  <span>{t("window.ai.characterThreshold")}</span>
                   <input
                     className={aiInputClass}
-                    aria-label="角色阈值"
+                    aria-label={t("window.ai.characterThreshold")}
                     max={1}
                     min={0}
-                    placeholder="输入 0-1"
+                    placeholder={t("window.ai.thresholdPlaceholder")}
                     step={0.01}
                     type="number"
                     value={settings.characterThreshold}
@@ -365,22 +367,22 @@ export function AiManagerWindow(): JSX.Element {
               </div>
 
               <section className={aiModelPanelClass}>
-                <header className={aiModelHeaderClass}>模型信息</header>
+                <header className={aiModelHeaderClass}>{t("window.ai.info")}</header>
                 <dl className={aiModelListClass}>
                   <div>
-                    <dt className="px-2 leading-6 text-(--muted)">模型名称</dt>
+                    <dt className="px-2 leading-6 text-(--muted)">{t("window.ai.modelName")}</dt>
                     <dd className="px-2 leading-6">
                       {modelInfo.modelName || settings.modelName || "-"}
                     </dd>
                   </div>
                   <div>
-                    <dt className="px-2 leading-6 text-(--muted)">模型数量</dt>
+                    <dt className="px-2 leading-6 text-(--muted)">{t("window.ai.modelCount")}</dt>
                     <dd className="px-2 leading-6">
                       {modelCatalog.models.length}
                     </dd>
                   </div>
                   <div>
-                    <dt className="px-2 leading-6 text-(--muted)">模型大小</dt>
+                    <dt className="px-2 leading-6 text-(--muted)">{t("window.ai.modelSize")}</dt>
                     <dd className="px-2 leading-6">
                       {modelInfo.exists
                         ? formatBytes(modelInfo.sizeBytes)
@@ -388,7 +390,7 @@ export function AiManagerWindow(): JSX.Element {
                     </dd>
                   </div>
                   <div>
-                    <dt className="px-2 leading-6 text-(--muted)">路径</dt>
+                    <dt className="px-2 leading-6 text-(--muted)">{t("window.ai.path")}</dt>
                     <dd className="px-2 leading-6">
                       {(modelInfo.modelFilePath ?? settings.modelPath) || "-"}
                     </dd>
@@ -408,7 +410,7 @@ export function AiManagerWindow(): JSX.Element {
                     })
                   }
                 />
-                <span>当导入图片没有任何标签时启用模型打标</span>
+                <span>{t("window.ai.enableAutoTag")}</span>
               </label>
               <label className={aiCheckRowClass}>
                 <input
@@ -420,7 +422,7 @@ export function AiManagerWindow(): JSX.Element {
                     })
                   }
                 />
-                <span>启用右键菜单为选中图片重新打标（覆盖）</span>
+                <span>{t("window.ai.enableRetag")}</span>
               </label>
               <label className={aiCheckRowClass}>
                 <input
@@ -432,7 +434,7 @@ export function AiManagerWindow(): JSX.Element {
                     })
                   }
                 />
-                <span>启用右键菜单为选中图片追加标签（追加）</span>
+                <span>{t("window.ai.enableAppend")}</span>
               </label>
             </section>
           )}
@@ -444,9 +446,9 @@ export function AiManagerWindow(): JSX.Element {
               type="button"
               onClick={() => void loadSettings()}
             >
-              刷新
+              {t("common.refresh")}
             </button>
-            <ActionFeedbackButton label="保存" onAction={saveSettings} />
+            <ActionFeedbackButton label={t("common.save")} onAction={saveSettings} />
           </footer>
         </main>
       }

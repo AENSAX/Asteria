@@ -2118,6 +2118,19 @@ app.whenReady().then(async () => {
   ipcMain.handle("window:open-favorites", () => {
     createFavoritesWindow();
   });
+  ipcMain.handle("window:set-title", (event, title: unknown) => {
+    const window = BrowserWindow.fromWebContents(event.sender);
+
+    if (!window || typeof title !== "string") {
+      return;
+    }
+
+    const nextTitle = title.trim();
+
+    if (nextTitle) {
+      window.setTitle(nextTitle);
+    }
+  });
   ipcMain.handle("window:open-url-manager", (_event, fileIds: unknown) => {
     const normalizedFileIds = normalizeIpcFileIds(fileIds);
 

@@ -1,3 +1,5 @@
+import type { TranslationKey } from "./language";
+
 export type ShortcutAction =
   | "close-window"
   | "select-all"
@@ -17,8 +19,8 @@ export interface ShortcutDefinition {
 
 export interface ShortcutActionConfig {
   action: ShortcutAction;
-  label: string;
-  description: string;
+  labelKey: TranslationKey;
+  descriptionKey: TranslationKey;
   defaults: ShortcutDefinition[];
 }
 
@@ -32,32 +34,32 @@ const shortcutRecordingState = window as Window & {
 export const shortcutActionConfigs: ShortcutActionConfig[] = [
   {
     action: "close-window",
-    label: "关闭当前窗口",
-    description: "主窗口除外",
+    labelKey: "settings.shortcut.closeWindow",
+    descriptionKey: "settings.shortcut.closeWindowDesc",
     defaults: [{ action: "close-window", key: "Escape" }],
   },
   {
     action: "select-all",
-    label: "全选当前条目",
-    description: "只作用于当前可多选区域",
+    labelKey: "settings.shortcut.selectAll",
+    descriptionKey: "settings.shortcut.selectAllDesc",
     defaults: [{ action: "select-all", key: "a", ctrl: true }],
   },
   {
     action: "detail-previous-file",
-    label: "详情上一文件",
-    description: "文件详情窗口",
+    labelKey: "settings.shortcut.detailPreviousFile",
+    descriptionKey: "settings.shortcut.detailPreviousFileDesc",
     defaults: [{ action: "detail-previous-file", key: "ArrowLeft" }],
   },
   {
     action: "detail-next-file",
-    label: "详情下一文件",
-    description: "文件详情窗口",
+    labelKey: "settings.shortcut.detailNextFile",
+    descriptionKey: "settings.shortcut.detailNextFileDesc",
     defaults: [{ action: "detail-next-file", key: "ArrowRight" }],
   },
   {
     action: "browser-previous-page",
-    label: "浏览上一页",
-    description: "浏览 view",
+    labelKey: "settings.shortcut.browserPreviousPage",
+    descriptionKey: "settings.shortcut.browserPreviousPageDesc",
     defaults: [
       { action: "browser-previous-page", key: "ArrowLeft" },
       { action: "browser-previous-page", key: "PageUp" },
@@ -65,8 +67,8 @@ export const shortcutActionConfigs: ShortcutActionConfig[] = [
   },
   {
     action: "browser-next-page",
-    label: "浏览下一页",
-    description: "浏览 view",
+    labelKey: "settings.shortcut.browserNextPage",
+    descriptionKey: "settings.shortcut.browserNextPageDesc",
     defaults: [
       { action: "browser-next-page", key: "ArrowRight" },
       { action: "browser-next-page", key: "PageDown" },

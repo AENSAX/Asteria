@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
+import { useLanguage } from "../utils/language";
 
 interface ResizableColumnsProps {
   className: string;
@@ -20,6 +21,7 @@ export function ResizableColumns({
   left,
   right,
 }: ResizableColumnsProps): JSX.Element {
+  const { t } = useLanguage();
   const rootRef = useRef<HTMLElement | null>(null);
   const dragRef = useRef({
     active: false,
@@ -93,7 +95,7 @@ export function ResizableColumns({
         {left}
       </div>
       <div
-        aria-label="调整宽度"
+        aria-label={t("common.adjustWidth")}
         aria-orientation="vertical"
         className="h-full min-w-[5px] cursor-col-resize border-x border-(--line) bg-(--statusbar-bg) hover:bg-(--splitter-hover-bg)"
         role="separator"

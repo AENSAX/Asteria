@@ -1,3 +1,5 @@
+import type { TranslationKey } from "./language";
+
 export type ThemeId = "default" | "light";
 
 interface ThemePalette {
@@ -61,7 +63,7 @@ interface ThemePalette {
 
 export interface ThemeDefinition {
   id: ThemeId;
-  name: string;
+  nameKey: TranslationKey;
   palette: ThemePalette;
 }
 
@@ -76,7 +78,7 @@ const THEME_SETTINGS_CHANNEL = "asteria-theme-settings";
 export const themeDefinitions: ThemeDefinition[] = [
   {
     id: "default",
-    name: "默认主题",
+    nameKey: "settings.theme.default",
     palette: {
       system: {
         colorScheme: "dark",
@@ -138,7 +140,7 @@ export const themeDefinitions: ThemeDefinition[] = [
   },
   {
     id: "light",
-    name: "浅色主题",
+    nameKey: "settings.theme.light",
     palette: {
       system: {
         colorScheme: "light",
@@ -202,7 +204,7 @@ export const themeDefinitions: ThemeDefinition[] = [
 
 export const themeOptions = themeDefinitions.map((theme) => ({
   id: theme.id,
-  name: theme.name,
+  nameKey: theme.nameKey,
 }));
 
 export function loadThemeSettings(): ThemeSettings {

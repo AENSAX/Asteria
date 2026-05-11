@@ -6,6 +6,7 @@ import type {
 } from "../../../shared/ipc";
 import { ActionFeedbackButton } from "../components/ActionFeedbackButton";
 import { useShortcut } from "../hooks/useShortcut";
+import { useLanguage } from "../utils/language";
 
 interface FileRatingEditorWindowProps {
   fileIds: number[];
@@ -16,10 +17,11 @@ export function FileRatingEditorWindow({
   fileIds,
   groupId,
 }: FileRatingEditorWindowProps): JSX.Element {
+  const { t } = useLanguage();
   const [group, setGroup] = useState<RatingGroupRecord | null>(null);
   const [entries, setEntries] = useState<RatingEntryRecord[]>([]);
   const [selectedEntryIds, setSelectedEntryIds] = useState<number[]>([]);
-  const [message, setMessage] = useState("加载中");
+  const [message, setMessage] = useState(() => t("common.loading"));
 
   const normalizedFileIds = useMemo(
     () => [...new Set(fileIds.filter((id) => Number.isInteger(id) && id > 0))],
@@ -41,7 +43,7 @@ export function FileRatingEditorWindow({
       !Number.isInteger(groupId) ||
       groupId <= 0
     ) {
-      setMessage("参数无效");
+      setMessage(t("window.fileRating.invalid"));
       return;
     }
 
@@ -61,9 +63,11 @@ export function FileRatingEditorWindow({
       setSelectedEntryIds(
         resolveCommonEntryIds(nextEntries, selectedFiles, normalizedFileIds),
       );
-      setMessage(nextGroup ? "" : "分级不存在");
+      setMessage(nextGroup ? "" : t("window.fileRating.missing"));
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "加载失败");
+      setMessage(
+        error instanceof Error ? error.message : t("window.fileRating.loadFailed"),
+      );
     }
   }
 
@@ -90,8 +94,12 @@ export function FileRatingEditorWindow({
   return (
     <section className="grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_32px] bg-(--panel) text-[11px] text-(--ink)">
       <div className="flex items-center justify-between border-b border-(--line) bg-(--surface-bg) px-2 py-1 text-(--muted)">
-        <span>{group ? `分级:${group.name}` : "分级"}</span>
-        <span>{normalizedFileIds.length} 个文件</span>
+        <span>
+          {group
+            ? t("window.fileRating.group") + `:${group.name}`
+            : t("window.fileRating.group")}
+        </span>
+        <span>{t("window.fileRating.files", { count: normalizedFileIds.length })}</span>
       </div>
 
       <div className="min-h-0 overflow-auto p-2">
@@ -110,7 +118,7 @@ export function FileRatingEditorWindow({
             </label>
           ))
         ) : (
-          <div className="p-2 text-(--muted)">{message || "没有条目"}</div>
+          <div className="p-2 text-(--muted)">{message || t("common.noEntries")}</div>
         )}
       </div>
 
@@ -120,13 +128,13 @@ export function FileRatingEditorWindow({
           type="button"
           onClick={() => window.close()}
         >
-          取消
+          {t("window.fileRating.cancel")}
         </button>
         <ActionFeedbackButton
           className="h-6 cursor-default border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px]"
           afterFeedback={() => window.close()}
           disabled={!group || normalizedFileIds.length === 0}
-          label="保存"
+          label={t("window.fileRating.save")}
           onAction={save}
         />
       </footer>

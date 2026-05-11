@@ -11,6 +11,7 @@ import {
   getTagNamespaceClassName,
   getTagNamespaceStyle,
 } from "../utils/tags";
+import { useLanguage } from "../utils/language";
 
 interface TagListViewProps {
   onAppendSearchTag: (tag: ManagedTagRecord) => void;
@@ -105,10 +106,11 @@ export function TagListView({
   state,
   onStateChange,
 }: TagListViewProps): JSX.Element {
+  const { t } = useLanguage();
   const [groups, setGroups] = useState<StyleTagGroup[]>([]);
   const [domains, setDomains] = useState<DomainRecord[]>([]);
   const [selectionTags, setSelectionTags] = useState<BatchFileTagRecord[]>([]);
-  const [message, setMessage] = useState("未加载");
+  const [message, setMessage] = useState(() => t("window.tagList.loading"));
   const [viewport, setViewport] = useState({ scrollTop: 0, height: 0 });
   const contentRef = useRef<HTMLDivElement | null>(null);
   const frameRef = useRef<number | null>(null);
@@ -145,9 +147,17 @@ export function TagListView({
     [state.filterMode, selectionTags, sortedGroups],
   );
   const displayDomains = state.filterMode === "all" ? domains : [];
+  const tagListLabels = useMemo(
+    () => ({
+      domains: t("window.tagList.domains"),
+      noDomains: t("window.tagList.noDomains"),
+      noTags: t("window.tagList.noTags"),
+    }),
+    [t],
+  );
   const virtualRows = useMemo(
-    () => buildVirtualTagRows(displayDomains, displayGroups),
-    [displayDomains, displayGroups],
+    () => buildVirtualTagRows(displayDomains, displayGroups, tagListLabels),
+    [displayDomains, displayGroups, tagListLabels],
   );
   const visibleRows = useMemo(
     () =>
@@ -185,7 +195,7 @@ export function TagListView({
 
   async function loadTags(): Promise<void> {
     if (!window.asteria) {
-      setMessage("preload unavailable");
+      setMessage(t("window.tagList.preloadUnavailable"));
       return;
     }
 
@@ -202,11 +212,15 @@ export function TagListView({
       setDomains(nextDomains);
       setGroups(nextGroups);
       setMessage(
-        `${nextGroups.reduce((sum, group) => sum + group.tags.length, 0)} 个标签`,
+        t("window.tagList.loadedTags", {
+          count: nextGroups.reduce((sum, group) => sum + group.tags.length, 0),
+        }),
       );
     } catch (error) {
       setGroups([]);
-      setMessage(error instanceof Error ? error.message : "加载失败");
+      setMessage(
+        error instanceof Error ? error.message : t("window.tagList.loadFailed"),
+      );
     }
   }
 
@@ -257,7 +271,7 @@ export function TagListView({
     <section className={tagListRootClass}>
       <div className={tagListToolbarClass}>
         <select
-          aria-label="标签显示范围"
+          aria-label={t("window.tagList.displayRange")}
           className={tagListSelectClass}
           value={state.filterMode}
           onChange={(event) =>
@@ -267,13 +281,13 @@ export function TagListView({
             })
           }
         >
-          <option value="all">全部</option>
-          <option value="namespace">namespace</option>
-          <option value="plain">普通标签</option>
-          <option value="selection">selection</option>
+          <option value="all">{t("window.tagList.all")}</option>
+          <option value="namespace">{t("window.tagList.namespace")}</option>
+          <option value="plain">{t("window.tagList.plain")}</option>
+          <option value="selection">{t("window.tagList.selection")}</option>
         </select>
         <select
-          aria-label="字母排序"
+          aria-label={t("window.tagList.sortAlphabetical")}
           className={tagListSelectClass}
           value={state.direction}
           onChange={(event) =>
@@ -283,8 +297,8 @@ export function TagListView({
             })
           }
         >
-          <option value="asc">字母升序</option>
-          <option value="desc">字母降序</option>
+          <option value="asc">{t("window.tagList.ascending")}</option>
+          <option value="desc">{t("window.tagList.descending")}</option>
         </select>
         <label className={tagListToolbarLabelClass}>
           <input
@@ -294,10 +308,10 @@ export function TagListView({
               onStateChange({ ...state, namespaceFirst: event.target.checked })
             }
           />
-          namespace优先
+          {t("window.tagList.namespaceFirst")}
         </label>
         <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-right text-(--muted)">
-          {locked ? "不可操作，因为正在导入文件" : message}
+          {locked ? t("window.tagList.locked") : message}
         </span>
       </div>
 
@@ -396,6 +410,11 @@ function renderVirtualTagRow(
 function buildVirtualTagRows(
   domains: DomainRecord[],
   groups: StyleTagGroup[],
+  labels: {
+    domains: string;
+    noDomains: string;
+    noTags: string;
+  },
 ): VirtualTagRows {
   const rows: VirtualTagRow[] = [];
   let top = 0;
@@ -408,7 +427,7 @@ function buildVirtualTagRows(
   push({
     kind: "header",
     key: "header:domains",
-    label: "域",
+    label: labels.domains,
     height: TAG_LIST_HEADER_HEIGHT,
   });
 
@@ -426,7 +445,7 @@ function buildVirtualTagRows(
     push({
       kind: "empty",
       key: "empty:domains",
-      label: "没有域",
+      label: labels.noDomains,
       height: TAG_LIST_EMPTY_HEIGHT,
     });
   }
@@ -435,7 +454,7 @@ function buildVirtualTagRows(
     push({
       kind: "empty",
       key: "empty:groups",
-      label: "没有标签",
+      label: labels.noTags,
       height: TAG_LIST_EMPTY_HEIGHT,
     });
     return { rows, totalHeight: top };
@@ -453,7 +472,7 @@ function buildVirtualTagRows(
       push({
         kind: "empty",
         key: `empty:style:${group.style.id}`,
-        label: "没有标签",
+        label: labels.noTags,
         height: TAG_LIST_EMPTY_HEIGHT,
       });
       continue;

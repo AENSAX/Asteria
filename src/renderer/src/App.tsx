@@ -19,8 +19,15 @@ import type {
 } from "../../shared/ipc";
 import { ActionFeedbackButton } from "./components/ActionFeedbackButton";
 import { useStandaloneWindowShortcuts } from "./hooks/useStandaloneWindowShortcuts";
+import { useWindowTitle } from "./hooks/useWindowTitle";
 import { readDroppedImportData } from "./utils/dropImport";
 import { parseIdList } from "./utils/ids";
+import {
+  applyLanguage,
+  listenLanguageSettingsChanged,
+  useLanguage,
+  type TranslationFunction,
+} from "./utils/language";
 import { applyTheme, listenThemeSettingsChanged } from "./utils/themes";
 import { DatabaseManagerView } from "./views/DatabaseManagerView";
 import {
@@ -73,10 +80,12 @@ type ViewComponent =
   | "search"
   | "tag-list";
 type OpenableViewComponent = Exclude<ViewComponent, "empty-page">;
+type PageTitleMode = "default" | "custom";
 
 interface PageItem {
   id: string;
   title: string;
+  titleMode: PageTitleMode;
   model: Model;
   searchFilters: SearchFilter[];
   searchInputState: SearchInputState;
@@ -91,6 +100,7 @@ interface PageItem {
 interface SavedPageItem {
   id: string;
   title: string;
+  titleMode: PageTitleMode;
   modelJson: IJsonModel;
   searchFilters: SearchFilter[];
   searchInputState: SearchInputState;
@@ -119,28 +129,6 @@ const defaultTagListViewState: TagListViewState = {
   filterMode: "all",
 };
 
-const idleProgress: ImportProgress = {
-  phase: "idle",
-  batchId: null,
-  total: 0,
-  processed: 0,
-  imported: 0,
-  duplicated: 0,
-  failed: 0,
-  chunkIndex: 0,
-  chunkTotal: 0,
-  currentFile: null,
-  message: "等待导入",
-};
-
-const idleWorkStatus: WorkStatus = {
-  active: false,
-  message: "就绪",
-  queued: 0,
-  processing: 0,
-  completed: 0,
-};
-
 const standaloneWindowClass = "h-full min-h-0 min-w-0 bg-(--bg)";
 const emptyPageClass =
   "grid h-full min-h-0 min-w-0 place-items-center bg-(--panel) text-(--muted)";
@@ -150,12 +138,11 @@ const activeMenuButtonClass = `${menuButtonClass} bg-(--panel-strong)`;
 const menuDropdownClass =
   "absolute left-0 top-full z-10 min-w-[132px] border border-(--line-strong) bg-(--panel) p-1 [&>button]:h-[26px] [&>button]:w-full [&>button]:cursor-default [&>button]:border-0 [&>button]:bg-transparent [&>button]:px-2.5 [&>button]:text-left [&>button]:text-[11px] [&>button:disabled]:text-(--disabled-ink) [&>button:hover:not(:disabled)]:bg-(--accent-weak)";
 const pageTabClass =
-  "grid h-[30px] min-w-[132px] max-w-[220px] grid-cols-[minmax(0,1fr)_22px] items-stretch border-r border-(--line) bg-transparent text-(--muted)";
-const activePageTabClass = `group bg-(--panel) text-(--ink) grid h-[30px] min-w-[132px] max-w-[220px] grid-cols-[minmax(0,1fr)_22px] items-stretch border-r border-(--line)`;
+  "group relative flex h-[30px] min-w-[132px] max-w-[220px] items-stretch border-r border-(--line) bg-transparent text-(--muted)";
+const activePageTabClass = `group bg-(--panel) text-(--ink) relative flex h-[30px] min-w-[132px] max-w-[220px] items-stretch border-r border-(--line)`;
 const pageTabTitleClass =
-  "group min-w-0 cursor-default overflow-hidden text-ellipsis whitespace-nowrap border-0 bg-transparent px-2 text-left text-[11px] text-inherit";
-const pageTabCloseClass =
-  "w-[22px] cursor-default border-0 bg-transparent p-0 text-[11px] text-inherit group-hover:bg-(--button-hover)";
+  "min-w-0 flex-1 cursor-default overflow-hidden text-ellipsis whitespace-nowrap border-0 bg-transparent px-2 pr-7 text-left text-[11px] text-inherit";
+const pageTabCloseClass = "page-tab-close";
 const contextMenuClass =
   "fixed z-30 w-[142px] border border-(--line-strong) bg-(--panel) p-1 [&>button]:block [&>button]:h-6 [&>button]:w-full [&>button]:cursor-default [&>button]:border-0 [&>button]:bg-transparent [&>button]:px-2 [&>button]:text-left [&>button]:text-[11px] [&>button]:text-(--ink) [&>button:hover]:bg-(--accent-weak)";
 const contextMenuRenameClass =
@@ -163,6 +150,95 @@ const contextMenuRenameClass =
 
 function cx(...classes: Array<string | false | null | undefined>): string {
   return classes.filter(Boolean).join(" ");
+}
+
+function getPageTitle(pageNumber: number, t: TranslationFunction): string {
+  return t("app.pageName", { index: pageNumber });
+}
+
+function getPageNumber(pageId: string): number {
+  return Number(pageId.match(/^page-(\d+)$/)?.[1] ?? 0);
+}
+
+function isDefaultPageTitle(title: string, pageNumber: number): boolean {
+  const normalizedTitle = title.trim().toLowerCase();
+
+  return (
+    normalizedTitle === `页面 ${pageNumber}`.toLowerCase() ||
+    normalizedTitle === `page ${pageNumber}`.toLowerCase()
+  );
+}
+
+function inferPageTitleMode(title: string, pageId: string): PageTitleMode {
+  const pageNumber = getPageNumber(pageId);
+
+  return pageNumber > 0 && isDefaultPageTitle(title, pageNumber)
+    ? "default"
+    : "custom";
+}
+
+function isViewComponent(value: unknown): value is ViewComponent {
+  return (
+    value === "empty-page" ||
+    value === "file-import" ||
+    value === "file-browser" ||
+    value === "search" ||
+    value === "tag-list"
+  );
+}
+
+function getViewTabTitle(
+  component: ViewComponent,
+  t: TranslationFunction,
+): string {
+  if (component === "empty-page") {
+    return t("app.emptyPage");
+  }
+
+  if (component === "file-import") {
+    return t("app.action.import");
+  }
+
+  if (component === "file-browser") {
+    return t("app.action.browser");
+  }
+
+  if (component === "search") {
+    return t("app.action.search");
+  }
+
+  return t("app.action.tags");
+}
+
+function syncViewTabTitles(
+  page: PageItem,
+  t: TranslationFunction,
+): PageItem {
+  const renames: Array<{ id: string; title: string }> = [];
+
+  page.model.visitNodes((node) => {
+    if (node.getType() !== "tab" || !(node instanceof TabNode)) {
+      return;
+    }
+
+    const component = node.getComponent();
+
+    if (!isViewComponent(component)) {
+      return;
+    }
+
+    const title = getViewTabTitle(component, t);
+
+    if (node.getName() !== title) {
+      renames.push({ id: node.getId(), title });
+    }
+  });
+
+  for (const rename of renames) {
+    page.model.doAction(Actions.renameTab(rename.id, rename.title));
+  }
+
+  return renames.length > 0 ? { ...page } : page;
 }
 
 function createPageModel(templateText = defaultPageTemplateText): Model {
@@ -173,21 +249,53 @@ function createPageModel(templateText = defaultPageTemplateText): Model {
   }
 }
 
+function createIdleProgress(t: TranslationFunction): ImportProgress {
+  return {
+    phase: "idle",
+    batchId: null,
+    total: 0,
+    processed: 0,
+    imported: 0,
+    duplicated: 0,
+    failed: 0,
+    chunkIndex: 0,
+    chunkTotal: 0,
+    currentFile: null,
+    message: t("app.status.waitingImport"),
+  };
+}
+
+function createIdleWorkStatus(t: TranslationFunction): WorkStatus {
+  return {
+    active: false,
+    message: t("app.status.ready"),
+    queued: 0,
+    processing: 0,
+    completed: 0,
+  };
+}
+
+function StandaloneWindowFrame({
+  children,
+  title,
+}: {
+  children: JSX.Element;
+  title: string;
+}): JSX.Element {
+  useWindowTitle(title);
+
+  return <main className={standaloneWindowClass}>{children}</main>;
+}
+
 function createViewTab(
   component: OpenableViewComponent,
   viewId: number,
+  t: TranslationFunction,
 ): Record<string, string> {
-  const names: Record<OpenableViewComponent, string> = {
-    "file-import": "导入",
-    "file-browser": "浏览",
-    search: "搜索",
-    "tag-list": "标签",
-  };
-
   return {
     type: "tab",
     id: `view-${component}-${viewId}`,
-    name: names[component],
+    name: getViewTabTitle(component, t),
     component,
   };
 }
@@ -205,146 +313,147 @@ function findFirstTabsetId(model: Model): string | null {
 }
 
 export function App(): JSX.Element {
+  const { t } = useLanguage();
   const query = new URLSearchParams(window.location.search);
   const windowMode = query.get("window");
   useStandaloneWindowShortcuts({ enabled: Boolean(windowMode) });
 
   if (windowMode === "database-manager") {
     return (
-      <main className={standaloneWindowClass}>
+      <StandaloneWindowFrame title={t("app.action.viewDatabase")}>
         <DatabaseManagerView />
-      </main>
+      </StandaloneWindowFrame>
     );
   }
 
   if (windowMode === "file-detail") {
     return (
-      <main className={standaloneWindowClass}>
+      <StandaloneWindowFrame title={t("window.fileDetail.title")}>
         <FileDetailWindow fileId={Number(query.get("id"))} />
-      </main>
+      </StandaloneWindowFrame>
     );
   }
 
   if (windowMode === "screening") {
     return (
-      <main className={standaloneWindowClass}>
+      <StandaloneWindowFrame title={t("window.screening.title")}>
         <ScreeningDetailWindow fileIds={parseIdList(query.get("ids"))} />
-      </main>
+      </StandaloneWindowFrame>
     );
   }
 
   if (windowMode === "settings") {
     return (
-      <main className={standaloneWindowClass}>
+      <StandaloneWindowFrame title={t("app.action.settings")}>
         <SettingsWindow />
-      </main>
+      </StandaloneWindowFrame>
     );
   }
 
   if (windowMode === "tag-manager") {
     return (
-      <main className={standaloneWindowClass}>
+      <StandaloneWindowFrame title={t("app.action.manageTags")}>
         <TagManagerWindow />
-      </main>
+      </StandaloneWindowFrame>
     );
   }
 
   if (windowMode === "recycle-bin") {
     return (
-      <main className={standaloneWindowClass}>
+      <StandaloneWindowFrame title={t("app.action.recycleBin")}>
         <RecycleBinWindow />
-      </main>
+      </StandaloneWindowFrame>
     );
   }
 
   if (windowMode === "rating-manager") {
     return (
-      <main className={standaloneWindowClass}>
+      <StandaloneWindowFrame title={t("app.action.rating")}>
         <RatingManagerWindow />
-      </main>
+      </StandaloneWindowFrame>
     );
   }
 
   if (windowMode === "api-manager") {
     return (
-      <main className={standaloneWindowClass}>
+      <StandaloneWindowFrame title={t("app.action.api")}>
         <ApiManagerWindow />
-      </main>
+      </StandaloneWindowFrame>
     );
   }
 
   if (windowMode === "hydrus-import") {
     return (
-      <main className={standaloneWindowClass}>
+      <StandaloneWindowFrame title={t("app.action.hydrusImport")}>
         <HydrusImportWindow />
-      </main>
+      </StandaloneWindowFrame>
     );
   }
 
   if (windowMode === "ehentai-import") {
     return (
-      <main className={standaloneWindowClass}>
+      <StandaloneWindowFrame title={t("app.action.ehentaiImport")}>
         <EHentaiImportWindow />
-      </main>
+      </StandaloneWindowFrame>
     );
   }
 
   if (windowMode === "ai-manager") {
     return (
-      <main className={standaloneWindowClass}>
+      <StandaloneWindowFrame title={t("app.action.ai")}>
         <AiManagerWindow />
-      </main>
+      </StandaloneWindowFrame>
     );
   }
 
   if (windowMode === "tag-translation") {
     return (
-      <main className={standaloneWindowClass}>
+      <StandaloneWindowFrame title={t("app.action.tagTranslation")}>
         <TagTranslationWindow />
-      </main>
+      </StandaloneWindowFrame>
     );
   }
 
   if (windowMode === "favorites") {
     return (
-      <main className={standaloneWindowClass}>
+      <StandaloneWindowFrame title={t("app.action.favorites")}>
         <FavoritesWindow />
-      </main>
+      </StandaloneWindowFrame>
     );
   }
 
   if (windowMode === "url-manager") {
     return (
-      <main className={standaloneWindowClass}>
+      <StandaloneWindowFrame title={t("window.url.title")}>
         <UrlManagerWindow fileIds={parseIdList(query.get("ids"))} />
-      </main>
+      </StandaloneWindowFrame>
     );
   }
 
   if (windowMode === "batch-tag-manager") {
     return (
-      <main className={standaloneWindowClass}>
+      <StandaloneWindowFrame title={t("window.batchTagManager.title")}>
         <BatchTagManagerWindow fileIds={parseIdList(query.get("ids"))} />
-      </main>
+      </StandaloneWindowFrame>
     );
   }
 
   if (windowMode === "file-rating-editor") {
     return (
-      <main className={standaloneWindowClass}>
+      <StandaloneWindowFrame title={t("window.fileRatingEditor.title")}>
         <FileRatingEditorWindow
           fileIds={parseIdList(query.get("ids"))}
           groupId={Number(query.get("groupId"))}
         />
-      </main>
+      </StandaloneWindowFrame>
     );
   }
 
   if (windowMode === "export") {
     return (
-      <main className={standaloneWindowClass}>
+      <StandaloneWindowFrame title={t("common.export")}>
         <ExportWindow fileIds={parseIdList(query.get("ids"))} />
-      </main>
+      </StandaloneWindowFrame>
     );
   }
 
@@ -360,14 +469,20 @@ export function App(): JSX.Element {
 }
 
 function WorkbenchApp(): JSX.Element {
+  const { languageId, t } = useLanguage();
   const [openMenu, setOpenMenu] = useState<MenuName | null>(null);
   const [dragActive, setDragActive] = useState(false);
-  const [progress, setProgress] = useState<ImportProgress>(idleProgress);
-  const [workStatus, setWorkStatus] = useState<WorkStatus>(idleWorkStatus);
+  const [progress, setProgress] = useState<ImportProgress>(() =>
+    createIdleProgress(t),
+  );
+  const [workStatus, setWorkStatus] = useState<WorkStatus>(() =>
+    createIdleWorkStatus(t),
+  );
   const [pages, setPages] = useState<PageItem[]>(() => [
     {
       id: "page-1",
-      title: "默认页面",
+      title: t("app.pageName", { index: 1 }),
+      titleMode: "default",
       model: createPageModel(),
       searchFilters: [],
       searchInputState: emptySearchInputState,
@@ -424,6 +539,43 @@ function WorkbenchApp(): JSX.Element {
     progress.phase === "selecting" || progress.phase === "importing";
 
   useEffect(() => {
+    setProgress((current) =>
+      current.phase === "idle" ? createIdleProgress(t) : current,
+    );
+    setWorkStatus((current) =>
+      current.active ? current : createIdleWorkStatus(t),
+    );
+  }, [languageId, t]);
+
+  useEffect(() => {
+    setPages((currentPages) => {
+      let changed = false;
+      const nextPages = currentPages.map((page) => {
+        let nextPage = page;
+
+        if (page.titleMode !== "default") {
+          const syncedPage = syncViewTabTitles(nextPage, t);
+          changed = changed || syncedPage !== nextPage;
+          return syncedPage;
+        }
+
+        const nextTitle = getPageTitle(getPageNumber(page.id), t);
+
+        if (page.title !== nextTitle) {
+          changed = true;
+          nextPage = { ...page, title: nextTitle };
+        }
+
+        const syncedPage = syncViewTabTitles(nextPage, t);
+        changed = changed || syncedPage !== nextPage;
+        return syncedPage;
+      });
+
+      return changed ? nextPages : currentPages;
+    });
+  }, [languageId, t]);
+
+  useEffect(() => {
     pagesRef.current = pages;
   }, [pages]);
 
@@ -453,6 +605,14 @@ function WorkbenchApp(): JSX.Element {
     [],
   );
 
+  useEffect(
+    () =>
+      listenLanguageSettingsChanged((settings) => {
+        applyLanguage(settings.languageId);
+      }),
+    [],
+  );
+
   useEffect(() => {
     if (workbenchLoaded) {
       saveWorkbenchState();
@@ -462,9 +622,9 @@ function WorkbenchApp(): JSX.Element {
   useEffect(() => {
     if (!window.asteria) {
       setProgress({
-        ...idleProgress,
+        ...createIdleProgress(t),
         phase: "failed",
-        message: "preload unavailable",
+        message: t("app.status.preloadUnavailable"),
       });
       return undefined;
     }
@@ -543,23 +703,31 @@ function WorkbenchApp(): JSX.Element {
       : false;
 
     if (savedState && savedState.pages.length > 0) {
-      const restoredPages = savedState.pages.map((page, index) => ({
-        id: page.id,
-        title: page.title,
-        model: Model.fromJson(page.modelJson),
-        searchFilters: page.searchFilters,
-        searchInputState: page.searchInputState,
-        searchAppendTagRequest: null,
-        viewRefreshSequenceByTabId: {},
-        importQueueActive:
-          page.importQueueActive ||
-          (hasImportQueue &&
-            (page.id === savedState.activePageId ||
-              (!savedState.activePageId && index === 0))),
-        selectedBrowserFileIds: [],
-        browserViewState: page.browserViewState,
-        tagListViewState: page.tagListViewState,
-      }));
+      const restoredPages = savedState.pages.map((page, index) => {
+        const restoredPage: PageItem = {
+          id: page.id,
+          title:
+            page.titleMode === "default"
+              ? getPageTitle(getPageNumber(page.id), t)
+              : page.title,
+          titleMode: page.titleMode,
+          model: Model.fromJson(page.modelJson),
+          searchFilters: page.searchFilters,
+          searchInputState: page.searchInputState,
+          searchAppendTagRequest: null,
+          viewRefreshSequenceByTabId: {},
+          importQueueActive:
+            page.importQueueActive ||
+            (hasImportQueue &&
+              (page.id === savedState.activePageId ||
+                (!savedState.activePageId && index === 0))),
+          selectedBrowserFileIds: [],
+          browserViewState: page.browserViewState,
+          tagListViewState: page.tagListViewState,
+        };
+
+        return syncViewTabTitles(restoredPage, t);
+      });
 
       setPages(restoredPages);
       setActivePageId(
@@ -571,7 +739,7 @@ function WorkbenchApp(): JSX.Element {
     } else {
       const page = createPageItemFromTemplate(
         1,
-        "默认页面",
+        t("app.pageName", { index: 1 }),
         pageLayoutState.templateText.default,
       );
       page.importQueueActive = hasImportQueue;
@@ -648,9 +816,9 @@ function WorkbenchApp(): JSX.Element {
 
     if (!window.asteria) {
       setProgress({
-        ...idleProgress,
+        ...createIdleProgress(t),
         phase: "failed",
-        message: "preload unavailable",
+        message: t("app.status.preloadUnavailable"),
       });
       return;
     }
@@ -660,9 +828,9 @@ function WorkbenchApp(): JSX.Element {
     }
 
     setProgress({
-      ...idleProgress,
+      ...createIdleProgress(t),
       phase: "selecting",
-      message: "等待选择文件",
+      message: t("app.status.waitingSelectFiles"),
     });
 
     try {
@@ -671,9 +839,10 @@ function WorkbenchApp(): JSX.Element {
       await activateImportQueuePreview(importPage);
     } catch (error) {
       setProgress({
-        ...idleProgress,
+        ...createIdleProgress(t),
         phase: "failed",
-        message: error instanceof Error ? error.message : "导入失败",
+        message:
+          error instanceof Error ? error.message : t("app.status.importFailed"),
       });
     }
   }
@@ -684,9 +853,9 @@ function WorkbenchApp(): JSX.Element {
 
     if (!window.asteria) {
       setProgress({
-        ...idleProgress,
+        ...createIdleProgress(t),
         phase: "failed",
-        message: "preload unavailable",
+        message: t("app.status.preloadUnavailable"),
       });
       return;
     }
@@ -696,9 +865,9 @@ function WorkbenchApp(): JSX.Element {
     }
 
     setProgress({
-      ...idleProgress,
+      ...createIdleProgress(t),
       phase: "selecting",
-      message: "等待选择文件夹",
+      message: t("app.status.waitingSelectFolder"),
     });
 
     try {
@@ -707,9 +876,10 @@ function WorkbenchApp(): JSX.Element {
       await activateImportQueuePreview(importPage);
     } catch (error) {
       setProgress({
-        ...idleProgress,
+        ...createIdleProgress(t),
         phase: "failed",
-        message: error instanceof Error ? error.message : "导入失败",
+        message:
+          error instanceof Error ? error.message : t("app.status.importFailed"),
       });
     }
   }
@@ -720,9 +890,9 @@ function WorkbenchApp(): JSX.Element {
   ): Promise<void> {
     if (!window.asteria) {
       setProgress({
-        ...idleProgress,
+        ...createIdleProgress(t),
         phase: "failed",
-        message: "preload unavailable",
+        message: t("app.status.preloadUnavailable"),
       });
       return;
     }
@@ -739,17 +909,17 @@ function WorkbenchApp(): JSX.Element {
 
     if (paths.length === 0 && urls.length === 0) {
       setProgress({
-        ...idleProgress,
+        ...createIdleProgress(t),
         phase: "failed",
-        message: "未读取到拖入路径或链接",
+        message: t("app.status.noDroppedPathOrUrl"),
       });
       return;
     }
 
     setProgress({
-      ...idleProgress,
+      ...createIdleProgress(t),
       phase: "importing",
-      message: "扫描拖入内容",
+      message: t("app.status.scanDroppedContent"),
     });
 
     try {
@@ -771,9 +941,10 @@ function WorkbenchApp(): JSX.Element {
       await activateImportQueuePreview(importPage);
     } catch (error) {
       setProgress({
-        ...idleProgress,
+        ...createIdleProgress(t),
         phase: "failed",
-        message: error instanceof Error ? error.message : "导入失败",
+        message:
+          error instanceof Error ? error.message : t("app.status.importFailed"),
       });
     }
   }
@@ -964,7 +1135,9 @@ function WorkbenchApp(): JSX.Element {
 
     setPages((currentPages) =>
       currentPages.map((page) =>
-        page.id === pageId ? { ...page, title: nextTitle } : page,
+        page.id === pageId
+          ? { ...page, title: nextTitle, titleMode: "custom" }
+          : page,
       ),
     );
 
@@ -988,7 +1161,7 @@ function WorkbenchApp(): JSX.Element {
 
     return createPageItemFromTemplate(
       pageNumber,
-      `页面 ${pageNumber}`,
+      t("app.pageName", { index: pageNumber }),
       pageTemplateText.newPage,
     );
   }
@@ -999,7 +1172,7 @@ function WorkbenchApp(): JSX.Element {
 
     return createPageItemFromTemplate(
       pageNumber,
-      `页面 ${pageNumber}`,
+      t("app.pageName", { index: pageNumber }),
       pageTemplateText.default,
     );
   }
@@ -1008,10 +1181,12 @@ function WorkbenchApp(): JSX.Element {
     pageNumber: number,
     title: string,
     templateText: string,
+    titleMode: PageTitleMode = "default",
   ): PageItem {
-    return {
+    const page: PageItem = {
       id: `page-${pageNumber}`,
       title,
+      titleMode,
       model: createPageModel(templateText),
       searchFilters: [],
       searchInputState: emptySearchInputState,
@@ -1022,6 +1197,8 @@ function WorkbenchApp(): JSX.Element {
       browserViewState: defaultBrowserViewState,
       tagListViewState: defaultTagListViewState,
     };
+
+    return syncViewTabTitles(page, t);
   }
 
   function openView(component: OpenableViewComponent): void {
@@ -1063,7 +1240,7 @@ function WorkbenchApp(): JSX.Element {
 
     const viewId = viewCounterRef.current;
     viewCounterRef.current += 1;
-    const tab = createViewTab(component, viewId);
+    const tab = createViewTab(component, viewId, t);
 
     page.model.doAction(
       Actions.addNode(tab, targetTabsetId, DockLocation.CENTER, -1, true),
@@ -1125,8 +1302,10 @@ function WorkbenchApp(): JSX.Element {
       }
 
       const confirmed = await window.asteria.confirmDialog({
-        title: "确认重复导入",
-        message: `这个文件与 ${file.duplicate.domainName} 中的文件相同，确定要重复导入吗，这不会创建一个新的文件，只会创建一条新的数据库记录`,
+        title: t("app.status.duplicateConfirmTitle"),
+        message: t("app.status.duplicateConfirmMessage", {
+          domainName: file.duplicate.domainName,
+        }),
       });
 
       if (confirmed) {
@@ -1377,6 +1556,7 @@ function WorkbenchApp(): JSX.Element {
       pages: pagesRef.current.map((page) => ({
         id: page.id,
         title: page.title,
+        titleMode: page.titleMode,
         modelJson: page.model.toJson(),
         searchFilters: page.searchFilters,
         searchInputState: page.searchInputState,
@@ -1434,6 +1614,10 @@ function WorkbenchApp(): JSX.Element {
     return {
       id: page.id,
       title: page.title,
+      titleMode:
+        page.titleMode === "default" || page.titleMode === "custom"
+          ? page.titleMode
+          : inferPageTitleMode(page.title, page.id),
       modelJson: page.modelJson,
       searchFilters: normalizeSearchFilters(
         page.searchFilters,
@@ -1581,7 +1765,7 @@ function WorkbenchApp(): JSX.Element {
       activePage?.viewRefreshSequenceByTabId[node.getId()] ?? 0;
 
     if (component === "empty-page") {
-      return <section className={emptyPageClass}>空页面</section>;
+      return <section className={emptyPageClass}>{t("app.emptyPage")}</section>;
     }
 
     if (component === "file-import") {
@@ -1644,7 +1828,7 @@ function WorkbenchApp(): JSX.Element {
 
     return (
       <div className="grid h-full place-items-center text-(--muted)">
-        未知视图
+        {t("app.unknownView")}
       </div>
     );
   }
@@ -1663,29 +1847,29 @@ function WorkbenchApp(): JSX.Element {
                 setOpenMenu((menu) => (menu === "file" ? null : "file"))
               }
             >
-              文件
+              {t("app.menu.file")}
             </button>
 
             {openMenu === "file" ? (
               <div className={menuDropdownClass}>
                 <button
                   disabled={isImporting}
-                  title="选择一个或多个媒体文件"
+                  title={t("app.action.importFilesTitle")}
                   type="button"
                   onClick={startFileImport}
                 >
-                  导入文件
+                  {t("app.action.importFiles")}
                 </button>
                 <button
                   disabled={isImporting}
-                  title="选择一个文件夹并导入其中媒体文件"
+                  title={t("app.action.importFolderTitle")}
                   type="button"
                   onClick={startFolderImport}
                 >
-                  导入文件夹
+                  {t("app.action.importFolder")}
                 </button>
                 <button type="button" onClick={() => void openSettings()}>
-                  设置
+                  {t("app.action.settings")}
                 </button>
               </div>
             ) : null}
@@ -1701,18 +1885,18 @@ function WorkbenchApp(): JSX.Element {
                 setOpenMenu((menu) => (menu === "page" ? null : "page"))
               }
             >
-              页面
+              {t("app.menu.page")}
             </button>
 
             {openMenu === "page" ? (
               <div className={menuDropdownClass}>
                 <button type="button" onClick={createPage}>
-                  新建页面
+                  {t("app.action.newPage")}
                 </button>
                 <ActionFeedbackButton
                   afterFeedback={() => setOpenMenu(null)}
                   disabled={!activePage}
-                  label="保存布局"
+                  label={t("app.action.saveLayout")}
                   onAction={saveActivePageLayout}
                 />
               </div>
@@ -1729,22 +1913,22 @@ function WorkbenchApp(): JSX.Element {
                 setOpenMenu((menu) => (menu === "view" ? null : "view"))
               }
             >
-              视图
+              {t("app.menu.view")}
             </button>
 
             {openMenu === "view" ? (
               <div className={menuDropdownClass}>
                 <button type="button" onClick={openFileImportView}>
-                  导入
+                  {t("app.action.import")}
                 </button>
                 <button type="button" onClick={openBrowser}>
-                  浏览
+                  {t("app.action.browser")}
                 </button>
                 <button type="button" onClick={openSearch}>
-                  搜索
+                  {t("app.action.search")}
                 </button>
                 <button type="button" onClick={openTagList}>
-                  标签
+                  {t("app.action.tags")}
                 </button>
               </div>
             ) : null}
@@ -1762,7 +1946,7 @@ function WorkbenchApp(): JSX.Element {
                 setOpenMenu((menu) => (menu === "database" ? null : "database"))
               }
             >
-              数据库
+              {t("app.menu.database")}
             </button>
 
             {openMenu === "database" ? (
@@ -1771,13 +1955,13 @@ function WorkbenchApp(): JSX.Element {
                   type="button"
                   onClick={() => void openDatabaseManager()}
                 >
-                  查看数据库
+                  {t("app.action.viewDatabase")}
                 </button>
                 <button type="button" onClick={() => void openTagManager()}>
-                  管理标签
+                  {t("app.action.manageTags")}
                 </button>
                 <button type="button" onClick={() => void openRecycleBin()}>
-                  回收站
+                  {t("app.action.recycleBin")}
                 </button>
               </div>
             ) : null}
@@ -1793,19 +1977,19 @@ function WorkbenchApp(): JSX.Element {
                 setOpenMenu((menu) => (menu === "service" ? null : "service"))
               }
             >
-              服务
+              {t("app.menu.service")}
             </button>
 
             {openMenu === "service" ? (
               <div className={menuDropdownClass}>
                 <button type="button" onClick={() => void openRatingManager()}>
-                  分级
+                  {t("app.action.rating")}
                 </button>
                 <button type="button" onClick={() => void openApiManager()}>
                   API
                 </button>
                 <button type="button" onClick={() => void openFavorites()}>
-                  我的收藏
+                  {t("app.action.favorites")}
                 </button>
               </div>
             ) : null}
@@ -1825,22 +2009,22 @@ function WorkbenchApp(): JSX.Element {
                 )
               }
             >
-              扩展功能
+              {t("app.menu.extension")}
             </button>
 
             {openMenu === "extension" ? (
               <div className={menuDropdownClass}>
                 <button type="button" onClick={() => void openHydrusImport()}>
-                  从 Hydrus 导入
+                  {t("app.action.hydrusImport")}
                 </button>
                 <button type="button" onClick={() => void openEHentaiImport()}>
-                  从 E-Hentai 导入
+                  {t("app.action.ehentaiImport")}
                 </button>
                 <button type="button" onClick={() => void openAiManager()}>
-                  人工智能
+                  {t("app.action.ai")}
                 </button>
                 <button type="button" onClick={() => void openTagTranslation()}>
-                  标签翻译
+                  {t("app.action.tagTranslation")}
                 </button>
               </div>
             ) : null}
@@ -1850,7 +2034,7 @@ function WorkbenchApp(): JSX.Element {
 
       <nav
         className="flex min-w-0 items-stretch border-b border-(--line) bg-(--page-tabbar-bg)"
-        aria-label="页面列表"
+        aria-label={t("app.pageList")}
       >
         {pages.map((page) => (
           <div
@@ -1869,11 +2053,15 @@ function WorkbenchApp(): JSX.Element {
               {page.title}
             </button>
             <button
-              className={pageTabCloseClass}
+              className={cx(
+                pageTabCloseClass,
+                page.id === activePageId && "page-tab-close-active",
+              )}
               type="button"
               onClick={(event) => closePage(page.id, event)}
+              title={t("common.close")}
             >
-              x
+              ×
             </button>
           </div>
         ))}
@@ -1897,7 +2085,7 @@ function WorkbenchApp(): JSX.Element {
             onModelChange={() => saveWorkbenchState()}
           />
         ) : (
-          <section className={emptyPageClass}>没有打开的页面</section>
+          <section className={emptyPageClass}>{t("app.noOpenPage")}</section>
         )}
       </main>
 
@@ -1913,7 +2101,7 @@ function WorkbenchApp(): JSX.Element {
               refreshViewTab(viewContextMenu.pageId, viewContextMenu.tabId)
             }
           >
-            刷新
+            {t("common.refresh")}
           </button>
         </div>
       ) : null}
@@ -1927,9 +2115,9 @@ function WorkbenchApp(): JSX.Element {
           {pageContextMenu.renaming ? (
             <div className={contextMenuRenameClass}>
               <input
-                aria-label="页面名称"
+                aria-label={t("app.pageNameInput")}
                 autoFocus
-                placeholder="输入页面名称"
+                placeholder={t("app.pageNamePlaceholder")}
                 value={pageContextMenu.title}
                 onChange={(event) =>
                   setPageContextMenu((menu) =>
@@ -1948,7 +2136,7 @@ function WorkbenchApp(): JSX.Element {
               />
               <ActionFeedbackButton
                 afterFeedback={() => setPageContextMenu(null)}
-                label="保存"
+                label={t("common.save")}
                 onAction={() => {
                   if (
                     !savePageTitle(
@@ -1956,7 +2144,7 @@ function WorkbenchApp(): JSX.Element {
                       pageContextMenu.title,
                     )
                   ) {
-                    throw new Error("页面名称为空");
+                    throw new Error(t("app.pageNameEmpty"));
                   }
                 }}
               />
@@ -1970,24 +2158,32 @@ function WorkbenchApp(): JSX.Element {
                 )
               }
             >
-              重命名
+              {t("common.rename")}
             </button>
           )}
         </div>
       ) : null}
       <footer className="flex h-5 min-w-0 items-center border-t border-(--line) bg-(--statusbar-bg) px-2 text-[10px] text-(--muted)">
         <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
-          {formatWorkStatus(workStatus)}
+          {formatWorkStatus(workStatus, t)}
         </span>
       </footer>
     </div>
   );
 }
 
-function formatWorkStatus(status: WorkStatus): string {
+function formatWorkStatus(
+  status: WorkStatus,
+  t: TranslationFunction,
+): string {
   if (!status.active) {
-    return status.message || "就绪";
+    return status.message || t("app.status.ready");
   }
 
-  return `${status.message} 队列 ${status.queued} 处理中 ${status.processing} 已完成 ${status.completed}`;
+  return t("app.workStatus", {
+    message: status.message,
+    queued: status.queued,
+    processing: status.processing,
+    completed: status.completed,
+  });
 }

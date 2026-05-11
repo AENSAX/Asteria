@@ -1,4 +1,5 @@
 import type { RatingGroupRecord } from "../../../shared/ipc";
+import { useLanguage } from "../utils/language";
 
 interface FileContextMenuProps {
   x: number;
@@ -45,6 +46,7 @@ export function FileContextMenu({
   onOpenRating,
   onTrash,
 }: FileContextMenuProps): JSX.Element {
+  const { t } = useLanguage();
   return (
     <div
       className="fixed z-30 w-[142px] border border-(--line-strong) bg-(--panel) p-1 [&>button]:block [&>button]:h-6 [&>button]:w-full [&>button]:cursor-default [&>button]:border-0 [&>button]:bg-transparent [&>button]:px-2 [&>button]:text-left [&>button]:text-[11px] [&>button]:text-(--ink) [&>button:hover]:bg-(--accent-weak)"
@@ -52,39 +54,39 @@ export function FileContextMenu({
       onMouseDown={(event) => event.stopPropagation()}
     >
       <button type="button" onClick={() => onManageUrl(fileIds)}>
-        管理url
+        {t("window.contextMenu.manageUrl")}
       </button>
       {canManageTags ? (
         <button type="button" onClick={() => onManageTags(fileIds)}>
-          管理标签
+          {t("window.contextMenu.manageTags")}
         </button>
       ) : null}
       {canOpenExternally ? (
         <button type="button" onClick={() => onOpenExternally(fileIds)}>
-          使用默认方式打开
+          {t("window.contextMenu.openDefault")}
         </button>
       ) : null}
       {canAiRetag ? (
         <button type="button" onClick={() => onAiRetag(fileIds)}>
-          使用模型打标（覆盖）
+          {t("window.contextMenu.aiRetagOverwrite")}
         </button>
       ) : null}
       {canAiAppendTag ? (
         <button type="button" onClick={() => onAiAppendTag(fileIds)}>
-          使用模型打标（追加）
+          {t("window.contextMenu.aiRetagAppend")}
         </button>
       ) : null}
       {canTranslateTags ? (
         <button type="button" onClick={() => onTranslateTags(fileIds)}>
-          翻译标签
+          {t("window.contextMenu.translateTags")}
         </button>
       ) : null}
       <button type="button" onClick={() => onExport(fileIds)}>
-        导出
+        {t("window.contextMenu.export")}
       </button>
       {canScreening ? (
         <button type="button" onClick={() => onOpenScreening(fileIds)}>
-          筛选入库
+          {t("window.contextMenu.screening")}
         </button>
       ) : null}
       {activeRatingGroups.map((group) => (
@@ -93,11 +95,11 @@ export function FileContextMenu({
           type="button"
           onClick={() => onOpenRating(fileIds, group)}
         >
-          设置:{group.name}
+          {t("window.contextMenu.ratingSet", { name: group.name })}
         </button>
       ))}
       <button type="button" onClick={() => onTrash(fileIds)}>
-        放入回收站
+        {t("window.contextMenu.trash")}
       </button>
     </div>
   );

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { FileUrlRecord } from "../../../shared/ipc";
 import { ActionFeedbackButton } from "../components/ActionFeedbackButton";
+import { useLanguage } from "../utils/language";
 
 interface UrlManagerWindowProps {
   fileIds: number[];
@@ -9,11 +10,12 @@ interface UrlManagerWindowProps {
 export function UrlManagerWindow({
   fileIds,
 }: UrlManagerWindowProps): JSX.Element {
+  const { t } = useLanguage();
   const [urls, setUrls] = useState<FileUrlRecord[]>([]);
   const [input, setInput] = useState("");
   const [editingUrlId, setEditingUrlId] = useState<number | null>(null);
   const [editingText, setEditingText] = useState("");
-  const [message, setMessage] = useState("未加载");
+  const [message, setMessage] = useState(() => t("common.loading"));
   const fileIdKey = fileIds.join(",");
 
   useEffect(() => {
@@ -23,7 +25,7 @@ export function UrlManagerWindow({
   async function loadUrls(): Promise<void> {
     if (!window.asteria || fileIds.length === 0) {
       setUrls([]);
-      setMessage("文件无效");
+      setMessage(t("window.url.invalidFile"));
       return;
     }
 
@@ -31,11 +33,13 @@ export function UrlManagerWindow({
       const nextUrls = await window.asteria.listFileUrls(fileIds);
       setUrls(nextUrls);
       setMessage(
-        fileIds.length > 1 ? `${fileIds.length} 个文件的共同url` : "url列表",
+        fileIds.length > 1
+          ? t("window.url.sharedList", { count: fileIds.length })
+          : t("window.url.list"),
       );
     } catch (error) {
       setUrls([]);
-      setMessage(error instanceof Error ? error.message : "加载失败");
+      setMessage(error instanceof Error ? error.message : t("window.url.loadFailed"));
     }
   }
 
@@ -83,8 +87,8 @@ export function UrlManagerWindow({
       <div className="grid grid-cols-[minmax(0,1fr)_58px] gap-1.5 border-b border-(--line) p-2">
         <input
           className="h-6 min-w-0 border border-(--line-strong) bg-(--surface-inset-bg) px-1.5 text-(--ink)"
-          aria-label="新增url"
-          placeholder="输入url以增加"
+          aria-label={t("window.url.addInput")}
+          placeholder={t("window.url.addPlaceholder")}
           value={input}
           onChange={(event) => setInput(event.target.value)}
           onKeyDown={(event) => {
@@ -94,7 +98,7 @@ export function UrlManagerWindow({
           }}
         />
         <button type="button" onClick={() => void addUrl()}>
-          新增
+          {t("window.url.add")}
         </button>
       </div>
 
@@ -108,7 +112,7 @@ export function UrlManagerWindow({
               {editingUrlId === url.id ? (
                 <input
                   className="h-6 min-w-0 border-0 border-r border-(--line) bg-(--surface-inset-bg) px-1.5 text-(--ink)"
-                  aria-label="修改url"
+                  aria-label={t("window.url.edit")}
                   value={editingText}
                   onChange={(event) => setEditingText(event.target.value)}
                   onKeyDown={(event) => {
@@ -131,7 +135,7 @@ export function UrlManagerWindow({
               {editingUrlId === url.id ? (
                 <ActionFeedbackButton
                   className="h-6 border-0 border-r border-(--line) bg-(--panel-strong) px-2 text-[11px]"
-                  label="保存"
+                  label={t("common.save")}
                   onAction={() => saveUrl(url)}
                 />
               ) : (
@@ -143,7 +147,7 @@ export function UrlManagerWindow({
                     setEditingText(url.url);
                   }}
                 >
-                  修改
+                  {t("common.modify")}
                 </button>
               )}
               <button
@@ -151,12 +155,12 @@ export function UrlManagerWindow({
                 type="button"
                 onClick={() => void removeUrl(url)}
               >
-                删除
+                {t("common.delete")}
               </button>
             </div>
           ))
         ) : (
-          <div className="p-2 text-(--muted)">没有url</div>
+          <div className="p-2 text-(--muted)">{t("window.url.noUrl")}</div>
         )}
       </div>
       <footer className="flex h-6 items-center border-t border-(--line) px-2 text-(--muted)">

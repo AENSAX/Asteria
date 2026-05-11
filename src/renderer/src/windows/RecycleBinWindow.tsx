@@ -2,17 +2,19 @@ import { useEffect, useRef, useState } from "react";
 import type { DatabaseFilePage, DatabaseFileRecord } from "../../../shared/ipc";
 import { useBoxSelection } from "../hooks/useBoxSelection";
 import { useShortcut } from "../hooks/useShortcut";
+import { useLanguage } from "../utils/language";
 import { formatBytes } from "../utils/format";
 import { mergeIds } from "../utils/ids";
 
 export function RecycleBinWindow(): JSX.Element {
+  const { t } = useLanguage();
   const [page, setPage] = useState<DatabaseFilePage | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
   const [pendingFileIds, setPendingFileIds] = useState<number[]>([]);
   const [lastPendingFileId, setLastPendingFileId] = useState<number | null>(
     null,
   );
-  const [message, setMessage] = useState("未加载");
+  const [message, setMessage] = useState(() => t("window.recycle.loading"));
   const [bulkOperating, setBulkOperating] = useState(false);
   const tableAreaRef = useRef<HTMLDivElement | null>(null);
   const totalPages = page
@@ -38,7 +40,7 @@ export function RecycleBinWindow(): JSX.Element {
 
   async function loadPage(nextPageNumber: number): Promise<void> {
     if (!window.asteria) {
-      setMessage("preload unavailable");
+      setMessage(t("window.recycle.preloadUnavailable"));
       return;
     }
 
@@ -47,7 +49,7 @@ export function RecycleBinWindow(): JSX.Element {
     setPendingFileIds((currentIds) =>
       currentIds.filter((id) => nextPage.files.some((file) => file.id === id)),
     );
-    setMessage(`${nextPage.total} 个文件`);
+    setMessage(t("window.browser.fileCount", { count: nextPage.total }));
   }
 
   function handleRowMouseDown(
@@ -113,8 +115,10 @@ export function RecycleBinWindow(): JSX.Element {
     }
 
     const confirmed = await window.asteria.confirmDialog({
-      title: "确认彻底删除",
-      message: `确认彻底删除${pendingFileIds.length}个文件吗`,
+      title: t("window.recycle.confirmDeleteTitle"),
+      message: t("window.recycle.confirmDeleteMessage", {
+        count: pendingFileIds.length,
+      }),
     });
 
     if (!confirmed) {
@@ -181,8 +185,8 @@ export function RecycleBinWindow(): JSX.Element {
     }
 
     const confirmed = await window.asteria.confirmDialog({
-      title: "确认清空回收站",
-      message: `确认彻底删除回收站中的 ${page.total} 个文件吗`,
+      title: t("window.recycle.confirmClearTitle"),
+      message: t("window.recycle.confirmClearMessage", { count: page.total }),
     });
 
     if (!confirmed) {
@@ -222,13 +226,13 @@ export function RecycleBinWindow(): JSX.Element {
                 ID
               </th>
               <th className="h-[26px] border-b border-r border-(--line) bg-(--surface-bg) px-2 text-left font-medium text-(--muted)">
-                扩展名
+                {t("window.database.extension")}
               </th>
               <th className="h-[26px] border-b border-r border-(--line) bg-(--surface-bg) px-2 text-left font-medium text-(--muted)">
-                大小
+                {t("window.database.size")}
               </th>
               <th className="h-[26px] border-b border-r border-(--line) bg-(--surface-bg) px-2 text-left font-medium text-(--muted)">
-                导入时间
+                {t("window.database.importedAt")}
               </th>
               <th className="h-[26px] border-b border-r border-(--line) bg-(--surface-bg) px-2 text-left font-medium text-(--muted)">
                 SHA256
@@ -273,7 +277,7 @@ export function RecycleBinWindow(): JSX.Element {
             ) : (
               <tr>
                 <td className="px-2 text-(--muted)" colSpan={5}>
-                  没有文件记录
+                {t("window.database.noRecords")}
                 </td>
               </tr>
             )}
@@ -289,8 +293,12 @@ export function RecycleBinWindow(): JSX.Element {
 
       <footer className="flex h-8 items-center justify-between border-t border-(--line) px-2 text-(--muted)">
         <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
-          第 {page?.page ?? 1} / {totalPages} 页，总计 {page?.total ?? 0}{" "}
-          个文件，已选 {pendingFileIds.length}，{message}
+          {t("window.database.pageSummary", {
+            page: page?.page ?? 1,
+            totalPages,
+            total: page?.total ?? 0,
+            message,
+          })}
         </span>
         <div className="flex gap-1.5">
           <button
@@ -299,7 +307,7 @@ export function RecycleBinWindow(): JSX.Element {
             type="button"
             onClick={() => void restorePendingFiles()}
           >
-            还原
+            {t("window.recycle.restore")}
           </button>
           <button
             className="h-6 cursor-default border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px]"
@@ -307,7 +315,7 @@ export function RecycleBinWindow(): JSX.Element {
             type="button"
             onClick={() => void deletePendingFiles()}
           >
-            彻底删除
+            {t("window.recycle.delete")}
           </button>
           <button
             className="h-6 cursor-default border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px]"
@@ -315,7 +323,7 @@ export function RecycleBinWindow(): JSX.Element {
             type="button"
             onClick={() => void restoreAllFiles()}
           >
-            一键还原
+            {t("window.recycle.restoreAll")}
           </button>
           <button
             className="h-6 cursor-default border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px]"
@@ -323,7 +331,7 @@ export function RecycleBinWindow(): JSX.Element {
             type="button"
             onClick={() => void deleteAllFiles()}
           >
-            一键彻底删除
+            {t("window.recycle.deleteAll")}
           </button>
           <button
             className="h-6 cursor-default border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px]"
@@ -331,7 +339,7 @@ export function RecycleBinWindow(): JSX.Element {
             type="button"
             onClick={() => setPageNumber((value) => value - 1)}
           >
-            上一页
+            {t("window.recycle.previous")}
           </button>
           <button
             className="h-6 cursor-default border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px]"
@@ -339,7 +347,7 @@ export function RecycleBinWindow(): JSX.Element {
             type="button"
             onClick={() => setPageNumber((value) => value + 1)}
           >
-            下一页
+            {t("window.recycle.next")}
           </button>
         </div>
       </footer>

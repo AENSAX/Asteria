@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ExportProgress } from "../../../shared/ipc";
+import { useLanguage, type TranslationFunction } from "../utils/language";
 
 interface ExportWindowProps {
   fileIds: number[];
@@ -31,7 +32,11 @@ const exportProgressClass = "grid gap-1.5 border-b border-(--line) p-2";
 const exportFooterClass =
   "flex items-center justify-end gap-1.5 border-t border-(--line) bg-(--surface-bg) px-2";
 
-function createIdleProgress(jobId: string, total: number): ExportProgress {
+function createIdleProgress(
+  jobId: string,
+  total: number,
+  t: TranslationFunction,
+): ExportProgress {
   return {
     jobId,
     phase: "idle",
@@ -40,11 +45,12 @@ function createIdleProgress(jobId: string, total: number): ExportProgress {
     exported: 0,
     failed: 0,
     currentFile: null,
-    message: "等待导出",
+    message: t("window.export.waiting"),
   };
 }
 
 export function ExportWindow({ fileIds }: ExportWindowProps): JSX.Element {
+  const { languageId, t } = useLanguage();
   const normalizedFileIds = useMemo(
     () => [...new Set(fileIds.filter((id) => Number.isInteger(id) && id > 0))],
     [fileIds],
@@ -54,7 +60,7 @@ export function ExportWindow({ fileIds }: ExportWindowProps): JSX.Element {
   const [jobId, setJobId] = useState(() => createExportJobId());
   const jobIdRef = useRef(jobId);
   const [progress, setProgress] = useState(() =>
-    createIdleProgress(jobId, normalizedFileIds.length),
+    createIdleProgress(jobId, normalizedFileIds.length, t),
   );
   const formatSegments = useMemo(
     () => parseFormatSegments(filenameFormat),
@@ -72,6 +78,14 @@ export function ExportWindow({ fileIds }: ExportWindowProps): JSX.Element {
   useEffect(() => {
     jobIdRef.current = jobId;
   }, [jobId]);
+
+  useEffect(() => {
+    setProgress((currentProgress) =>
+      currentProgress.phase === "idle"
+        ? createIdleProgress(jobIdRef.current, normalizedFileIds.length, t)
+        : currentProgress,
+    );
+  }, [languageId, normalizedFileIds.length, t]);
 
   useEffect(() => {
     if (!window.asteria) {
@@ -101,7 +115,7 @@ export function ExportWindow({ fileIds }: ExportWindowProps): JSX.Element {
     const nextJobId = createExportJobId();
     jobIdRef.current = nextJobId;
     setJobId(nextJobId);
-    setProgress(createIdleProgress(nextJobId, normalizedFileIds.length));
+    setProgress(createIdleProgress(nextJobId, normalizedFileIds.length, t));
 
     try {
       const result = await window.asteria.exportFiles({
@@ -120,7 +134,7 @@ export function ExportWindow({ fileIds }: ExportWindowProps): JSX.Element {
         exported: 0,
         failed: 0,
         currentFile: null,
-        message: error instanceof Error ? error.message : "导出失败",
+        message: error instanceof Error ? error.message : t("window.export.failed"),
       });
     }
   }
@@ -138,16 +152,16 @@ export function ExportWindow({ fileIds }: ExportWindowProps): JSX.Element {
     <section className={exportRootClass}>
       <div className={exportConfigClass}>
         <div className={exportRowClass}>
-          <span>文件</span>
+          <span>{t("window.export.file")}</span>
           <span>{normalizedFileIds.length}</span>
         </div>
 
         <label className={exportRowClass}>
-          <span>路径</span>
+          <span>{t("window.export.path")}</span>
           <input
             className={exportInputClass}
             disabled={exporting}
-            placeholder="输入导出路径"
+            placeholder={t("window.export.inputPath")}
             value={directory}
             onChange={(event) => setDirectory(event.target.value)}
           />
@@ -162,11 +176,11 @@ export function ExportWindow({ fileIds }: ExportWindowProps): JSX.Element {
         </label>
 
         <label className={`${exportRowClass} grid-cols-[72px_minmax(0,1fr)]`}>
-          <span>文件名</span>
+          <span>{t("window.export.filename")}</span>
           <input
             className={exportInputClass}
             disabled={exporting}
-            placeholder="输入导出文件名格式"
+            placeholder={t("window.export.inputFormat")}
             value={filenameFormat}
             onChange={(event) => setFilenameFormat(event.target.value)}
           />
@@ -196,7 +210,7 @@ export function ExportWindow({ fileIds }: ExportWindowProps): JSX.Element {
               ),
             )
           ) : (
-            <span className="text-(--muted)">无格式</span>
+            <span className="text-(--muted)">{t("window.export.noFormat")}</span>
           )}
         </div>
       </div>
@@ -225,7 +239,7 @@ export function ExportWindow({ fileIds }: ExportWindowProps): JSX.Element {
           type="button"
           onClick={() => void cancelExport()}
         >
-          {exporting ? "取消" : "关闭"}
+          {exporting ? t("common.cancel") : t("common.close")}
         </button>
         <button
           className={exportButtonClass}
@@ -238,7 +252,7 @@ export function ExportWindow({ fileIds }: ExportWindowProps): JSX.Element {
           type="button"
           onClick={() => void startExport()}
         >
-          导出
+          {t("common.export")}
         </button>
       </footer>
     </section>

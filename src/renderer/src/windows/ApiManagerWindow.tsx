@@ -7,8 +7,8 @@ import type {
 } from "../../../shared/ipc";
 import { ActionFeedbackButton } from "../components/ActionFeedbackButton";
 import { ResizableColumns } from "../components/ResizableColumns";
+import { useLanguage } from "../utils/language";
 
-const defaultServiceName = "API 服务";
 const apiShellClass =
   "grid h-full min-h-0 min-w-0 grid-cols-[190px_minmax(0,1fr)] bg-(--panel)";
 const apiSidebarClass =
@@ -46,6 +46,7 @@ const apiPermissionItemClass =
 const apiEmptyClass = "p-2 text-(--muted)";
 
 export function ApiManagerWindow(): JSX.Element {
+  const { t } = useLanguage();
   const [services, setServices] = useState<ApiServiceRecord[]>([]);
   const [permissions, setPermissions] = useState<ApiPermissionRecord[]>([]);
   const [selectedServiceId, setSelectedServiceId] = useState<number | null>(
@@ -55,7 +56,7 @@ export function ApiManagerWindow(): JSX.Element {
   const [availability, setAvailability] =
     useState<ApiServiceAvailability | null>(null);
   const [serviceInput, setServiceInput] = useState("");
-  const [message, setMessage] = useState("未加载");
+  const [message, setMessage] = useState(() => t("window.api.loading"));
   const selectedService =
     services.find((service) => service.id === selectedServiceId) ?? null;
 
@@ -72,7 +73,7 @@ export function ApiManagerWindow(): JSX.Element {
     nextSelectedServiceId?: number,
   ): Promise<void> {
     if (!window.asteria) {
-      setMessage("preload unavailable");
+      setMessage(t("window.api.preloadUnavailable"));
       return;
     }
 
@@ -90,7 +91,7 @@ export function ApiManagerWindow(): JSX.Element {
     setPermissions(nextPermissions);
     setServices(nextServices);
     setSelectedServiceId(nextSelectedId);
-    setMessage(`${nextServices.length} 个 API 服务`);
+    setMessage(t("window.api.success", { count: nextServices.length }));
   }
 
   async function loadAvailability(serviceId: number | null): Promise<void> {
@@ -108,7 +109,7 @@ export function ApiManagerWindow(): JSX.Element {
     }
 
     const nextServices = await window.asteria.createApiService(
-      serviceInput || defaultServiceName,
+      serviceInput || t("window.api.defaultServiceName"),
     );
     const createdService =
       nextServices[nextServices.length - 1] ?? nextServices[0] ?? null;
@@ -116,7 +117,7 @@ export function ApiManagerWindow(): JSX.Element {
     setServices(nextServices);
     setSelectedServiceId(createdService?.id ?? null);
     setServiceInput("");
-    setMessage(`${nextServices.length} 个 API 服务`);
+    setMessage(t("window.api.success", { count: nextServices.length }));
   }
 
   async function saveService(): Promise<void> {
@@ -129,7 +130,7 @@ export function ApiManagerWindow(): JSX.Element {
       draft,
     );
     setServices(nextServices);
-    setMessage(`${nextServices.length} 个 API 服务`);
+    setMessage(t("window.api.success", { count: nextServices.length }));
     await loadAvailability(selectedServiceId);
   }
 
@@ -143,7 +144,7 @@ export function ApiManagerWindow(): JSX.Element {
 
     setServices(nextServices);
     setSelectedServiceId(nextServices[0]?.id ?? null);
-    setMessage("已删除");
+    setMessage(t("window.api.deleted"));
   }
 
   function updateDraft(patch: Partial<ApiServiceDraft>): void {
@@ -173,7 +174,9 @@ export function ApiManagerWindow(): JSX.Element {
       storageKey="asteria:api-manager-sidebar-width"
       left={
         <aside className={apiSidebarClass}>
-          <header className={apiSidebarHeaderClass}>服务列表</header>
+          <header className={apiSidebarHeaderClass}>
+            {t("window.api.serviceList")}
+          </header>
           <div className={apiSidebarListClass}>
             {services.length > 0 ? (
               services.map((service) => (
@@ -195,14 +198,14 @@ export function ApiManagerWindow(): JSX.Element {
                 </button>
               ))
             ) : (
-              <div className={apiEmptyClass}>没有 API 服务</div>
+              <div className={apiEmptyClass}>{t("window.api.noServices")}</div>
             )}
           </div>
           <div className={apiSidebarCreateClass}>
             <input
               className={apiInputClass}
-              aria-label="新建 API"
-              placeholder="输入 API 名称"
+              aria-label={t("window.api.createInput")}
+              placeholder={t("window.api.createPlaceholder")}
               value={serviceInput}
               onChange={(event) => setServiceInput(event.target.value)}
               onKeyDown={(event) => {
@@ -212,7 +215,7 @@ export function ApiManagerWindow(): JSX.Element {
               }}
             />
             <button type="button" onClick={() => void createService()}>
-              新建
+              {t("window.api.create")}
             </button>
           </div>
         </aside>
@@ -230,15 +233,15 @@ export function ApiManagerWindow(): JSX.Element {
                       updateDraft({ enabled: event.target.checked })
                     }
                   />
-                  <span>启用</span>
+                  <span>{t("window.api.enable")}</span>
                 </label>
-                <ActionFeedbackButton label="保存" onAction={saveService} />
+                <ActionFeedbackButton label={t("common.save")} onAction={saveService} />
                 <button
                   className={apiButtonClass}
                   type="button"
                   onClick={() => void deleteService()}
                 >
-                  删除
+                  {t("window.api.delete")}
                 </button>
                 <button
                   className={apiButtonClass}
@@ -246,7 +249,7 @@ export function ApiManagerWindow(): JSX.Element {
                   type="button"
                   onClick={() => void loadAvailability(selectedServiceId)}
                 >
-                  检查
+                  {t("window.api.check")}
                 </button>
                 <span
                   className={
@@ -261,10 +264,10 @@ export function ApiManagerWindow(): JSX.Element {
 
               <div className={apiGridClass}>
                 <label className={apiFieldClass}>
-                  <span>名称</span>
+                  <span>{t("window.api.name")}</span>
                   <input
-                    aria-label="API 名称"
-                    placeholder="输入 API 名称"
+                    aria-label={t("window.api.name")}
+                    placeholder={t("window.api.namePlaceholder")}
                     value={draft.name}
                     onChange={(event) =>
                       updateDraft({ name: event.target.value })
@@ -272,10 +275,10 @@ export function ApiManagerWindow(): JSX.Element {
                   />
                 </label>
                 <label className={apiFieldClass}>
-                  <span>地址</span>
+                  <span>{t("window.api.address")}</span>
                   <input
-                    aria-label="API 地址"
-                    placeholder="输入 API 地址"
+                    aria-label={t("window.api.address")}
+                    placeholder={t("window.api.addressPlaceholder")}
                     value={draft.address}
                     onChange={(event) =>
                       updateDraft({ address: event.target.value })
@@ -283,10 +286,10 @@ export function ApiManagerWindow(): JSX.Element {
                   />
                 </label>
                 <label className={apiFieldClass}>
-                  <span>端口</span>
+                  <span>{t("window.api.port")}</span>
                   <input
-                    aria-label="API 端口"
-                    placeholder="输入 API 端口"
+                    aria-label={t("window.api.port")}
+                    placeholder={t("window.api.portPlaceholder")}
                     type="number"
                     value={draft.port}
                     onChange={(event) =>
@@ -295,10 +298,10 @@ export function ApiManagerWindow(): JSX.Element {
                   />
                 </label>
                 <label className={apiFieldClass}>
-                  <span>校验 token</span>
+                  <span>{t("window.api.token")}</span>
                   <input
                     aria-label="API token"
-                    placeholder="输入校验 token"
+                    placeholder={t("window.api.tokenPlaceholder")}
                     value={draft.token}
                     onChange={(event) =>
                       updateDraft({ token: event.target.value })
@@ -309,7 +312,7 @@ export function ApiManagerWindow(): JSX.Element {
 
               <section className={apiPermissionPanelClass}>
                 <header className={apiPermissionHeaderClass}>
-                  <span>权限</span>
+                  <span>{t("window.api.permissions")}</span>
                   <span>
                     {draft.permissions.length} / {permissions.length}
                   </span>
@@ -333,7 +336,7 @@ export function ApiManagerWindow(): JSX.Element {
               </section>
             </>
           ) : (
-            <div className={apiEmptyClass}>请新建 API 服务</div>
+            <div className={apiEmptyClass}>{t("window.api.noServiceSelected")}</div>
           )}
         </main>
       }

@@ -3,10 +3,12 @@ import type { BrowserFileRecord } from "../../../shared/ipc";
 import { FavoriteButton } from "../components/FavoriteButton";
 import { FileRatingStack } from "../components/FileRatingStack";
 import { isImageExtension, isVideoExtension } from "../utils/media";
+import { useLanguage } from "../utils/language";
 
 export function FavoritesWindow(): JSX.Element {
+  const { t } = useLanguage();
   const [files, setFiles] = useState<BrowserFileRecord[]>([]);
-  const [message, setMessage] = useState("未加载");
+  const [message, setMessage] = useState(() => t("common.loading"));
 
   useEffect(() => {
     void loadFavorites();
@@ -46,13 +48,13 @@ export function FavoritesWindow(): JSX.Element {
 
   async function loadFavorites(): Promise<void> {
     if (!window.asteria) {
-      setMessage("preload unavailable");
+      setMessage(t("app.status.preloadUnavailable"));
       return;
     }
 
     const nextFiles = await window.asteria.listFavoriteFiles();
     setFiles(nextFiles);
-    setMessage(`${nextFiles.length} 个文件`);
+    setMessage(t("window.favorite.fileCount", { count: nextFiles.length }));
   }
 
   async function openFileDetail(fileId: number): Promise<void> {
@@ -74,7 +76,7 @@ export function FavoritesWindow(): JSX.Element {
     try {
       await window.asteria.setFileFavorite(file.id, nextFavorite);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "收藏更新失败");
+      setMessage(error instanceof Error ? error.message : t("window.favorite.updateFailed"));
       await loadFavorites();
     }
   }
@@ -104,7 +106,7 @@ export function FavoritesWindow(): JSX.Element {
             </article>
           ))
         ) : (
-          <div className="text-(--muted)">没有收藏文件</div>
+          <div className="text-(--muted)">{t("window.favorite.noFiles")}</div>
         )}
       </div>
       <footer className="flex h-6 items-center border-t border-(--line) px-2 text-(--muted)">

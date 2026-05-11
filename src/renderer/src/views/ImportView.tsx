@@ -4,6 +4,7 @@ import type {
   ImportQueueFileRecord,
 } from "../../../shared/ipc";
 import { formatBytes } from "../utils/format";
+import { useLanguage } from "../utils/language";
 
 interface ImportViewProps {
   dragActive: boolean;
@@ -20,6 +21,7 @@ export function ImportView({
   onCancelQueue,
   onCommitQueue,
 }: ImportViewProps): JSX.Element {
+  const { t } = useLanguage();
   const [queueFiles, setQueueFiles] = useState<ImportQueueFileRecord[]>([]);
 
   useEffect(() => {
@@ -60,7 +62,7 @@ export function ImportView({
           type="button"
           onClick={() => onCommitQueue(queueFiles)}
         >
-          现在导入
+          {t("window.import.now")}
         </button>
         <button
           className="h-[22px] min-w-[66px] cursor-default border border-(--line-strong) bg-(--surface-bg) px-2 text-[11px]"
@@ -68,13 +70,13 @@ export function ImportView({
           type="button"
           onClick={onCancelQueue}
         >
-          取消
+          {t("window.import.cancel")}
         </button>
       </header>
 
       <div className="border-b border-(--line) p-1.5">
         <div className="h-6 leading-6 text-(--muted)">
-          {dragActive ? "松开导入媒体文件或文件夹" : progress.message}
+          {dragActive ? t("window.import.dropHint") : progress.message}
         </div>
         <div className="grid grid-cols-[minmax(0,1fr)_42px] items-center gap-2">
           <progress max={100} value={percent} />
@@ -85,7 +87,7 @@ export function ImportView({
       <dl className="grid grid-cols-[repeat(6,minmax(96px,1fr))] text-(--ink)">
         <div className="grid min-h-6 grid-cols-[56px_minmax(0,1fr)] border-b border-r border-(--line) bg-(--surface-inset-bg)">
           <dt className="flex min-w-0 items-center px-2 text-(--muted)">
-            批次
+            {t("window.import.batch")}
           </dt>
           <dd className="flex min-w-0 items-center overflow-hidden px-2 text-ellipsis whitespace-nowrap">
             {progress.batchId ?? "-"}
@@ -93,7 +95,7 @@ export function ImportView({
         </div>
         <div className="grid min-h-6 grid-cols-[56px_minmax(0,1fr)] border-b border-r border-(--line) bg-(--surface-inset-bg)">
           <dt className="flex min-w-0 items-center px-2 text-(--muted)">
-            总数
+            {t("window.import.total")}
           </dt>
           <dd className="flex min-w-0 items-center overflow-hidden px-2 text-ellipsis whitespace-nowrap">
             {queueFiles.length}
@@ -101,7 +103,7 @@ export function ImportView({
         </div>
         <div className="grid min-h-6 grid-cols-[56px_minmax(0,1fr)] border-b border-r border-(--line) bg-(--surface-inset-bg)">
           <dt className="flex min-w-0 items-center px-2 text-(--muted)">
-            可导入
+            {t("window.import.ready")}
           </dt>
           <dd className="flex min-w-0 items-center overflow-hidden px-2 text-ellipsis whitespace-nowrap">
             {readyCount}
@@ -109,7 +111,7 @@ export function ImportView({
         </div>
         <div className="grid min-h-6 grid-cols-[56px_minmax(0,1fr)] border-b border-r border-(--line) bg-(--surface-inset-bg)">
           <dt className="flex min-w-0 items-center px-2 text-(--muted)">
-            新增
+            {t("window.import.added")}
           </dt>
           <dd className="flex min-w-0 items-center overflow-hidden px-2 text-ellipsis whitespace-nowrap">
             {Math.max(readyCount - duplicateCount, 0)}
@@ -117,7 +119,7 @@ export function ImportView({
         </div>
         <div className="grid min-h-6 grid-cols-[56px_minmax(0,1fr)] border-b border-r border-(--line) bg-(--surface-inset-bg)">
           <dt className="flex min-w-0 items-center px-2 text-(--muted)">
-            重复
+            {t("window.import.duplicate")}
           </dt>
           <dd className="flex min-w-0 items-center overflow-hidden px-2 text-ellipsis whitespace-nowrap">
             {duplicateCount}
@@ -125,7 +127,7 @@ export function ImportView({
         </div>
         <div className="grid min-h-6 grid-cols-[56px_minmax(0,1fr)] border-b border-r border-(--line) bg-(--surface-inset-bg)">
           <dt className="flex min-w-0 items-center px-2 text-(--muted)">
-            失败
+            {t("window.import.failed")}
           </dt>
           <dd className="flex min-w-0 items-center overflow-hidden px-2 text-ellipsis whitespace-nowrap">
             {failedCount}
@@ -133,7 +135,7 @@ export function ImportView({
         </div>
         <div className="grid min-h-6 grid-cols-[56px_minmax(0,1fr)] border-b border-r border-(--line) bg-(--surface-inset-bg)">
           <dt className="flex min-w-0 items-center px-2 text-(--muted)">
-            分片
+            {t("window.import.chunk")}
           </dt>
           <dd className="flex min-w-0 items-center overflow-hidden px-2 text-ellipsis whitespace-nowrap">
             {progress.chunkTotal > 0
@@ -143,7 +145,7 @@ export function ImportView({
         </div>
         <div className="col-span-6 grid min-h-6 grid-cols-[56px_minmax(0,1fr)] border-b border-r border-(--line) bg-(--surface-inset-bg)">
           <dt className="flex min-w-0 items-center px-2 text-(--muted)">
-            当前文件
+            {t("window.import.currentFile")}
           </dt>
           <dd
             className="flex min-w-0 items-center overflow-hidden px-2 text-ellipsis whitespace-nowrap"
@@ -156,10 +158,10 @@ export function ImportView({
 
       <div className="min-h-0 overflow-auto border-t border-(--line) bg-(--surface-inset-bg) text-[11px] text-(--ink)">
         <div className="sticky top-0 grid min-h-6 grid-cols-[96px_78px_62px_minmax(0,1fr)] border-b border-(--line) bg-(--panel-strong) text-(--muted)">
-          <span>状态</span>
-          <span>大小</span>
-          <span>扩展名</span>
-          <span>路径</span>
+          <span>{t("window.import.status")}</span>
+          <span>{t("window.import.size")}</span>
+          <span>{t("window.import.extension")}</span>
+          <span>{t("window.import.path")}</span>
         </div>
         {queueFiles.length > 0 ? (
           queueFiles.map((file) => (
@@ -169,10 +171,10 @@ export function ImportView({
             >
               <span>
                 {file.duplicate
-                  ? `重复:${file.duplicate.domainName}`
+                  ? `${t("window.import.duplicate")}:${file.duplicate.domainName}`
                   : file.status === "failed"
-                    ? "失败"
-                    : "新增"}
+                    ? t("window.import.failed")
+                    : t("window.import.added")}
               </span>
               <span>{formatBytes(file.sizeBytes)}</span>
               <span>{file.extension ?? "-"}</span>
@@ -181,7 +183,7 @@ export function ImportView({
           ))
         ) : (
           <div className="h-6 px-2 leading-6 text-(--muted)">
-            没有待导入文件
+            {t("window.import.noFiles")}
           </div>
         )}
       </div>

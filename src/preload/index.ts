@@ -46,6 +46,7 @@ const api: AsteriaApi = {
   openFavoritesWindow: () => ipcRenderer.invoke("window:open-favorites"),
   openFileExternally: (fileId) =>
     ipcRenderer.invoke("file:open-externally", fileId),
+  setWindowTitle: (title) => ipcRenderer.invoke("window:set-title", title),
   getFileDetail: (id) => ipcRenderer.invoke("file:get-detail", id),
   getFileDetailSequence: () => ipcRenderer.invoke("file-detail:get-sequence"),
   getStorageSettings: () => ipcRenderer.invoke("settings:get-storage"),

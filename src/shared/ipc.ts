@@ -509,6 +509,7 @@ export interface AsteriaApi {
   ) => Promise<void>;
   openFavoritesWindow: () => Promise<void>;
   openFileExternally: (fileId: number) => Promise<void>;
+  setWindowTitle: (title: string) => Promise<void>;
   getFileDetail: (id: number) => Promise<FileDetailRecord | null>;
   getFileDetailSequence: () => Promise<number[]>;
   getStorageSettings: () => Promise<StorageSettings>;

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { TagTranslationSettings } from "../../../shared/ipc";
 import { ActionFeedbackButton } from "../components/ActionFeedbackButton";
+import { useLanguage } from "../utils/language";
 
 const fallbackSettings: TagTranslationSettings = {
   csvPath: "",
@@ -25,9 +26,10 @@ const translationButtonClass =
   "h-8 border-0 border-l border-(--line) bg-(--panel-strong) px-2 text-[11px] text-(--ink)";
 
 export function TagTranslationWindow(): JSX.Element {
+  const { t } = useLanguage();
   const [settings, setSettings] =
     useState<TagTranslationSettings>(fallbackSettings);
-  const [message, setMessage] = useState("未加载");
+  const [message, setMessage] = useState(() => t("window.translation.notLoaded"));
 
   useEffect(() => {
     void loadSettings();
@@ -35,13 +37,13 @@ export function TagTranslationWindow(): JSX.Element {
 
   async function loadSettings(): Promise<void> {
     if (!window.asteria) {
-      setMessage("preload unavailable");
+      setMessage(t("app.status.preloadUnavailable"));
       return;
     }
 
     const nextSettings = await window.asteria.getTagTranslationSettings();
     setSettings(nextSettings);
-    setMessage("配置已加载");
+    setMessage(t("window.translation.loaded"));
   }
 
   async function saveSettings(): Promise<void> {
@@ -52,7 +54,7 @@ export function TagTranslationWindow(): JSX.Element {
     const nextSettings =
       await window.asteria.updateTagTranslationSettings(settings);
     setSettings(nextSettings);
-    setMessage("配置已保存");
+    setMessage(t("window.translation.saved"));
   }
 
   async function updateAndSaveSettings(
@@ -72,7 +74,7 @@ export function TagTranslationWindow(): JSX.Element {
     const savedSettings =
       await window.asteria.updateTagTranslationSettings(nextSettings);
     setSettings(savedSettings);
-    setMessage("配置已保存");
+    setMessage(t("window.translation.saved"));
   }
 
   async function selectCsvPath(): Promise<void> {
@@ -90,11 +92,11 @@ export function TagTranslationWindow(): JSX.Element {
     <section className={translationRootClass}>
       <div className={translationContentClass}>
         <label className={translationFieldClass}>
-          <span>翻译文件</span>
+          <span>{t("window.translation.file")}</span>
           <input
             className="h-6 min-w-0 border border-(--line-strong) bg-(--surface-inset-bg) px-1.5 text-(--ink)"
-            aria-label="标签翻译 CSV 路径"
-            placeholder="输入标签翻译 CSV 路径"
+            aria-label={t("window.translation.csvPath")}
+            placeholder={t("window.translation.csvPlaceholder")}
             value={settings.csvPath}
             onChange={(event) =>
               setSettings({ ...settings, csvPath: event.target.value })
@@ -109,7 +111,9 @@ export function TagTranslationWindow(): JSX.Element {
           </button>
         </label>
 
-        <div className={translationHintClass}>CSV 格式：1girl,0,1个女孩</div>
+        <div className={translationHintClass}>
+          {t("window.translation.csvHint")}
+        </div>
 
         <label className={translationCheckClass}>
           <input
@@ -121,7 +125,7 @@ export function TagTranslationWindow(): JSX.Element {
               })
             }
           />
-          <span>在数据库中保留原标签</span>
+          <span>{t("window.translation.keepOriginal")}</span>
         </label>
 
         <label className={translationCheckClass}>
@@ -134,7 +138,7 @@ export function TagTranslationWindow(): JSX.Element {
               })
             }
           />
-          <span>启用右键菜单翻译标签</span>
+          <span>{t("window.translation.enableMenu")}</span>
         </label>
 
         <label className={translationCheckClass}>
@@ -147,7 +151,7 @@ export function TagTranslationWindow(): JSX.Element {
               })
             }
           />
-          <span>创建标签时尝试翻译</span>
+          <span>{t("window.translation.translateOnCreate")}</span>
         </label>
       </div>
 
@@ -158,9 +162,9 @@ export function TagTranslationWindow(): JSX.Element {
           type="button"
           onClick={() => void loadSettings()}
         >
-          刷新
+          {t("common.refresh")}
         </button>
-        <ActionFeedbackButton label="保存" onAction={saveSettings} />
+        <ActionFeedbackButton label={t("common.save")} onAction={saveSettings} />
       </footer>
     </section>
   );

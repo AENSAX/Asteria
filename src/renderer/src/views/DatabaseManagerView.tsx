@@ -1,13 +1,15 @@
 import { useEffect, useState } from "react";
 import type { DatabaseFilePage } from "../../../shared/ipc";
 import { formatBytes } from "../utils/format";
+import { useLanguage } from "../utils/language";
 
 export function DatabaseManagerView(): JSX.Element {
+  const { t } = useLanguage();
   const [databasePage, setDatabasePage] = useState<DatabaseFilePage | null>(
     null,
   );
   const [databasePageNumber, setDatabasePageNumber] = useState(1);
-  const [message, setMessage] = useState("未加载");
+  const [message, setMessage] = useState(() => t("common.loading"));
   const databaseTotalPages = databasePage
     ? Math.max(1, Math.ceil(databasePage.total / databasePage.pageSize))
     : 1;
@@ -18,19 +20,21 @@ export function DatabaseManagerView(): JSX.Element {
 
   async function loadDatabasePage(page: number): Promise<void> {
     if (!window.asteria) {
-      setMessage("preload unavailable");
+      setMessage(t("app.status.preloadUnavailable"));
       return;
     }
 
-    setMessage("加载中");
+    setMessage(t("window.database.loading"));
 
     try {
       const nextPage = await window.asteria.listDatabaseFiles(page);
       setDatabasePage(nextPage);
-      setMessage("只读");
+      setMessage(t("window.database.readonly"));
     } catch (error) {
       setDatabasePage(null);
-      setMessage(error instanceof Error ? error.message : "加载失败");
+      setMessage(
+        error instanceof Error ? error.message : t("window.database.loadFailed"),
+      );
     }
   }
 
@@ -49,16 +53,16 @@ export function DatabaseManagerView(): JSX.Element {
           <thead>
             <tr>
               <th className="h-[26px] border-b border-r border-(--line) bg-(--surface-bg) px-2 text-left font-medium text-(--muted)">
-                ID
+                {t("window.database.id")}
               </th>
               <th className="h-[26px] border-b border-r border-(--line) bg-(--surface-bg) px-2 text-left font-medium text-(--muted)">
-                扩展名
+                {t("window.database.extension")}
               </th>
               <th className="h-[26px] border-b border-r border-(--line) bg-(--surface-bg) px-2 text-left font-medium text-(--muted)">
-                大小
+                {t("window.database.size")}
               </th>
               <th className="h-[26px] border-b border-r border-(--line) bg-(--surface-bg) px-2 text-left font-medium text-(--muted)">
-                导入时间
+                {t("window.database.importedAt")}
               </th>
               <th className="h-[26px] border-b border-r border-(--line) bg-(--surface-bg) px-2 text-left font-medium text-(--muted)">
                 SHA256
@@ -92,7 +96,7 @@ export function DatabaseManagerView(): JSX.Element {
             ) : (
               <tr>
                 <td className="h-[26px] px-2 text-(--muted)" colSpan={5}>
-                  没有文件记录
+                  {t("window.database.noRecords")}
                 </td>
               </tr>
             )}
@@ -102,8 +106,12 @@ export function DatabaseManagerView(): JSX.Element {
 
       <footer className="flex h-8 items-center justify-between border-t border-(--line) px-2 text-(--muted)">
         <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
-          第 {databasePage?.page ?? 1} / {databaseTotalPages} 页，总计{" "}
-          {databasePage?.total ?? 0} 个文件，{message}
+          {t("window.database.pageSummary", {
+            page: databasePage?.page ?? 1,
+            totalPages: databaseTotalPages,
+            total: databasePage?.total ?? 0,
+            message,
+          })}
         </span>
         <div className="flex gap-1.5">
           <button
@@ -112,7 +120,7 @@ export function DatabaseManagerView(): JSX.Element {
             type="button"
             onClick={goToPreviousDatabasePage}
           >
-            上一页
+            {t("window.database.previous")}
           </button>
           <button
             className="h-6 min-w-[58px] cursor-default border border-(--line-strong) bg-(--panel-strong)"
@@ -120,7 +128,7 @@ export function DatabaseManagerView(): JSX.Element {
             type="button"
             onClick={goToNextDatabasePage}
           >
-            下一页
+            {t("window.database.next")}
           </button>
         </div>
       </footer>
