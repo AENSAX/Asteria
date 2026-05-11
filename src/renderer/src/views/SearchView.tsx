@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
-import type { SearchHintRecord, TagRecord } from "../../../shared/ipc";
+import type {
+  FileDomain,
+  SearchHintRecord,
+  TagRecord,
+} from "../../../shared/ipc";
 import {
   createTagToken,
   formatTagLabel,
@@ -9,7 +13,11 @@ import {
   type TagToken,
 } from "../utils/tags";
 import { mergeIds } from "../utils/ids";
-import { useLanguage } from "../utils/language";
+import {
+  getFileDomainDisplayName,
+  useLanguage,
+  type TranslationFunction,
+} from "../utils/language";
 
 export type SearchOperator = "+" | "-" | "/" | "(" | ")";
 
@@ -231,7 +239,7 @@ export function SearchView({
     const tokenDraft = {
       id: tag.id,
       namespace: tag.namespace,
-      name: tag.name,
+      name: formatSearchTagLabel(tag, t),
       styleName: tag.styleName,
       color: "color" in tag ? tag.color : null,
     };
@@ -444,7 +452,7 @@ export function SearchView({
                   appendSuggestion(tag);
                 }}
               >
-                {formatTagLabel(tag)}
+                {formatSearchTagLabel(tag, t)}
               </button>
             ))}
           </div>
@@ -464,7 +472,7 @@ export function SearchView({
                 style={getSearchTokenStyle(token.token)}
                 onMouseDown={(event) => handleTokenMouseDown(event, index)}
               >
-                {formatTagLabel(token.token)}
+                {formatSearchTagLabel(token.token, t)}
               </span>
             ) : (
               <span
@@ -505,7 +513,7 @@ export function SearchView({
                     key={`${token.token.key}-${tokenIndex}`}
                     style={getSearchTokenStyle(token.token)}
                   >
-                    {formatTagLabel(token.token)}
+                    {formatSearchTagLabel(token.token, t)}
                   </span>
                 ) : (
                   <span
@@ -569,6 +577,43 @@ export function buildSearchExpression(
 
 function quoteSearchTag(value: string): string {
   return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+}
+
+function formatSearchTagLabel(
+  tag: Pick<TagRecord, "namespace" | "name"> & {
+    id?: number;
+    kind?: string;
+    styleName?: string;
+  },
+  t: TranslationFunction,
+): string {
+  const domain = getSearchTagDomain(tag);
+
+  return domain ? getFileDomainDisplayName(domain, t) : formatTagLabel(tag);
+}
+
+function getSearchTagDomain(tag: {
+  id?: number;
+  kind?: string;
+  styleName?: string;
+}): FileDomain | null {
+  if (tag.kind !== "domain" && tag.styleName !== "domain") {
+    return null;
+  }
+
+  if (tag.id === -1) {
+    return "pending";
+  }
+
+  if (tag.id === -2) {
+    return "library";
+  }
+
+  if (tag.id === -3) {
+    return "trash";
+  }
+
+  return null;
 }
 
 function isSearchOperator(value: string): value is SearchOperator {

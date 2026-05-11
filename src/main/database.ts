@@ -335,7 +335,9 @@ export function searchHints(query: string, limit = 16): SearchHintRecord[] {
 
   const domainHints = listDomains()
     .filter((domain) =>
-      normalizeTagSearchQuery(domain.displayName).includes(normalizedQuery),
+      getDomainSearchAliases(domain.id).some((alias) =>
+        normalizeTagSearchQuery(alias).includes(normalizedQuery),
+      ),
     )
     .map((domain) => ({
       id:
@@ -3493,16 +3495,26 @@ function readSearchTagIndex(): Map<string, Set<number>> {
   }>;
 
   for (const row of domainRows) {
-    const domainName = row.deletedAt
-      ? "回收站"
-      : row.domain === FILE_DOMAIN_LIBRARY
-        ? "已在库中"
-        : "待入库";
+    const domain = row.deletedAt ? FILE_DOMAIN_TRASH : row.domain;
 
-    addSearchIndexEntry(tagIndex, domainName, row.fileId);
+    for (const alias of getDomainSearchAliases(domain)) {
+      addSearchIndexEntry(tagIndex, alias, row.fileId);
+    }
   }
 
   return tagIndex;
+}
+
+function getDomainSearchAliases(domain: FileDomain): string[] {
+  if (domain === FILE_DOMAIN_LIBRARY) {
+    return ["已在库中", "in library", "library"];
+  }
+
+  if (domain === FILE_DOMAIN_TRASH) {
+    return ["回收站", "recycle bin", "trash"];
+  }
+
+  return ["待入库", "pending"];
 }
 
 function addSearchIndexEntry(

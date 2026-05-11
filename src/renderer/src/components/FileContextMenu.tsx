@@ -53,7 +53,7 @@ export function FileContextMenu({
   const { t } = useLanguage();
   return (
     <div
-      className="fixed z-30 w-[142px] border border-(--line-strong) bg-(--panel) p-1 [&>button]:block [&>button]:h-6 [&>button]:w-full [&>button]:cursor-default [&>button]:border-0 [&>button]:bg-transparent [&>button]:px-2 [&>button]:text-left [&>button]:text-[11px] [&>button]:text-(--ink) [&>button:hover]:bg-(--accent-weak)"
+      className="fixed z-30 inline-flex w-fit max-w-[calc(100vw-16px)] flex-col border border-(--line-strong) bg-(--panel) p-1 [&>button]:block [&>button]:h-6 [&>button]:w-full [&>button]:cursor-default [&>button]:border-0 [&>button]:bg-transparent [&>button]:px-2 [&>button]:text-left [&>button]:text-[11px] [&>button]:text-(--ink) [&>button]:whitespace-nowrap [&>button]:overflow-hidden [&>button]:text-ellipsis [&>button:hover]:bg-(--accent-weak)"
       style={{ left: x, top: y }}
       onMouseDown={(event) => event.stopPropagation()}
     >
@@ -67,7 +67,7 @@ export function FileContextMenu({
       ) : null}
       {canBatchOperate ? (
         <button type="button" onClick={() => onBatchOperate(fileIds)}>
-          批量操作
+          {t("window.contextMenu.batchOperate")}
         </button>
       ) : null}
       {canOpenExternally ? (

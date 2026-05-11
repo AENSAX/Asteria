@@ -11,7 +11,11 @@ import {
   getTagNamespaceClassName,
   getTagNamespaceStyle,
 } from "../utils/tags";
-import { useLanguage } from "../utils/language";
+import {
+  getFileDomainDisplayName,
+  useLanguage,
+  type TranslationFunction,
+} from "../utils/language";
 
 interface TagListViewProps {
   onAppendSearchTag: (tag: ManagedTagRecord) => void;
@@ -156,8 +160,8 @@ export function TagListView({
     [t],
   );
   const virtualRows = useMemo(
-    () => buildVirtualTagRows(displayDomains, displayGroups, tagListLabels),
-    [displayDomains, displayGroups, tagListLabels],
+    () => buildVirtualTagRows(displayDomains, displayGroups, tagListLabels, t),
+    [displayDomains, displayGroups, tagListLabels, t],
   );
   const visibleRows = useMemo(
     () =>
@@ -364,18 +368,20 @@ function renderVirtualTagRow(
   }
 
   if (row.kind === "domain") {
+    const domainLabel = formatTagLabel(row.tag);
+
     return (
       <button
         className={`absolute left-0 right-0 ${tagListItemClass}`}
         disabled={locked}
         key={row.key}
         style={style}
-        title={row.domain.displayName}
+        title={domainLabel}
         type="button"
         onClick={() => onAppendSearchTag(row.tag)}
       >
         <span className="min-w-0 overflow-hidden px-2 leading-6 text-left text-ellipsis whitespace-nowrap">
-          {row.domain.displayName}
+          {domainLabel}
         </span>
         <span className="min-w-0 overflow-hidden px-2 leading-6 text-right text-ellipsis whitespace-nowrap text-(--muted)">
           {row.domain.fileCount}
@@ -415,6 +421,7 @@ function buildVirtualTagRows(
     noDomains: string;
     noTags: string;
   },
+  t: TranslationFunction,
 ): VirtualTagRows {
   const rows: VirtualTagRow[] = [];
   let top = 0;
@@ -437,7 +444,7 @@ function buildVirtualTagRows(
         kind: "domain",
         key: `domain:${domain.id}`,
         domain,
-        tag: createDomainPseudoTag(domain),
+        tag: createDomainPseudoTag(domain, t),
         height: TAG_LIST_ITEM_HEIGHT,
       });
     }
@@ -597,13 +604,16 @@ function createDomainPseudoTagId(domainId: DomainRecord["id"]): number {
   return -3;
 }
 
-function createDomainPseudoTag(domain: DomainRecord): ManagedTagRecord {
+function createDomainPseudoTag(
+  domain: DomainRecord,
+  t: TranslationFunction,
+): ManagedTagRecord {
   return {
     id: createDomainPseudoTagId(domain.id),
     styleId: -1,
     styleName: "domain",
     namespace: "",
-    name: domain.displayName,
+    name: getFileDomainDisplayName(domain.id, t),
     displayName: null,
     fileCount: domain.fileCount,
     createdAt: "",

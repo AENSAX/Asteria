@@ -10,6 +10,12 @@ import type {
   TagDraft,
 } from "../../../shared/ipc";
 import { IMAGE_EXTENSIONS } from "../../../shared/media";
+import {
+  useLanguage,
+  type TranslationFunction,
+  type TranslationKey,
+  type TranslationValues,
+} from "../utils/language";
 
 interface BatchOperationWindowProps {
   fileIds: number[];
@@ -42,6 +48,17 @@ interface BatchLogItem {
   status: "success" | "failed" | "skipped";
   message: string;
 }
+
+type BatchMessage =
+  | {
+      kind: "key";
+      key: TranslationKey;
+      values?: TranslationValues;
+    }
+  | {
+      kind: "text";
+      text: string;
+    };
 
 const defaultScript = `/**
  * type BatchImageProcessContext = {
@@ -90,25 +107,27 @@ async function process(context) {
 export function BatchOperationWindow({
   fileIds,
 }: BatchOperationWindowProps): JSX.Element {
+  const { t } = useLanguage();
   const editorContainerRef = useRef<HTMLDivElement | null>(null);
   const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
   const [files, setFiles] = useState<BrowserFileRecord[]>([]);
   const [script, setScript] = useState(defaultScript);
   const [running, setRunning] = useState(false);
-  const [message, setMessage] = useState("未加载");
+  const [message, setMessage] = useState<BatchMessage>({
+    kind: "key",
+    key: "window.batchOperation.loading",
+  });
   const [processedCount, setProcessedCount] = useState(0);
   const [logs, setLogs] = useState<BatchLogItem[]>([]);
   const fileIdKey = fileIds.join(",");
 
   const imageFiles = useMemo(
-    () =>
-      files.filter((file) =>
-        IMAGE_EXTENSIONS.has((file.extension ?? "").toLowerCase()),
-      ),
+    () => files.filter(isImageFile),
     [files],
   );
 
   useEffect(() => {
+    resetRunState();
     void loadFiles();
   }, [fileIdKey]);
 
@@ -142,7 +161,7 @@ export function BatchOperationWindow({
   async function loadFiles(): Promise<void> {
     if (!window.asteria || fileIds.length === 0) {
       setFiles([]);
-      setMessage("文件无效");
+      setMessage({ kind: "key", key: "window.batchOperation.invalid" });
       return;
     }
 
@@ -152,9 +171,14 @@ export function BatchOperationWindow({
     );
 
     setFiles(selectedFiles);
-    setMessage(
-      `${selectedFiles.length} 个文件，${selectedFiles.filter((file) => IMAGE_EXTENSIONS.has((file.extension ?? "").toLowerCase())).length} 张图片`,
-    );
+    setMessage({
+      kind: "key",
+      key: "window.batchOperation.count",
+      values: {
+        count: selectedFiles.length,
+        imageCount: selectedFiles.filter(isImageFile).length,
+      },
+    });
   }
 
   async function runBatchOperation(): Promise<void> {
@@ -165,15 +189,18 @@ export function BatchOperationWindow({
     let processImage: ProcessFunction;
 
     try {
-      processImage = compileProcessFunction(script);
+      processImage = compileProcessFunction(script, t);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "脚本无法运行");
+      setMessage({
+        kind: "text",
+        text:
+          error instanceof Error ? error.message : t("window.batchOperation.compileFailed"),
+      });
       return;
     }
 
     setRunning(true);
-    setProcessedCount(0);
-    setLogs([]);
+    resetRunState();
 
     try {
       for (let index = 0; index < imageFiles.length; index += 1) {
@@ -183,25 +210,37 @@ export function BatchOperationWindow({
           continue;
         }
 
-        setMessage(
-          `正在处理 ${index + 1} / ${imageFiles.length}: ${file.fileName}`,
-        );
+        setMessage({
+          kind: "key",
+          key: "window.batchOperation.processing",
+          values: {
+            current: index + 1,
+            total: imageFiles.length,
+            name: file.fileName,
+          },
+        });
 
         try {
-          await processOneFile(file, index, imageFiles.length, processImage);
-          appendLog(file, "success", "已处理元数据");
+          await processOneFile(file, index, imageFiles.length, processImage, t);
+          appendLog(file, "success", t("window.batchOperation.metadataProcessed"));
         } catch (error) {
           appendLog(
             file,
             "failed",
-            error instanceof Error ? error.message : "处理失败",
+            error instanceof Error
+              ? error.message
+              : t("window.batchOperation.processFailed"),
           );
         } finally {
           setProcessedCount(index + 1);
         }
       }
 
-      setMessage(`完成：${imageFiles.length} 张图片`);
+      setMessage({
+        kind: "key",
+        key: "window.batchOperation.complete",
+        values: { count: imageFiles.length },
+      });
       await loadFiles();
     } finally {
       setRunning(false);
@@ -211,6 +250,11 @@ export function BatchOperationWindow({
   function resetScript(): void {
     editorRef.current?.setValue(defaultScript);
     setScript(defaultScript);
+  }
+
+  function resetRunState(): void {
+    setProcessedCount(0);
+    setLogs([]);
   }
 
   function appendLog(
@@ -237,7 +281,7 @@ export function BatchOperationWindow({
         </div>
         <aside className="grid min-h-0 grid-rows-[28px_minmax(0,1fr)] bg-(--surface-bg)">
           <header className="border-b border-(--line) bg-(--panel-strong) px-2 text-[11px] font-semibold leading-7">
-            处理日志
+            {t("window.batchOperation.logs")}
           </header>
           <div className="min-h-0 overflow-auto text-[11px]">
             {logs.length > 0 ? (
@@ -261,7 +305,7 @@ export function BatchOperationWindow({
                 </div>
               ))
             ) : (
-              <div className="p-2 text-(--muted)">暂无日志</div>
+              <div className="p-2 text-(--muted)">{t("window.batchOperation.noLogs")}</div>
             )}
           </div>
         </aside>
@@ -269,8 +313,7 @@ export function BatchOperationWindow({
 
       <div className="grid grid-cols-[minmax(0,1fr)_96px_96px] gap-2 border-t border-(--line) bg-(--surface-bg) p-2 text-[11px]">
         <div className="min-w-0 text-(--muted)">
-          函数接收 context，可读取文件元数据、标签和 URL，并可批量编辑标签与
-          URL。
+          {t("window.batchOperation.description")}
         </div>
         <button
           className="h-7 cursor-default border border-(--line-strong) bg-(--panel-strong) text-(--ink)"
@@ -278,7 +321,7 @@ export function BatchOperationWindow({
           type="button"
           onClick={resetScript}
         >
-          重置示例
+          {t("window.batchOperation.resetExample")}
         </button>
         <button
           className="h-7 cursor-default border border-(--line-strong) bg-(--accent) text-(--active-ink) disabled:bg-(--panel-strong) disabled:text-(--disabled-ink)"
@@ -286,12 +329,12 @@ export function BatchOperationWindow({
           type="button"
           onClick={() => void runBatchOperation()}
         >
-          {running ? "处理中" : "运行"}
+          {running ? t("window.batchOperation.running") : t("window.batchOperation.run")}
         </button>
       </div>
       <footer className="flex h-6 items-center gap-2 border-t border-(--line) px-2 text-[11px] text-(--muted)">
         <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
-          {message}
+          {formatBatchMessage(message, t)}
         </span>
         {running ? (
           <span>
@@ -303,14 +346,21 @@ export function BatchOperationWindow({
   );
 }
 
-function compileProcessFunction(source: string): ProcessFunction {
+function compileProcessFunction(
+  source: string,
+  t: TranslationFunction,
+): ProcessFunction {
   const processImage = new Function(`"use strict"; return (${source});`)();
 
   if (typeof processImage !== "function") {
-    throw new Error("脚本必须返回一个函数");
+    throw new Error(t("window.batchOperation.notFunction"));
   }
 
   return processImage as ProcessFunction;
+}
+
+function isImageFile(file: BrowserFileRecord): boolean {
+  return IMAGE_EXTENSIONS.has((file.extension ?? "").toLowerCase());
 }
 
 async function processOneFile(
@@ -318,8 +368,9 @@ async function processOneFile(
   index: number,
   total: number,
   processImage: ProcessFunction,
+  t: TranslationFunction,
 ): Promise<void> {
-  const context = await createBatchImageProcessContext(file, index, total);
+  const context = await createBatchImageProcessContext(file, index, total, t);
   await processImage(context);
 }
 
@@ -327,9 +378,10 @@ async function createBatchImageProcessContext(
   file: BrowserFileRecord,
   index: number,
   total: number,
+  t: TranslationFunction,
 ): Promise<BatchImageProcessContext> {
   if (!window.asteria) {
-    throw new Error("preload unavailable");
+    throw new Error(t("app.status.preloadUnavailable"));
   }
 
   let [tags, urls] = await Promise.all([
@@ -363,7 +415,7 @@ async function createBatchImageProcessContext(
         previousUrl ?? urls.find((item) => item.id === urlId)?.url;
 
       if (!currentUrl) {
-        throw new Error("URL 不存在");
+        throw new Error(t("window.batchOperation.urlMissing"));
       }
 
       urls = await window.asteria.updateFileUrl(
@@ -378,7 +430,7 @@ async function createBatchImageProcessContext(
       const currentUrl = url ?? urls.find((item) => item.id === urlId)?.url;
 
       if (!currentUrl) {
-        throw new Error("URL 不存在");
+        throw new Error(t("window.batchOperation.urlMissing"));
       }
 
       urls = await window.asteria.removeFileUrl([file.id], urlId, currentUrl);
@@ -387,4 +439,15 @@ async function createBatchImageProcessContext(
   };
 
   return context;
+}
+
+function formatBatchMessage(
+  message: BatchMessage,
+  t: TranslationFunction,
+): string {
+  if (message.kind === "text") {
+    return message.text;
+  }
+
+  return t(message.key, message.values);
 }

@@ -4,7 +4,7 @@ import type {
   ImportQueueFileRecord,
 } from "../../../shared/ipc";
 import { formatBytes } from "../utils/format";
-import { useLanguage } from "../utils/language";
+import { getFileDomainDisplayName, useLanguage } from "../utils/language";
 
 interface ImportViewProps {
   dragActive: boolean;
@@ -171,7 +171,10 @@ export function ImportView({
             >
               <span>
                 {file.duplicate
-                  ? `${t("window.import.duplicate")}:${file.duplicate.domainName}`
+                  ? `${t("window.import.duplicate")}:${getFileDomainDisplayName(
+                      file.duplicate.domain,
+                      t,
+                    )}`
                   : file.status === "failed"
                     ? t("window.import.failed")
                     : t("window.import.added")}

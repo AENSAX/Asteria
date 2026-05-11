@@ -197,9 +197,12 @@ const genericDialogs = new Map<
 const PAGE_LAYOUT_DEFAULT_SETTING_KEY = "page_layout_default_config_id";
 const PAGE_LAYOUT_NEW_PAGE_SETTING_KEY = "page_layout_new_page_config_id";
 const PAGE_LAYOUT_FILE_EXTENSION = ".jsonc";
+const LANGUAGE_SETTINGS_KEY = "asteria.language-settings.v1";
 let mainCloseConfirmOpen = false;
 let mainCloseConfirmed = false;
 let genericDialogCounter = 1;
+
+type LanguageId = "zh-CN" | "en-US";
 
 type StorageMigrationOutcome =
   | "migrated"
@@ -785,19 +788,8 @@ function confirmMainWindowClose(window: BrowserWindow): void {
     }
 
     mainCloseConfirmOpen = true;
-    const childWindows = listChildWindows(window);
-    const message = buildMainCloseConfirmMessage(childWindows);
-
-    void openConfirmDialog(
-      {
-        title: "确认退出",
-        message,
-        confirmText: "退出",
-        cancelText: "取消",
-      },
-      window,
-    )
-      .then((confirmed) => {
+    void confirmMainWindowCloseRequest(window)
+      .then(({ childWindows, confirmed }) => {
         if (!confirmed) {
           return;
         }
@@ -810,6 +802,58 @@ function confirmMainWindowClose(window: BrowserWindow): void {
         mainCloseConfirmOpen = false;
       });
   });
+}
+
+async function confirmMainWindowCloseRequest(window: BrowserWindow): Promise<{
+  childWindows: BrowserWindow[];
+  confirmed: boolean;
+}> {
+  const languageId = await readWindowLanguageId(window);
+  const childWindows = listChildWindows(window);
+  const message = buildMainCloseConfirmMessage(childWindows, languageId);
+  const confirmed = await openConfirmDialog(
+    {
+      title: getMainCloseConfirmTitle(languageId),
+      message,
+      confirmText: getMainCloseConfirmText(languageId),
+      cancelText: getMainCancelText(languageId),
+    },
+    window,
+  );
+
+  return { childWindows, confirmed };
+}
+
+async function readWindowLanguageId(
+  window?: BrowserWindow | null,
+): Promise<LanguageId> {
+  if (!window || window.isDestroyed()) {
+    return "zh-CN";
+  }
+
+  try {
+    const rawSettings = (await window.webContents.executeJavaScript(
+      `window.localStorage.getItem(${JSON.stringify(LANGUAGE_SETTINGS_KEY)})`,
+      true,
+    )) as string | null;
+
+    if (!rawSettings) {
+      return "zh-CN";
+    }
+
+    const settings = JSON.parse(rawSettings) as { languageId?: unknown };
+    return settings.languageId === "en-US" ? "en-US" : "zh-CN";
+  } catch {
+    return "zh-CN";
+  }
+}
+
+function needsDialogDefaultText(options: ConfirmDialogOptions): boolean {
+  return (
+    options.title === undefined ||
+    options.confirmText === undefined ||
+    options.cancelText === undefined
+  );
 }
 
 function listChildWindows(mainWindow: BrowserWindow): BrowserWindow[] {
@@ -826,44 +870,113 @@ function closeChildWindows(childWindows: BrowserWindow[]): void {
   }
 }
 
-function buildMainCloseConfirmMessage(childWindows: BrowserWindow[]): string {
+function buildMainCloseConfirmMessage(
+  childWindows: BrowserWindow[],
+  languageId: LanguageId,
+): string {
   const tasks = [
-    ...formatChildWindowTasks(childWindows),
-    ...formatActiveWorkStatusTask(),
+    ...formatChildWindowTasks(childWindows, languageId),
+    ...formatActiveWorkStatusTask(languageId),
   ];
 
   if (tasks.length === 0) {
-    return "确认退出吗";
+    return getMainCloseQuestion(languageId);
   }
 
-  return `确认退出吗？任务正在执行：\n${tasks.map((task) => `- ${task}`).join("\n")}`;
+  return `${getMainCloseQuestionWithTasks(languageId)}\n${tasks
+    .map((task) => `- ${task}`)
+    .join("\n")}`;
 }
 
-function formatChildWindowTasks(childWindows: BrowserWindow[]): string[] {
+function formatChildWindowTasks(
+  childWindows: BrowserWindow[],
+  languageId: LanguageId,
+): string[] {
   const titleCounts = new Map<string, number>();
 
   for (const childWindow of childWindows) {
-    const title = childWindow.getTitle().trim() || "未命名窗口";
+    const title =
+      childWindow.getTitle().trim() || getMainUntitledWindowText(languageId);
     titleCounts.set(title, (titleCounts.get(title) ?? 0) + 1);
   }
 
   return [...titleCounts.entries()]
     .sort(([left], [right]) => left.localeCompare(right))
-    .map(
-      ([title, count]) => `子窗口：${title}${count > 1 ? ` × ${count}` : ""}`,
-    );
+    .map(([title, count]) => {
+      const countText = count > 1 ? ` × ${count}` : "";
+
+      return `${getMainChildWindowLabel(languageId)}${title}${countText}`;
+    });
 }
 
-function formatActiveWorkStatusTask(): string[] {
+function formatActiveWorkStatusTask(languageId: LanguageId): string[] {
   const status = getCombinedWorkStatus();
 
   if (!status.active) {
     return [];
   }
 
-  return [
-    `${status.message} 队列 ${status.queued} 处理中 ${status.processing} 已完成 ${status.completed}`,
+  const queueLabel = languageId === "en-US" ? "Queue" : "队列";
+  const processingLabel = languageId === "en-US" ? "Processing" : "处理中";
+  const completedLabel = languageId === "en-US" ? "Completed" : "已完成";
+
+  const messageParts = [
+    status.message,
+    queueLabel,
+    status.queued,
+    processingLabel,
+    status.processing,
+    completedLabel,
+    status.completed,
   ];
+
+  return [messageParts.join(" ")];
+}
+
+function getMainCloseConfirmTitle(languageId: LanguageId): string {
+  return languageId === "en-US" ? "Confirm Exit" : "确认退出";
+}
+
+function getGenericConfirmTitle(languageId: LanguageId): string {
+  return languageId === "en-US" ? "Confirm" : "确认";
+}
+
+function getGenericAlertTitle(languageId: LanguageId): string {
+  return languageId === "en-US" ? "Notice" : "提示";
+}
+
+function getMainCloseConfirmText(languageId: LanguageId): string {
+  return languageId === "en-US" ? "Exit" : "退出";
+}
+
+function getGenericConfirmText(languageId: LanguageId): string {
+  return languageId === "en-US" ? "Confirm" : "确认";
+}
+
+function getGenericOkText(languageId: LanguageId): string {
+  return languageId === "en-US" ? "OK" : "确定";
+}
+
+function getMainCancelText(languageId: LanguageId): string {
+  return languageId === "en-US" ? "Cancel" : "取消";
+}
+
+function getMainCloseQuestion(languageId: LanguageId): string {
+  return languageId === "en-US" ? "Exit now?" : "确认退出吗";
+}
+
+function getMainCloseQuestionWithTasks(languageId: LanguageId): string {
+  return languageId === "en-US"
+    ? "Exit now? Tasks are still running:"
+    : "确认退出吗？任务正在执行：";
+}
+
+function getMainUntitledWindowText(languageId: LanguageId): string {
+  return languageId === "en-US" ? "Untitled window" : "未命名窗口";
+}
+
+function getMainChildWindowLabel(languageId: LanguageId): string {
+  return languageId === "en-US" ? "Child window: " : "子窗口：";
 }
 
 function loadRenderer(
@@ -1083,18 +1196,21 @@ function buildAiTaggingMessage(result: AiTaggingSummary): string {
   return lines.join("\n");
 }
 
-function openConfirmDialog(
+async function openConfirmDialog(
   options: ConfirmDialogOptions,
   parent?: BrowserWindow | null,
 ): Promise<boolean> {
+  const languageId = needsDialogDefaultText(options)
+    ? await readWindowLanguageId(parent)
+    : "zh-CN";
   const id = createGenericDialogId();
   const state: GenericDialogState = {
     id,
     kind: "confirm",
-    title: options.title ?? "确认",
+    title: options.title ?? getGenericConfirmTitle(languageId),
     message: options.message,
-    confirmText: options.confirmText ?? "确认",
-    cancelText: options.cancelText ?? "取消",
+    confirmText: options.confirmText ?? getGenericConfirmText(languageId),
+    cancelText: options.cancelText ?? getMainCancelText(languageId),
     progress: null,
   };
 
@@ -1108,18 +1224,21 @@ function openConfirmDialog(
   });
 }
 
-function openAlertDialog(
+async function openAlertDialog(
   options: ConfirmDialogOptions,
   parent?: BrowserWindow | null,
 ): Promise<void> {
+  const languageId = needsDialogDefaultText(options)
+    ? await readWindowLanguageId(parent)
+    : "zh-CN";
   const id = createGenericDialogId();
   const state: GenericDialogState = {
     id,
     kind: "alert",
-    title: options.title ?? "提示",
+    title: options.title ?? getGenericAlertTitle(languageId),
     message: options.message,
-    confirmText: options.confirmText ?? "确定",
-    cancelText: options.cancelText ?? "取消",
+    confirmText: options.confirmText ?? getGenericOkText(languageId),
+    cancelText: options.cancelText ?? getMainCancelText(languageId),
     progress: null,
   };
 

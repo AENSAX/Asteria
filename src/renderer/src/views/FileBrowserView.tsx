@@ -16,7 +16,7 @@ import {
   loadInterfaceSettings,
 } from "../utils/interfaceSettings";
 import { isImageExtension, isVideoExtension } from "../utils/media";
-import { useLanguage } from "../utils/language";
+import { getFileDomainDisplayName, useLanguage } from "../utils/language";
 
 interface FileBrowserViewProps {
   searchQuery: string;
@@ -676,7 +676,7 @@ export function FileBrowserView({
       const confirmed = await window.asteria.confirmDialog({
         title: t("app.status.duplicateConfirmTitle"),
         message: t("app.status.duplicateConfirmMessage", {
-          domainName: file.duplicate.domainName,
+          domainName: getFileDomainDisplayName(file.duplicate.domain, t),
         }),
       });
 

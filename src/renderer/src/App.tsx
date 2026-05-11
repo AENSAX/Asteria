@@ -24,6 +24,7 @@ import { readDroppedImportData } from "./utils/dropImport";
 import { parseIdList } from "./utils/ids";
 import {
   applyLanguage,
+  getFileDomainDisplayName,
   listenLanguageSettingsChanged,
   useLanguage,
   type TranslationFunction,
@@ -441,9 +442,9 @@ export function App(): JSX.Element {
 
   if (windowMode === "batch-operation") {
     return (
-      <main className={standaloneWindowClass}>
+      <StandaloneWindowFrame title={t("window.batchOperation.title")}>
         <BatchOperationWindow fileIds={parseIdList(query.get("ids"))} />
-      </main>
+      </StandaloneWindowFrame>
     );
   }
 
@@ -534,6 +535,7 @@ function WorkbenchApp(): JSX.Element {
   const menuRef = useRef<HTMLDivElement | null>(null);
   const pagesRef = useRef(pages);
   const activePageIdRef = useRef(activePageId);
+  const saveWorkbenchStateTimerRef = useRef<number | null>(null);
   const activePage = pages.find((page) => page.id === activePageId) ?? null;
 
   const percent = useMemo(() => {
@@ -592,17 +594,55 @@ function WorkbenchApp(): JSX.Element {
     activePageIdRef.current = activePageId;
   }, [activePageId]);
 
+  function flushWorkbenchStateSave(): void {
+    if (saveWorkbenchStateTimerRef.current !== null) {
+      window.clearTimeout(saveWorkbenchStateTimerRef.current);
+      saveWorkbenchStateTimerRef.current = null;
+    }
+
+    saveWorkbenchState();
+  }
+
+  function queueWorkbenchStateSave(): void {
+    if (!workbenchLoaded) {
+      return;
+    }
+
+    if (saveWorkbenchStateTimerRef.current !== null) {
+      window.clearTimeout(saveWorkbenchStateTimerRef.current);
+    }
+
+    saveWorkbenchStateTimerRef.current = window.setTimeout(() => {
+      saveWorkbenchStateTimerRef.current = null;
+      saveWorkbenchState();
+    }, 0);
+  }
+
   useEffect(() => {
     void initializeWorkbench();
 
     function saveBeforeClose(): void {
-      saveWorkbenchState();
+      flushWorkbenchStateSave();
+    }
+
+    function saveBeforeHide(): void {
+      flushWorkbenchStateSave();
+    }
+
+    function saveOnVisibilityChange(): void {
+      if (document.visibilityState === "hidden") {
+        flushWorkbenchStateSave();
+      }
     }
 
     window.addEventListener("beforeunload", saveBeforeClose);
+    window.addEventListener("pagehide", saveBeforeHide);
+    document.addEventListener("visibilitychange", saveOnVisibilityChange);
 
     return () => {
       window.removeEventListener("beforeunload", saveBeforeClose);
+      window.removeEventListener("pagehide", saveBeforeHide);
+      document.removeEventListener("visibilitychange", saveOnVisibilityChange);
     };
   }, []);
 
@@ -623,10 +663,15 @@ function WorkbenchApp(): JSX.Element {
   );
 
   useEffect(() => {
-    if (workbenchLoaded) {
-      saveWorkbenchState();
-    }
-  }, [pages, activePageId, workbenchLoaded]);
+    queueWorkbenchStateSave();
+
+    return () => {
+      if (saveWorkbenchStateTimerRef.current !== null) {
+        window.clearTimeout(saveWorkbenchStateTimerRef.current);
+        saveWorkbenchStateTimerRef.current = null;
+      }
+    };
+  }, [pages, activePageId, workbenchLoaded, languageId]);
 
   useEffect(() => {
     if (!window.asteria) {
@@ -1313,7 +1358,7 @@ function WorkbenchApp(): JSX.Element {
       const confirmed = await window.asteria.confirmDialog({
         title: t("app.status.duplicateConfirmTitle"),
         message: t("app.status.duplicateConfirmMessage", {
-          domainName: file.duplicate.domainName,
+          domainName: getFileDomainDisplayName(file.duplicate.domain, t),
         }),
       });
 
@@ -2091,7 +2136,7 @@ function WorkbenchApp(): JSX.Element {
             factory={viewFactory}
             model={activePage.model}
             onContextMenu={openViewTabContextMenu}
-            onModelChange={() => saveWorkbenchState()}
+            onModelChange={queueWorkbenchStateSave}
           />
         ) : (
           <section className={emptyPageClass}>{t("app.noOpenPage")}</section>
@@ -2185,14 +2230,51 @@ function formatWorkStatus(
   status: WorkStatus,
   t: TranslationFunction,
 ): string {
+  const message = formatWorkStatusMessage(status.message, t);
+
   if (!status.active) {
-    return status.message || t("app.status.ready");
+    return message || t("app.status.ready");
   }
 
   return t("app.workStatus", {
-    message: status.message,
+    message,
     queued: status.queued,
     processing: status.processing,
     completed: status.completed,
   });
+}
+
+function formatWorkStatusMessage(
+  message: string,
+  t: TranslationFunction,
+): string {
+  if (!message) {
+    return "";
+  }
+
+  const imageConversionPrefix = "正在转换图片为 PNG: ";
+
+  if (message.startsWith(imageConversionPrefix)) {
+    return t("app.workStatus.imageConverting", {
+      name: message.slice(imageConversionPrefix.length),
+    });
+  }
+
+  const messageKeyByText: Partial<
+    Record<string, Parameters<TranslationFunction>[0]>
+  > = {
+    缓存就绪: "app.workStatus.thumbnailReady",
+    正在生成缩略图: "app.workStatus.thumbnailGenerating",
+    模型打标空闲: "app.workStatus.aiIdle",
+    正在模型打标: "app.workStatus.aiTagging",
+    模型打标完成: "app.workStatus.aiDone",
+    图片转换空闲: "app.workStatus.imageConversionIdle",
+    标签翻译空闲: "app.workStatus.tagTranslationIdle",
+    正在翻译标签: "app.workStatus.tagTranslating",
+    标签翻译完成: "app.workStatus.tagTranslationDone",
+  };
+
+  const messageKey = messageKeyByText[message];
+
+  return messageKey ? t(messageKey) : message;
 }

@@ -1,4 +1,5 @@
 import { useMemo, useSyncExternalStore } from "react";
+import type { FileDomain } from "../../../shared/ipc";
 
 export type LanguageId = "zh-CN" | "en-US";
 
@@ -67,6 +68,19 @@ const zhCNTranslations = {
   "app.status.waitingSelectFolder": "等待选择文件夹",
   "app.workStatus":
     "{message} 队列 {queued} 处理中 {processing} 已完成 {completed}",
+  "app.workStatus.thumbnailReady": "缓存就绪",
+  "app.workStatus.thumbnailGenerating": "正在生成缩略图",
+  "app.workStatus.aiIdle": "模型打标空闲",
+  "app.workStatus.aiTagging": "正在模型打标",
+  "app.workStatus.aiDone": "模型打标完成",
+  "app.workStatus.imageConversionIdle": "图片转换空闲",
+  "app.workStatus.imageConverting": "正在转换图片为 PNG: {name}",
+  "app.workStatus.tagTranslationIdle": "标签翻译空闲",
+  "app.workStatus.tagTranslating": "正在翻译标签",
+  "app.workStatus.tagTranslationDone": "标签翻译完成",
+  "app.domain.pending": "待入库",
+  "app.domain.library": "已在库中",
+  "app.domain.trash": "回收站",
 
   "app.menu.database": "数据库",
   "app.menu.extension": "扩展功能",
@@ -154,6 +168,24 @@ const zhCNTranslations = {
   "window.export.noFormat": "无格式",
   "window.export.path": "路径",
   "window.export.waiting": "等待导出",
+  "window.batchOperation.title": "批操作",
+  "window.batchOperation.loading": "未加载",
+  "window.batchOperation.invalid": "文件无效",
+  "window.batchOperation.count": "{count} 个文件，{imageCount} 张图片",
+  "window.batchOperation.processing": "正在处理 {current} / {total}: {name}",
+  "window.batchOperation.complete": "完成：{count} 张图片",
+  "window.batchOperation.logs": "处理日志",
+  "window.batchOperation.noLogs": "暂无日志",
+  "window.batchOperation.description":
+    "函数接收 context，可读取文件元数据、标签和 URL，并可批量编辑标签与 URL。",
+  "window.batchOperation.resetExample": "重置示例",
+  "window.batchOperation.run": "运行",
+  "window.batchOperation.running": "处理中",
+  "window.batchOperation.compileFailed": "脚本无法运行",
+  "window.batchOperation.notFunction": "脚本必须返回一个函数",
+  "window.batchOperation.processFailed": "处理失败",
+  "window.batchOperation.metadataProcessed": "已处理元数据",
+  "window.batchOperation.urlMissing": "URL 不存在",
   "window.batchTagManager.title": "批量标签管理",
   "window.fileRatingEditor.title": "设置分级",
   "window.favorite.fileCount": "{count} 个文件",
@@ -485,6 +517,7 @@ const zhCNTranslations = {
   "window.browser.lastPage": "末页",
   "window.contextMenu.manageUrl": "管理url",
   "window.contextMenu.manageTags": "管理标签",
+  "window.contextMenu.batchOperate": "批量操作",
   "window.contextMenu.openDefault": "使用默认方式打开",
   "window.contextMenu.aiRetagOverwrite": "使用模型打标（覆盖）",
   "window.contextMenu.aiRetagAppend": "使用模型打标（追加）",
@@ -558,6 +591,19 @@ const enUSTranslations: Record<TranslationKey, string> = {
   "app.status.waitingSelectFolder": "Waiting for folder selection",
   "app.workStatus":
     "{message} Queue {queued} Processing {processing} Completed {completed}",
+  "app.workStatus.thumbnailReady": "Cache ready",
+  "app.workStatus.thumbnailGenerating": "Generating thumbnails",
+  "app.workStatus.aiIdle": "AI tagging idle",
+  "app.workStatus.aiTagging": "AI tagging",
+  "app.workStatus.aiDone": "AI tagging complete",
+  "app.workStatus.imageConversionIdle": "Image conversion idle",
+  "app.workStatus.imageConverting": "Converting image to PNG: {name}",
+  "app.workStatus.tagTranslationIdle": "Tag translation idle",
+  "app.workStatus.tagTranslating": "Translating tags",
+  "app.workStatus.tagTranslationDone": "Tag translation complete",
+  "app.domain.pending": "Pending",
+  "app.domain.library": "In Library",
+  "app.domain.trash": "Recycle Bin",
 
   "app.menu.database": "Database",
   "app.menu.extension": "Extensions",
@@ -647,6 +693,24 @@ const enUSTranslations: Record<TranslationKey, string> = {
   "window.export.noFormat": "No format",
   "window.export.path": "Path",
   "window.export.waiting": "Waiting for export",
+  "window.batchOperation.title": "Batch Operation",
+  "window.batchOperation.loading": "Loading",
+  "window.batchOperation.invalid": "Invalid file selection",
+  "window.batchOperation.count": "{count} files, {imageCount} images",
+  "window.batchOperation.processing": "Processing {current} / {total}: {name}",
+  "window.batchOperation.complete": "Done: {count} images",
+  "window.batchOperation.logs": "Process log",
+  "window.batchOperation.noLogs": "No logs",
+  "window.batchOperation.description":
+    "The process function receives a context object that can read file metadata, tags, and URLs, and can edit tags and URLs in bulk.",
+  "window.batchOperation.resetExample": "Reset example",
+  "window.batchOperation.run": "Run",
+  "window.batchOperation.running": "Processing",
+  "window.batchOperation.compileFailed": "Script cannot run",
+  "window.batchOperation.notFunction": "Script must return a function",
+  "window.batchOperation.processFailed": "Processing failed",
+  "window.batchOperation.metadataProcessed": "Metadata updated",
+  "window.batchOperation.urlMissing": "URL does not exist",
   "window.batchTagManager.title": "Batch Tag Manager",
   "window.fileRatingEditor.title": "Set Rating",
   "window.favorite.fileCount": "{count} files",
@@ -987,6 +1051,7 @@ const enUSTranslations: Record<TranslationKey, string> = {
   "window.browser.lastPage": "Last",
   "window.contextMenu.manageUrl": "Manage URL",
   "window.contextMenu.manageTags": "Manage tags",
+  "window.contextMenu.batchOperate": "Batch operation",
   "window.contextMenu.openDefault": "Open with default app",
   "window.contextMenu.aiRetagOverwrite": "Use AI tagging (overwrite)",
   "window.contextMenu.aiRetagAppend": "Use AI tagging (append)",
@@ -1139,6 +1204,21 @@ export function translate(
 
 export function createTranslator(languageId: LanguageId): TranslationFunction {
   return (key, values) => translateWithLanguage(languageId, key, values);
+}
+
+export function getFileDomainDisplayName(
+  domain: FileDomain,
+  t: TranslationFunction,
+): string {
+  if (domain === "library") {
+    return t("app.domain.library");
+  }
+
+  if (domain === "trash") {
+    return t("app.domain.trash");
+  }
+
+  return t("app.domain.pending");
 }
 
 export function useLanguage(): {
