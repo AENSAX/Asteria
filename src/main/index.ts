@@ -533,6 +533,24 @@ function createBatchTagManagerWindow(fileIds: number[]): BrowserWindow {
   return window;
 }
 
+function createBatchOperationWindow(fileIds: number[]): BrowserWindow {
+  const window = createAsteriaWindow({
+    width: 980,
+    height: 680,
+    minWidth: 760,
+    minHeight: 500,
+    title: "批量操作",
+    show: false,
+  });
+
+  setupWindowDiagnostics(window);
+  loadRenderer(window, { window: "batch-operation", ids: fileIds.join(",") });
+
+  showWhenReady(window);
+
+  return window;
+}
+
 function createExportWindow(fileIds: number[]): BrowserWindow {
   const window = createAsteriaWindow({
     width: 620,
@@ -2148,6 +2166,13 @@ app.whenReady().then(async () => {
       }
     },
   );
+  ipcMain.handle("window:open-batch-operation", (_event, fileIds: unknown) => {
+    const normalizedFileIds = normalizeIpcFileIds(fileIds);
+
+    if (normalizedFileIds.length > 0) {
+      createBatchOperationWindow(normalizedFileIds);
+    }
+  });
   ipcMain.handle("window:open-export", (_event, fileIds: unknown) => {
     const normalizedFileIds = normalizeIpcFileIds(fileIds);
 

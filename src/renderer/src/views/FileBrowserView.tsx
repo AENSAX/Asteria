@@ -117,6 +117,7 @@ export function FileBrowserView({
     canAiRetag: boolean;
     canAiAppendTag: boolean;
     canTranslateTags: boolean;
+    canBatchOperate: boolean;
     canScreening: boolean;
   } | null>(null);
   const [blankContextMenu, setBlankContextMenu] = useState<{
@@ -545,6 +546,13 @@ export function FileBrowserView({
         Boolean(latestTagTranslationSettings?.enableContextMenuTranslation) &&
         selectedFiles.length > 0 &&
         selectedFiles.every((item) => !isImportQueueFile(item)),
+      canBatchOperate:
+        !importQueueMode &&
+        selectedFiles.length > 0 &&
+        selectedFiles.every(
+          (item) =>
+            !isImportQueueFile(item) && isImageExtension(item.extension ?? ""),
+        ),
       canScreening:
         !importQueueMode &&
         selectedFiles.length > 0 &&
@@ -570,6 +578,15 @@ export function FileBrowserView({
 
     setContextMenu(null);
     await window.asteria?.openBatchTagManagerWindow(fileIds);
+  }
+
+  async function openBatchOperation(fileIds: number[]): Promise<void> {
+    if (importQueueMode) {
+      return;
+    }
+
+    setContextMenu(null);
+    await window.asteria?.openBatchOperationWindow(fileIds);
   }
 
   async function openExportWindow(fileIds: number[]): Promise<void> {
@@ -904,6 +921,7 @@ export function FileBrowserView({
           activeRatingGroups={activeRatingGroups}
           canAiAppendTag={contextMenu.canAiAppendTag}
           canAiRetag={contextMenu.canAiRetag}
+          canBatchOperate={contextMenu.canBatchOperate}
           canManageTags={contextMenu.fileIds.length > 1}
           canOpenExternally={contextMenu.fileIds.length === 1}
           canScreening={contextMenu.canScreening}
@@ -913,6 +931,7 @@ export function FileBrowserView({
           y={contextMenu.y}
           onManageTags={(fileIds) => void openBatchTagManager(fileIds)}
           onManageUrl={(fileIds) => void openUrlManager(fileIds)}
+          onBatchOperate={(fileIds) => void openBatchOperation(fileIds)}
           onAiAppendTag={(fileIds) => void tagWithAi(fileIds, false)}
           onAiRetag={(fileIds) => void tagWithAi(fileIds, true)}
           onTranslateTags={(fileIds) => void translateTags(fileIds)}

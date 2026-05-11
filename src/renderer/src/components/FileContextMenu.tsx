@@ -6,6 +6,7 @@ interface FileContextMenuProps {
   y: number;
   fileIds: number[];
   canManageTags: boolean;
+  canBatchOperate: boolean;
   canOpenExternally: boolean;
   canAiRetag: boolean;
   canAiAppendTag: boolean;
@@ -14,6 +15,7 @@ interface FileContextMenuProps {
   activeRatingGroups: RatingGroupRecord[];
   onManageUrl: (fileIds: number[]) => void;
   onManageTags: (fileIds: number[]) => void;
+  onBatchOperate: (fileIds: number[]) => void;
   onAiRetag: (fileIds: number[]) => void;
   onAiAppendTag: (fileIds: number[]) => void;
   onTranslateTags: (fileIds: number[]) => void;
@@ -32,11 +34,13 @@ export function FileContextMenu({
   canAiAppendTag,
   canTranslateTags,
   canManageTags,
+  canBatchOperate,
   canOpenExternally,
   canScreening,
   activeRatingGroups,
   onManageUrl,
   onManageTags,
+  onBatchOperate,
   onAiRetag,
   onAiAppendTag,
   onTranslateTags,
@@ -59,6 +63,11 @@ export function FileContextMenu({
       {canManageTags ? (
         <button type="button" onClick={() => onManageTags(fileIds)}>
           {t("window.contextMenu.manageTags")}
+        </button>
+      ) : null}
+      {canBatchOperate ? (
+        <button type="button" onClick={() => onBatchOperate(fileIds)}>
+          批量操作
         </button>
       ) : null}
       {canOpenExternally ? (

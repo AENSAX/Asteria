@@ -614,7 +614,8 @@ const enUSTranslations: Record<TranslationKey, string> = {
   "settings.language.languageSettings": "Language settings",
   "settings.network.enableProxy": "Enable proxy",
   "settings.network.proxyAddress": "Proxy address",
-  "settings.network.proxyAddressPlaceholder": "Enter proxy address, e.g. 127.0.0.1",
+  "settings.network.proxyAddressPlaceholder":
+    "Enter proxy address, e.g. 127.0.0.1",
   "settings.network.proxyPort": "Proxy port",
   "settings.network.proxyPortPlaceholder": "Enter proxy port",
   "settings.shortcut.deleteShortcut": "Delete shortcut",
@@ -623,7 +624,8 @@ const enUSTranslations: Record<TranslationKey, string> = {
   "settings.shortcut.closeWindow": "Close current window",
   "settings.shortcut.closeWindowDesc": "Except the main window",
   "settings.shortcut.selectAll": "Select all current items",
-  "settings.shortcut.selectAllDesc": "Only applies to the current multi-select area",
+  "settings.shortcut.selectAllDesc":
+    "Only applies to the current multi-select area",
   "settings.shortcut.detailPreviousFile": "Previous file in detail",
   "settings.shortcut.detailPreviousFileDesc": "File detail window",
   "settings.shortcut.detailNextFile": "Next file in detail",
@@ -821,17 +823,22 @@ const enUSTranslations: Record<TranslationKey, string> = {
   "window.ai.modelName": "Model name",
   "window.ai.modelCount": "Model count",
   "window.ai.modelSize": "Model size",
-  "window.ai.enableAutoTag": "Use model tagging when imported images have no tags",
-  "window.ai.enableRetag": "Enable context menu retag selected images (overwrite)",
+  "window.ai.enableAutoTag":
+    "Use model tagging when imported images have no tags",
+  "window.ai.enableRetag":
+    "Enable context menu retag selected images (overwrite)",
   "window.ai.enableAppend": "Enable context menu tag selected images (append)",
   "window.hydrus.loading": "Loading",
   "window.hydrus.waiting": "Waiting",
-  "window.hydrus.preloadUnavailable": "preload unavailable, please restart the app",
+  "window.hydrus.preloadUnavailable":
+    "preload unavailable, please restart the app",
   "window.hydrus.preloadAvailable": "preload available",
   "window.hydrus.loaded": "Settings loaded",
   "window.hydrus.saved": "Settings saved",
-  "window.hydrus.testConnectionIgnored": "Test connection ignored: task running",
-  "window.hydrus.apiUnavailable": "Hydrus import API unavailable, please restart the app",
+  "window.hydrus.testConnectionIgnored":
+    "Test connection ignored: task running",
+  "window.hydrus.apiUnavailable":
+    "Hydrus import API unavailable, please restart the app",
   "window.hydrus.testingConnection": "Testing connection",
   "window.hydrus.testConnection": "Test connection",
   "window.hydrus.connectionSucceeded": "Connection succeeded: {message}",
@@ -874,10 +881,12 @@ const enUSTranslations: Record<TranslationKey, string> = {
   "window.hydrus.noDebugInfo": "No debug information",
   "window.ehentai.loading": "Loading",
   "window.ehentai.waiting": "Waiting",
-  "window.ehentai.preloadUnavailable": "preload unavailable, please restart the app",
+  "window.ehentai.preloadUnavailable":
+    "preload unavailable, please restart the app",
   "window.ehentai.loaded": "Settings loaded",
   "window.ehentai.saved": "Settings saved",
-  "window.ehentai.apiUnavailable": "E-Hentai API unavailable, please restart the app",
+  "window.ehentai.apiUnavailable":
+    "E-Hentai API unavailable, please restart the app",
   "window.ehentai.detectingGalleryLink": "Detecting gallery link",
   "window.ehentai.testingGallery": "Testing link",
   "window.ehentai.detectSuccess": "Detection succeeded: {message}",
@@ -894,9 +903,11 @@ const enUSTranslations: Record<TranslationKey, string> = {
   "window.ehentai.galleryUrl": "Gallery URL",
   "window.ehentai.galleryUrlPlaceholder": "Enter https://e-hentai.org/g/...",
   "window.ehentai.cookie": "Cookie",
-  "window.ehentai.cookiePlaceholder": "Paste the cookie copied from the browser",
+  "window.ehentai.cookiePlaceholder":
+    "Paste the cookie copied from the browser",
   "window.ehentai.importGalleryTags": "Import gallery tags",
-  "window.ehentai.duplicateAsNewObject": "Create new object for duplicate files",
+  "window.ehentai.duplicateAsNewObject":
+    "Create new object for duplicate files",
   "window.ehentai.startIndex": "Start index",
   "window.ehentai.startIndexHint":
     "Start from which image in the gallery. Minimum is 1. After interruption, continue with the next image index.",
@@ -1050,9 +1061,14 @@ export function loadLanguageSettings(): LanguageSettings {
   }
 }
 
-export function saveLanguageSettings(settings: LanguageSettings): LanguageSettings {
+export function saveLanguageSettings(
+  settings: LanguageSettings,
+): LanguageSettings {
   const normalizedSettings = normalizeLanguageSettings(settings);
-  window.localStorage.setItem(LANGUAGE_SETTINGS_KEY, JSON.stringify(normalizedSettings));
+  window.localStorage.setItem(
+    LANGUAGE_SETTINGS_KEY,
+    JSON.stringify(normalizedSettings),
+  );
   applyLanguage(normalizedSettings.languageId);
   window.dispatchEvent(new CustomEvent(LANGUAGE_SETTINGS_EVENT));
 
@@ -1067,7 +1083,9 @@ export function saveLanguageSettings(settings: LanguageSettings): LanguageSettin
   return normalizedSettings;
 }
 
-export function listenLanguageSettingsChanged(listener: (settings: LanguageSettings) => void): () => void {
+export function listenLanguageSettingsChanged(
+  listener: (settings: LanguageSettings) => void,
+): () => void {
   const handleChange = (): void => {
     listener(loadLanguageSettings());
   };
@@ -1145,7 +1163,9 @@ function createDefaultLanguageSettings(): LanguageSettings {
 
 function normalizeLanguageSettings(value: unknown): LanguageSettings {
   const settings = value as Partial<LanguageSettings> | null;
-  const languageId = isLanguageId(settings?.languageId) ? settings.languageId : "zh-CN";
+  const languageId = isLanguageId(settings?.languageId)
+    ? settings.languageId
+    : "zh-CN";
 
   return { languageId };
 }
@@ -1157,7 +1177,7 @@ function isLanguageId(value: unknown): value is LanguageId {
 function getLanguageDefinition(languageId: LanguageId): LanguageDefinition {
   return (
     languageDefinitions.find((language) => language.id === languageId) ??
-    languageDefinitions[0]
+    languageDefinitions[0]!
   );
 }
 

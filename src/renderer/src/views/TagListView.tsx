@@ -87,7 +87,7 @@ const tagListHeaderClass =
   "absolute w-full h-7 border-b border-t border-(--border-dark) bg-(--group-header-bg) px-2 leading-[26px] font-semibold text-(--group-header-ink)";
 const tagListEmptyClass = "px-2 py-1.5 text-(--muted)";
 const tagListItemClass =
-  "grid h-6 w-full grid-cols-[minmax(0,1fr)_52px] border-0 border-b border-(--line) bg-transparent text-[11px] text-(--ink) hover:bg-(--accent-weak)";
+  "grid h-6 w-full grid-cols-[minmax(0,1fr)_52px] border-0 border-b border-(--line) text-[11px] text-(--ink) hover:bg-(--accent-weak)";
 const tagListItemPendingClass = "border-(--danger) bg-(--danger-bg)";
 
 export type TagListFilterMode = "all" | "namespace" | "plain" | "selection";
@@ -388,7 +388,7 @@ function renderVirtualTagRow(
     <button
       className={getTagNamespaceClassName(
         row.tag,
-        `absolute left-0 right-0 ${tagListItemClass}`,
+        `absolute left-0 right-0 border-l-[3px] ${tagListItemClass}`,
       )}
       disabled={locked}
       key={row.key}

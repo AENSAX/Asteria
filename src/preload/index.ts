@@ -25,6 +25,8 @@ const api: AsteriaApi = {
     ipcRenderer.invoke("window:open-url-manager", fileIds),
   openBatchTagManagerWindow: (fileIds) =>
     ipcRenderer.invoke("window:open-batch-tag-manager", fileIds),
+  openBatchOperationWindow: (fileIds) =>
+    ipcRenderer.invoke("window:open-batch-operation", fileIds),
   openExportWindow: (fileIds) =>
     ipcRenderer.invoke("window:open-export", fileIds),
   openScreeningWindow: (fileIds) =>

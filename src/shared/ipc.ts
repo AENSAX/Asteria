@@ -493,6 +493,7 @@ export interface AsteriaApi {
   openRecycleBinWindow: () => Promise<void>;
   openUrlManagerWindow: (fileIds: number[]) => Promise<void>;
   openBatchTagManagerWindow: (fileIds: number[]) => Promise<void>;
+  openBatchOperationWindow: (fileIds: number[]) => Promise<void>;
   openExportWindow: (fileIds: number[]) => Promise<void>;
   openScreeningWindow: (fileIds: number[]) => Promise<void>;
   openFileDetailWindow: (id: number, sequenceIds?: number[]) => Promise<void>;

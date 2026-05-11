@@ -1497,6 +1497,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/trusted-types@npm:^2.0.7":
+  version: 2.0.7
+  resolution: "@types/trusted-types@npm:2.0.7"
+  checksum: 10c0/4c4855f10de7c6c135e0d32ce462419d8abbbc33713b31d294596c0cc34ae1fa6112a2f9da729c8f7a20707782b0d69da3b1f8df6645b0366d08825ca1522e0c
+  languageName: node
+  linkType: hard
+
 "@types/verror@npm:^1.10.3":
   version: 1.10.11
   resolution: "@types/verror@npm:1.10.11"
@@ -1746,7 +1753,8 @@ __metadata:
     flexlayout-react: "npm:^0.7.15"
     husky: "npm:^9.1.7"
     jsonc-parser: "npm:^3.3.1"
-    lint-staged: "npm:^17.0.3"
+    lint-staged: "npm:^17.0.4"
+    monaco-editor: "npm:^0.55.1"
     onnxruntime-node: "npm:^1.25.1"
     prettier: "npm:3.8.3"
     react: "npm:^18.3.1"
@@ -2395,6 +2403,18 @@ __metadata:
   bin:
     dmg-license: bin/dmg-license.js
   conditions: os=darwin
+  languageName: node
+  linkType: hard
+
+"dompurify@npm:3.2.7":
+  version: 3.2.7
+  resolution: "dompurify@npm:3.2.7"
+  dependencies:
+    "@types/trusted-types": "npm:^2.0.7"
+  dependenciesMeta:
+    "@types/trusted-types":
+      optional: true
+  checksum: 10c0/d41bb31a72f1acdf9b84c56723c549924b05d92a39a15bd8c40bec9007ff80d5fccf844bc53ee12af5b69044f9a7ce24a1e71c267a4f49cf38711379ed8c1363
   languageName: node
   linkType: hard
 
@@ -3621,9 +3641,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"lint-staged@npm:^17.0.3":
-  version: 17.0.3
-  resolution: "lint-staged@npm:17.0.3"
+"lint-staged@npm:^17.0.4":
+  version: 17.0.4
+  resolution: "lint-staged@npm:17.0.4"
   dependencies:
     listr2: "npm:^10.2.1"
     picomatch: "npm:^4.0.4"
@@ -3635,7 +3655,7 @@ __metadata:
       optional: true
   bin:
     lint-staged: bin/lint-staged.js
-  checksum: 10c0/fed226f7596b65e543660dd7d460c96066d3cba8048f040c0f18089f280fed68c8504f95eaafa509d6cc0028d86dc834524a618660e480fc9733ce358dd696e8
+  checksum: 10c0/7a1057eb3dff21236e3efcf199241282488d7cb875caabe3d0cd0cc21886b726a8dad65214f9e509b6f722630be6d5b7eace84c016fac35ecb6e2350843c738d
   languageName: node
   linkType: hard
 
@@ -3755,6 +3775,15 @@ __metadata:
     socks-proxy-agent: "npm:^7.0.0"
     ssri: "npm:^9.0.0"
   checksum: 10c0/28ec392f63ab93511f400839dcee83107eeecfaad737d1e8487ea08b4332cd89a8f3319584222edd9f6f1d0833cf516691469496d46491863f9e88c658013949
+  languageName: node
+  linkType: hard
+
+"marked@npm:14.0.0":
+  version: 14.0.0
+  resolution: "marked@npm:14.0.0"
+  bin:
+    marked: bin/marked.js
+  checksum: 10c0/57a47cb110f7b1a10f398b0a7236f9183aad2dcd5345ee73f2732b6387e585d04cef472bc655d2f84c542296be9728e179aebe3ed7f2f8666b8a0a9dae592876
   languageName: node
   linkType: hard
 
@@ -3985,6 +4014,16 @@ __metadata:
   bin:
     mkdirp: bin/cmd.js
   checksum: 10c0/46ea0f3ffa8bc6a5bc0c7081ffc3907777f0ed6516888d40a518c5111f8366d97d2678911ad1a6882bf592fa9de6c784fea32e1687bb94e1f4944170af48a5cf
+  languageName: node
+  linkType: hard
+
+"monaco-editor@npm:^0.55.1":
+  version: 0.55.1
+  resolution: "monaco-editor@npm:0.55.1"
+  dependencies:
+    dompurify: "npm:3.2.7"
+    marked: "npm:14.0.0"
+  checksum: 10c0/c1a0cf887657b42c8996518bc5ee96bbd39c977f862d2a2b2018427c45f14b0dd25d1452278202056f6b1ead97981282ccacd7d7ad918d8f0ef084159f974a25
   languageName: node
   linkType: hard
 

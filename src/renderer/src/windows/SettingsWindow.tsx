@@ -47,6 +47,60 @@ type SettingsCategory =
   | "network"
   | "shortcut";
 
+type NetworkSettingsDraft = Omit<NetworkSettings, "proxyPort"> & {
+  proxyPort: string;
+};
+
+type SettingsWindowState = {
+  storage: {
+    settings: StorageSettings | null;
+    fileStoragePath: string;
+    thumbnailStoragePath: string;
+    convertImportedImagesToPng: boolean;
+    savingStoragePath: boolean;
+    savingThumbnailPath: boolean;
+  };
+  network: {
+    settings: NetworkSettings;
+    draft: NetworkSettingsDraft;
+  };
+  layout: {
+    configs: PageLayoutConfigRecord[];
+    settings: PageLayoutSettings;
+    selectedConfigId: string | null;
+    configName: string;
+    loaded: boolean;
+  };
+  interface: {
+    browserPageSize: string;
+  };
+  appearance: {
+    themeId: ThemeId;
+    languageId: LanguageId;
+  };
+  shortcuts: ShortcutSettings;
+};
+
+const defaultNetworkSettings: NetworkSettings = {
+  proxyEnabled: false,
+  proxyHost: "",
+  proxyPort: 7890,
+};
+
+const defaultLayoutSettings: PageLayoutSettings = {
+  defaultConfigId: null,
+  newPageConfigId: null,
+};
+
+function createNetworkSettingsDraft(
+  settings: NetworkSettings,
+): NetworkSettingsDraft {
+  return {
+    proxyEnabled: settings.proxyEnabled,
+    proxyHost: settings.proxyHost,
+    proxyPort: String(settings.proxyPort),
+  };
+}
 const navItemClass =
   "block h-7 w-full cursor-default border-0 border-b border-(--line) bg-transparent px-2 text-left text-[11px]";
 const activeNavItemClass =
@@ -65,53 +119,52 @@ const smallInputButtonClass =
   "[&>input]:h-6 [&>input]:min-w-0 [&>input]:border [&>input]:border-(--line-strong) [&>input]:bg-(--surface-inset-bg) [&>input]:px-1.5 [&>input]:text-(--ink) [&>input::placeholder]:text-(--disabled-ink) [&>button]:h-6 [&>button]:min-w-0 [&>button]:cursor-default [&>button]:border [&>button]:border-(--line-strong) [&>button]:bg-(--panel-strong) [&>button]:px-1.5 [&>button]:text-(--ink) [&>button:disabled]:text-(--disabled-ink)";
 
 export function SettingsWindow(): JSX.Element {
-  const { languageId, t } = useLanguage();
+  const { t } = useLanguage();
   const [category, setCategory] = useState<SettingsCategory>("file");
-  const [settings, setSettings] = useState<StorageSettings | null>(null);
-  const [fileStoragePath, setFileStoragePath] = useState("");
-  const [thumbnailStoragePath, setThumbnailStoragePath] = useState("");
-  const [convertImportedImagesToPng, setConvertImportedImagesToPng] =
-    useState(false);
-  const [networkSettings, setNetworkSettings] = useState<NetworkSettings>({
-    proxyEnabled: false,
-    proxyHost: "",
-    proxyPort: 7890,
-  });
-  const [proxyEnabled, setProxyEnabled] = useState(false);
-  const [proxyHost, setProxyHost] = useState("");
-  const [proxyPort, setProxyPort] = useState("7890");
-  const [layoutConfigs, setLayoutConfigs] = useState<PageLayoutConfigRecord[]>(
-    [],
-  );
-  const [layoutSettings, setLayoutSettings] = useState<PageLayoutSettings>({
-    defaultConfigId: null,
-    newPageConfigId: null,
-  });
-  const [selectedLayoutConfigId, setSelectedLayoutConfigId] = useState<
-    string | null
-  >(null);
-  const [layoutConfigName, setLayoutConfigName] = useState("");
-  const [layoutMessage, setLayoutMessage] = useState(() =>
-    t("settings.interface.layoutConfigNotLoaded"),
-  );
-  const [savingStoragePath, setSavingStoragePath] = useState(false);
-  const [savingThumbnailPath, setSavingThumbnailPath] = useState(false);
-  const [browserPageSize, setBrowserPageSize] = useState(() =>
-    String(loadInterfaceSettings().browserPageSize),
-  );
-  const [languageSettings, setLanguageSettings] = useState<LanguageSettings>(
-    () => loadLanguageSettings(),
-  );
-  const [themeId, setThemeId] = useState<ThemeId>(
-    () => loadThemeSettings().themeId,
-  );
-  const [shortcutSettings, setShortcutSettings] = useState<ShortcutSettings>(
-    () => loadShortcutSettings(),
+  const [settingsState, setSettingsState] = useState<SettingsWindowState>(
+    () => ({
+      storage: {
+        settings: null,
+        fileStoragePath: "",
+        thumbnailStoragePath: "",
+        convertImportedImagesToPng: false,
+        savingStoragePath: false,
+        savingThumbnailPath: false,
+      },
+      network: {
+        settings: defaultNetworkSettings,
+        draft: createNetworkSettingsDraft(defaultNetworkSettings),
+      },
+      layout: {
+        configs: [],
+        settings: defaultLayoutSettings,
+        selectedConfigId: null,
+        configName: "",
+        loaded: false,
+      },
+      interface: {
+        browserPageSize: String(loadInterfaceSettings().browserPageSize),
+      },
+      appearance: {
+        themeId: loadThemeSettings().themeId,
+        languageId: loadLanguageSettings().languageId,
+      },
+      shortcuts: loadShortcutSettings(),
+    }),
   );
   const [recordingShortcut, setRecordingShortcut] = useState<{
     action: ShortcutAction;
     index: number;
   } | null>(null);
+
+  const {
+    storage,
+    network,
+    layout,
+    interface: interfaceSettings,
+    appearance,
+    shortcuts,
+  } = settingsState;
 
   useEffect(() => {
     void loadSettings();
@@ -120,27 +173,114 @@ export function SettingsWindow(): JSX.Element {
   useEffect(
     () =>
       listenLanguageSettingsChanged((settings) => {
-        setLanguageSettings(settings);
+        setSettingsState((state) => ({
+          ...state,
+          appearance: { ...state.appearance, languageId: settings.languageId },
+        }));
       }),
     [],
   );
 
   useEffect(() => {
-    setLayoutConfigName(
-      layoutConfigs.find((config) => config.id === selectedLayoutConfigId)
-        ?.name ?? "",
-    );
-  }, [layoutConfigs, selectedLayoutConfigId]);
+    updateLayoutState({
+      configName:
+        layout.configs.find((config) => config.id === layout.selectedConfigId)
+          ?.name ?? "",
+    });
+  }, [layout.configs, layout.selectedConfigId]);
 
-  useEffect(() => {
-    setLayoutMessage(
-      layoutConfigs.length > 0
-        ? t("settings.interface.layoutConfigCount", {
-            count: layoutConfigs.length,
-          })
-        : t("settings.interface.layoutConfigNotLoaded"),
-    );
-  }, [languageId, layoutConfigs, t]);
+  function updateSettingsState(
+    updater: (currentState: SettingsWindowState) => SettingsWindowState,
+  ): void {
+    setSettingsState(updater);
+  }
+
+  function updateStorageState(
+    patch:
+      | Partial<SettingsWindowState["storage"]>
+      | ((
+          currentStorage: SettingsWindowState["storage"],
+        ) => SettingsWindowState["storage"]),
+  ): void {
+    updateSettingsState((currentState) => ({
+      ...currentState,
+      storage:
+        typeof patch === "function"
+          ? patch(currentState.storage)
+          : { ...currentState.storage, ...patch },
+    }));
+  }
+
+  function updateNetworkState(
+    patch:
+      | Partial<SettingsWindowState["network"]>
+      | ((
+          currentNetwork: SettingsWindowState["network"],
+        ) => SettingsWindowState["network"]),
+  ): void {
+    updateSettingsState((currentState) => ({
+      ...currentState,
+      network:
+        typeof patch === "function"
+          ? patch(currentState.network)
+          : { ...currentState.network, ...patch },
+    }));
+  }
+
+  function updateNetworkDraft(patch: Partial<NetworkSettingsDraft>): void {
+    updateNetworkState((currentNetwork) => ({
+      ...currentNetwork,
+      draft: { ...currentNetwork.draft, ...patch },
+    }));
+  }
+
+  function updateLayoutState(
+    patch:
+      | Partial<SettingsWindowState["layout"]>
+      | ((
+          currentLayout: SettingsWindowState["layout"],
+        ) => SettingsWindowState["layout"]),
+  ): void {
+    updateSettingsState((currentState) => ({
+      ...currentState,
+      layout:
+        typeof patch === "function"
+          ? patch(currentState.layout)
+          : { ...currentState.layout, ...patch },
+    }));
+  }
+
+  function updateInterfaceState(
+    patch: Partial<SettingsWindowState["interface"]>,
+  ): void {
+    updateSettingsState((currentState) => ({
+      ...currentState,
+      interface: { ...currentState.interface, ...patch },
+    }));
+  }
+
+  function updateAppearanceState(
+    patch: Partial<SettingsWindowState["appearance"]>,
+  ): void {
+    updateSettingsState((currentState) => ({
+      ...currentState,
+      appearance: { ...currentState.appearance, ...patch },
+    }));
+  }
+
+  function updateShortcutsState(
+    updater:
+      | ShortcutSettings
+      | ((currentSettings: ShortcutSettings) => ShortcutSettings),
+  ): void {
+    updateSettingsState((currentState) => ({
+      ...currentState,
+      shortcuts:
+        typeof updater === "function"
+          ? updater(currentState.shortcuts)
+          : updater,
+    }));
+  }
 
   useEffect(() => {
     if (!recordingShortcut) {
@@ -164,7 +304,7 @@ export function SettingsWindow(): JSX.Element {
         return;
       }
 
-      setShortcutSettings((currentSettings) =>
+      updateShortcutsState((currentSettings) =>
         updateShortcutDefinition(
           currentSettings,
           currentRecordingShortcut.action,
@@ -199,32 +339,33 @@ export function SettingsWindow(): JSX.Element {
       window.asteria.getPageLayoutSettings(),
       window.asteria.listPageLayoutConfigs(),
     ]);
-    setSettings(nextSettings);
-    setFileStoragePath(nextSettings.fileStoragePath);
-    setThumbnailStoragePath(nextSettings.thumbnailStoragePath);
-    setConvertImportedImagesToPng(nextSettings.convertImportedImagesToPng);
+    updateStorageState({
+      settings: nextSettings,
+      fileStoragePath: nextSettings.fileStoragePath,
+      thumbnailStoragePath: nextSettings.thumbnailStoragePath,
+      convertImportedImagesToPng: nextSettings.convertImportedImagesToPng,
+    });
     applyNetworkSettings(nextNetworkSettings);
-    setLayoutSettings(nextLayoutSettings);
-    setLayoutConfigs(nextLayoutConfigs);
-    setSelectedLayoutConfigId(
-      (currentId) => currentId ?? nextLayoutConfigs[0]?.id ?? null,
-    );
-    setLayoutMessage(
-      t("settings.interface.layoutConfigCount", {
-        count: nextLayoutConfigs.length,
-      }),
-    );
-    setBrowserPageSize(String(loadInterfaceSettings().browserPageSize));
-    setLanguageSettings(loadLanguageSettings());
-    setThemeId(loadThemeSettings().themeId);
-    setShortcutSettings(loadShortcutSettings());
+    updateLayoutState((currentLayout) => ({
+      ...currentLayout,
+      settings: nextLayoutSettings,
+      configs: nextLayoutConfigs,
+      selectedConfigId:
+        currentLayout.selectedConfigId ?? nextLayoutConfigs[0]?.id ?? null,
+      loaded: true,
+    }));
+    updateInterfaceState({
+      browserPageSize: String(loadInterfaceSettings().browserPageSize),
+    });
+    updateAppearanceState({ themeId: loadThemeSettings().themeId });
+    updateShortcutsState(loadShortcutSettings());
   }
 
   async function browseStoragePath(): Promise<void> {
     const selectedPath = await window.asteria?.selectStorageDirectory();
 
     if (selectedPath) {
-      setFileStoragePath(selectedPath);
+      updateStorageState({ fileStoragePath: selectedPath });
     }
   }
 
@@ -232,41 +373,47 @@ export function SettingsWindow(): JSX.Element {
     const selectedPath = await window.asteria?.selectStorageDirectory();
 
     if (selectedPath) {
-      setThumbnailStoragePath(selectedPath);
+      updateStorageState({ thumbnailStoragePath: selectedPath });
     }
   }
 
   async function saveStoragePath(): Promise<void> {
-    if (!window.asteria || !fileStoragePath.trim()) {
+    if (!window.asteria || !storage.fileStoragePath.trim()) {
       return;
     }
 
-    setSavingStoragePath(true);
+    updateStorageState({ savingStoragePath: true });
 
     try {
-      const nextSettings =
-        await window.asteria.updateFileStoragePath(fileStoragePath);
-      setSettings(nextSettings);
-      setFileStoragePath(nextSettings.fileStoragePath);
+      const nextSettings = await window.asteria.updateFileStoragePath(
+        storage.fileStoragePath,
+      );
+      updateStorageState({
+        settings: nextSettings,
+        fileStoragePath: nextSettings.fileStoragePath,
+      });
     } finally {
-      setSavingStoragePath(false);
+      updateStorageState({ savingStoragePath: false });
     }
   }
 
   async function saveThumbnailPath(): Promise<void> {
-    if (!window.asteria || !thumbnailStoragePath.trim()) {
+    if (!window.asteria || !storage.thumbnailStoragePath.trim()) {
       return;
     }
 
-    setSavingThumbnailPath(true);
+    updateStorageState({ savingThumbnailPath: true });
 
     try {
-      const nextSettings =
-        await window.asteria.updateThumbnailStoragePath(thumbnailStoragePath);
-      setSettings(nextSettings);
-      setThumbnailStoragePath(nextSettings.thumbnailStoragePath);
+      const nextSettings = await window.asteria.updateThumbnailStoragePath(
+        storage.thumbnailStoragePath,
+      );
+      updateStorageState({
+        settings: nextSettings,
+        thumbnailStoragePath: nextSettings.thumbnailStoragePath,
+      });
     } finally {
-      setSavingThumbnailPath(false);
+      updateStorageState({ savingThumbnailPath: false });
     }
   }
 
@@ -276,10 +423,12 @@ export function SettingsWindow(): JSX.Element {
     }
 
     const nextSettings = await window.asteria.updateConvertImportedImagesToPng(
-      convertImportedImagesToPng,
+      storage.convertImportedImagesToPng,
     );
-    setSettings(nextSettings);
-    setConvertImportedImagesToPng(nextSettings.convertImportedImagesToPng);
+    updateStorageState({
+      settings: nextSettings,
+      convertImportedImagesToPng: nextSettings.convertImportedImagesToPng,
+    });
   }
 
   async function createLayoutConfig(): Promise<void> {
@@ -288,59 +437,59 @@ export function SettingsWindow(): JSX.Element {
     }
 
     const configs = await window.asteria.createPageLayoutConfig();
-    setLayoutConfigs(configs);
-    setSelectedLayoutConfigId(configs[0]?.id ?? null);
-    setLayoutMessage(
-      t("settings.interface.layoutConfigCount", { count: configs.length }),
-    );
+    updateLayoutState({
+      configs,
+      selectedConfigId: configs[0]?.id ?? null,
+      loaded: true,
+    });
   }
 
   async function renameSelectedLayoutConfig(): Promise<void> {
     if (
       !window.asteria ||
-      !selectedLayoutConfigId ||
-      !layoutConfigName.trim()
+      !layout.selectedConfigId ||
+      !layout.configName.trim()
     ) {
       return;
     }
 
     const configs = await window.asteria.renamePageLayoutConfig(
-      selectedLayoutConfigId,
-      layoutConfigName,
+      layout.selectedConfigId,
+      layout.configName,
     );
-    setLayoutConfigs(configs);
-    setSelectedLayoutConfigId(
-      configs.find((config) => config.name === layoutConfigName.trim())?.id ??
+    updateLayoutState({
+      configs,
+      selectedConfigId:
+        configs.find((config) => config.name === layout.configName.trim())
+          ?.id ??
         configs[0]?.id ??
         null,
-    );
-    setLayoutMessage(
-      t("settings.interface.layoutConfigCount", { count: configs.length }),
-    );
+      loaded: true,
+    });
   }
 
   async function deleteSelectedLayoutConfig(): Promise<void> {
-    if (!window.asteria || !selectedLayoutConfigId) {
+    if (!window.asteria || !layout.selectedConfigId) {
       return;
     }
 
     const configs = await window.asteria.deletePageLayoutConfig(
-      selectedLayoutConfigId,
+      layout.selectedConfigId,
     );
-    setLayoutConfigs(configs);
-    setSelectedLayoutConfigId(configs[0]?.id ?? null);
-    setLayoutSettings(await window.asteria.getPageLayoutSettings());
-    setLayoutMessage(
-      t("settings.interface.layoutConfigCount", { count: configs.length }),
-    );
+    updateLayoutState({
+      configs,
+      selectedConfigId: configs[0]?.id ?? null,
+      settings: await window.asteria.getPageLayoutSettings(),
+      loaded: true,
+    });
   }
 
   async function openSelectedLayoutConfig(): Promise<void> {
-    if (!window.asteria || !selectedLayoutConfigId) {
+    if (!window.asteria || !layout.selectedConfigId) {
       return;
     }
 
-    await window.asteria.openPageLayoutConfig(selectedLayoutConfigId);
+    await window.asteria.openPageLayoutConfig(layout.selectedConfigId);
   }
 
   async function updateLayoutSetting(
@@ -356,34 +505,44 @@ export function SettingsWindow(): JSX.Element {
       kind === "default"
         ? await window.asteria.setDefaultPageLayoutConfig(enabled ? id : null)
         : await window.asteria.setNewPageLayoutConfig(enabled ? id : null);
-    setLayoutSettings(nextSettings);
-    setLayoutConfigs(await window.asteria.listPageLayoutConfigs());
+    updateLayoutState({
+      settings: nextSettings,
+      configs: await window.asteria.listPageLayoutConfigs(),
+    });
   }
 
   function saveShortcuts(): void {
-    saveShortcutSettings(shortcutSettings);
+    saveShortcutSettings(shortcuts);
     setRecordingShortcut(null);
   }
 
   function resetShortcuts(): void {
-    setShortcutSettings(resetShortcutSettings());
+    updateShortcutsState(resetShortcutSettings());
     setRecordingShortcut(null);
   }
 
   function saveBrowserPageSize(): void {
     const settings = saveInterfaceSettings({
-      browserPageSize: normalizeBrowserPageSize(browserPageSize),
+      browserPageSize: normalizeBrowserPageSize(
+        interfaceSettings.browserPageSize,
+      ),
     });
 
-    setBrowserPageSize(String(settings.browserPageSize));
+    updateInterfaceState({ browserPageSize: String(settings.browserPageSize) });
   }
 
   function saveTheme(): void {
-    setThemeId(saveThemeSettings({ themeId }).themeId);
+    updateAppearanceState({
+      themeId: saveThemeSettings({ themeId: appearance.themeId }).themeId,
+    });
   }
 
   function saveLanguage(): void {
-    setLanguageSettings(saveLanguageSettings(languageSettings));
+    updateAppearanceState({
+      languageId: saveLanguageSettings({
+        languageId: settingsState.appearance.languageId,
+      }).languageId,
+    });
   }
 
   async function saveNetworkSettings(): Promise<void> {
@@ -392,22 +551,22 @@ export function SettingsWindow(): JSX.Element {
     }
 
     const nextSettings = await window.asteria.updateNetworkSettings({
-      proxyEnabled,
-      proxyHost,
-      proxyPort: Number(proxyPort),
+      proxyEnabled: network.draft.proxyEnabled,
+      proxyHost: network.draft.proxyHost,
+      proxyPort: Number(network.draft.proxyPort),
     });
     applyNetworkSettings(nextSettings);
   }
 
   function applyNetworkSettings(nextSettings: NetworkSettings): void {
-    setNetworkSettings(nextSettings);
-    setProxyEnabled(nextSettings.proxyEnabled);
-    setProxyHost(nextSettings.proxyHost);
-    setProxyPort(String(nextSettings.proxyPort));
+    updateNetworkState({
+      settings: nextSettings,
+      draft: createNetworkSettingsDraft(nextSettings),
+    });
   }
 
   function removeShortcut(action: ShortcutAction, index: number): void {
-    setShortcutSettings((currentSettings) => ({
+    updateShortcutsState((currentSettings) => ({
       ...currentSettings,
       [action]: (currentSettings[action] ?? []).filter(
         (_, currentIndex) => currentIndex !== index,
@@ -415,24 +574,30 @@ export function SettingsWindow(): JSX.Element {
     }));
   }
 
-  const filePathChanged = settings
-    ? settings.fileStoragePath !== fileStoragePath
+  const filePathChanged = storage.settings
+    ? storage.settings.fileStoragePath !== storage.fileStoragePath
     : false;
-  const thumbnailPathChanged = settings
-    ? settings.thumbnailStoragePath !== thumbnailStoragePath
+  const thumbnailPathChanged = storage.settings
+    ? storage.settings.thumbnailStoragePath !== storage.thumbnailStoragePath
     : false;
-  const convertImportedImagesChanged = settings
-    ? settings.convertImportedImagesToPng !== convertImportedImagesToPng
+  const convertImportedImagesChanged = storage.settings
+    ? storage.settings.convertImportedImagesToPng !==
+      storage.convertImportedImagesToPng
     : false;
   const languageChanged =
-    loadLanguageSettings().languageId !== languageSettings.languageId;
+    loadLanguageSettings().languageId !== settingsState.appearance.languageId;
   const networkChanged =
-    networkSettings.proxyEnabled !== proxyEnabled ||
-    networkSettings.proxyHost !== proxyHost ||
-    String(networkSettings.proxyPort) !== proxyPort;
+    network.settings.proxyEnabled !== network.draft.proxyEnabled ||
+    network.settings.proxyHost !== network.draft.proxyHost ||
+    String(network.settings.proxyPort) !== network.draft.proxyPort;
   const selectedLayoutConfig =
-    layoutConfigs.find((config) => config.id === selectedLayoutConfigId) ??
+    layout.configs.find((config) => config.id === layout.selectedConfigId) ??
     null;
+  const layoutMessage = layout.loaded
+    ? t("settings.interface.layoutConfigCount", {
+        count: layout.configs.length,
+      })
+    : t("settings.interface.layoutConfigNotLoaded");
 
   return (
     <ResizableColumns
@@ -498,8 +663,12 @@ export function SettingsWindow(): JSX.Element {
                   <input
                     aria-label={t("settings.file.fileStoragePath")}
                     placeholder={t("settings.file.fileStoragePlaceholder")}
-                    value={fileStoragePath}
-                    onChange={(event) => setFileStoragePath(event.target.value)}
+                    value={storage.fileStoragePath}
+                    onChange={(event) =>
+                      updateStorageState({
+                        fileStoragePath: event.target.value,
+                      })
+                    }
                   />
                   <button
                     type="button"
@@ -508,7 +677,7 @@ export function SettingsWindow(): JSX.Element {
                     ...
                   </button>
                   <ActionFeedbackButton
-                    disabled={!filePathChanged || savingStoragePath}
+                    disabled={!filePathChanged || storage.savingStoragePath}
                     label={t("common.save")}
                     onAction={saveStoragePath}
                   />
@@ -517,12 +686,12 @@ export function SettingsWindow(): JSX.Element {
                   <span>{t("settings.file.thumbnailStoragePath")}</span>
                   <input
                     aria-label={t("settings.file.thumbnailStoragePath")}
-                    placeholder={t(
-                      "settings.file.thumbnailStoragePlaceholder",
-                    )}
-                    value={thumbnailStoragePath}
+                    placeholder={t("settings.file.thumbnailStoragePlaceholder")}
+                    value={storage.thumbnailStoragePath}
                     onChange={(event) =>
-                      setThumbnailStoragePath(event.target.value)
+                      updateStorageState({
+                        thumbnailStoragePath: event.target.value,
+                      })
                     }
                   />
                   <button
@@ -532,17 +701,21 @@ export function SettingsWindow(): JSX.Element {
                     ...
                   </button>
                   <ActionFeedbackButton
-                    disabled={!thumbnailPathChanged || savingThumbnailPath}
+                    disabled={
+                      !thumbnailPathChanged || storage.savingThumbnailPath
+                    }
                     label={t("common.save")}
                     onAction={saveThumbnailPath}
                   />
                 </label>
                 <label className={checkRowClass}>
                   <input
-                    checked={convertImportedImagesToPng}
+                    checked={storage.convertImportedImagesToPng}
                     type="checkbox"
                     onChange={(event) =>
-                      setConvertImportedImagesToPng(event.target.checked)
+                      updateStorageState({
+                        convertImportedImagesToPng: event.target.checked,
+                      })
                     }
                   />
                   <span>{t("settings.file.convertImportedImagesToPng")}</span>
@@ -556,12 +729,17 @@ export function SettingsWindow(): JSX.Element {
               </div>
             </section>
           ) : category === "interface" ? (
-            <div className="grid min-h-0 content-start gap-2">
-              <section className={panelClass}>
+            <div>
+              <section
+                className={`${panelClass} grid min-h-0 grid-rows-[28px_auto_24px_minmax(0,1fr)]`}
+              >
                 <header className={titleClass}>
-                  {t("settings.interface.browser")}
+                  {t("settings.category.interface")}
                 </header>
-                <div className="grid gap-1.5 bg-(--surface-bg) p-2">
+                <div className="grid gap-1.5 border-b border-(--line) bg-(--surface-bg) p-2">
+                  <div className={configTitleClass}>
+                    {t("settings.interface.browser")}
+                  </div>
                   <label
                     className={`grid grid-cols-[104px_120px_58px_minmax(0,1fr)] items-center gap-1.5 [&>span]:text-[11px] [&>span]:text-(--text) ${smallInputButtonClass}`}
                   >
@@ -573,9 +751,11 @@ export function SettingsWindow(): JSX.Element {
                         "settings.interface.browserPageSizePlaceholder",
                       )}
                       type="number"
-                      value={browserPageSize}
+                      value={interfaceSettings.browserPageSize}
                       onChange={(event) =>
-                        setBrowserPageSize(event.target.value)
+                        updateInterfaceState({
+                          browserPageSize: event.target.value,
+                        })
                       }
                     />
                     <ActionFeedbackButton
@@ -584,29 +764,30 @@ export function SettingsWindow(): JSX.Element {
                     />
                   </label>
                 </div>
-              </section>
-
-              <section className={panelClass}>
-                <header className={`${titleClass} flex items-center justify-between`}>
+                <div className={configTitleClass}>
                   <span>{t("settings.interface.pageLayout")}</span>
                   <span className="text-[11px] font-normal text-(--muted)">
                     {layoutMessage}
                   </span>
-                </header>
+                </div>
                 <div className="grid min-h-0 grid-cols-[260px_minmax(0,1fr)]">
                   <div className="flex min-h-0 flex-col border-r border-(--line) bg-(--surface-bg)">
                     <div className="min-h-0 flex-1 overflow-auto">
-                      {layoutConfigs.length > 0 ? (
-                        layoutConfigs.map((config) => (
+                      {layout.configs.length > 0 ? (
+                        layout.configs.map((config) => (
                           <div
-                            className={`grid min-h-[26px] w-full grid-cols-[minmax(0,1fr)] border-0 border-b border-l-[3px] border-b-(--line) p-0 text-[11px] text-(--ink) ${config.id === selectedLayoutConfigId ? "border-l-(--accent) bg-(--surface-raised-bg)" : "border-l-transparent bg-transparent"}`}
+                            className={`grid min-h-[26px] w-full grid-cols-[minmax(0,1fr)] border-0 border-b border-l-[3px] border-b-(--line) p-0 text-[11px] text-(--ink) ${config.id === layout.selectedConfigId ? "border-l-(--accent) bg-(--surface-raised-bg)" : "border-l-transparent bg-transparent"}`}
                             key={config.id}
                           >
                             <button
                               className="min-w-0 cursor-pointer overflow-hidden text-ellipsis whitespace-nowrap border-0 bg-transparent px-1.5 text-left text-(--ink)"
                               title={config.path}
                               type="button"
-                              onClick={() => setSelectedLayoutConfigId(config.id)}
+                              onClick={() =>
+                                updateLayoutState({
+                                  selectedConfigId: config.id,
+                                })
+                              }
                             >
                               <span className="block overflow-hidden text-ellipsis whitespace-nowrap leading-[26px]">
                                 {config.name}
@@ -641,12 +822,16 @@ export function SettingsWindow(): JSX.Element {
                         placeholder={t(
                           "settings.interface.configNamePlaceholder",
                         )}
-                        value={layoutConfigName}
+                        value={layout.configName}
                         onChange={(event) =>
-                          setLayoutConfigName(event.target.value)
+                          updateLayoutState({
+                            configName: event.target.value,
+                          })
                         }
                         onFocus={() =>
-                          setLayoutConfigName(selectedLayoutConfig?.name ?? "")
+                          updateLayoutState({
+                            configName: selectedLayoutConfig?.name ?? "",
+                          })
                         }
                       />
                       <button
@@ -664,7 +849,7 @@ export function SettingsWindow(): JSX.Element {
                           checked={
                             selectedLayoutConfig
                               ? selectedLayoutConfig.id ===
-                                layoutSettings.defaultConfigId
+                                layout.settings.defaultConfigId
                               : false
                           }
                           disabled={!selectedLayoutConfig}
@@ -686,7 +871,7 @@ export function SettingsWindow(): JSX.Element {
                           checked={
                             selectedLayoutConfig
                               ? selectedLayoutConfig.id ===
-                                layoutSettings.newPageConfigId
+                                layout.settings.newPageConfigId
                               : false
                           }
                           disabled={!selectedLayoutConfig}
@@ -736,9 +921,9 @@ export function SettingsWindow(): JSX.Element {
                     <span>{t("settings.language.interfaceLanguage")}</span>
                     <select
                       aria-label={t("settings.language.interfaceLanguage")}
-                      value={languageSettings.languageId}
+                      value={settingsState.appearance.languageId}
                       onChange={(event) =>
-                        setLanguageSettings({
+                        updateAppearanceState({
                           languageId: event.target.value as LanguageId,
                         })
                       }
@@ -769,14 +954,16 @@ export function SettingsWindow(): JSX.Element {
                   <span>{t("settings.theme.theme")}</span>
                   <select
                     aria-label={t("settings.theme.theme")}
-                    value={themeId}
+                    value={appearance.themeId}
                     onChange={(event) =>
-                      setThemeId(event.target.value as ThemeId)
+                      updateAppearanceState({
+                        themeId: event.target.value as ThemeId,
+                      })
                     }
                   >
                     {themeOptions.map((theme) => (
                       <option key={theme.id} value={theme.id}>
-                        {t(theme.nameKey)}
+                        {theme.name}
                       </option>
                     ))}
                   </select>
@@ -792,9 +979,13 @@ export function SettingsWindow(): JSX.Element {
             <section className={panelClass}>
               <label className="grid min-h-7 grid-cols-[18px_minmax(0,1fr)] items-center gap-1.5 border-b border-(--line) bg-(--surface-bg) px-2 text-[11px]">
                 <input
-                  checked={proxyEnabled}
+                  checked={network.draft.proxyEnabled}
                   type="checkbox"
-                  onChange={(event) => setProxyEnabled(event.target.checked)}
+                  onChange={(event) =>
+                    updateNetworkDraft({
+                      proxyEnabled: event.target.checked,
+                    })
+                  }
                 />
                 <span>{t("settings.network.enableProxy")}</span>
               </label>
@@ -804,8 +995,10 @@ export function SettingsWindow(): JSX.Element {
                   <input
                     aria-label={t("settings.network.proxyAddress")}
                     placeholder={t("settings.network.proxyAddressPlaceholder")}
-                    value={proxyHost}
-                    onChange={(event) => setProxyHost(event.target.value)}
+                    value={network.draft.proxyHost}
+                    onChange={(event) =>
+                      updateNetworkDraft({ proxyHost: event.target.value })
+                    }
                   />
                 </label>
                 <label
@@ -818,8 +1011,10 @@ export function SettingsWindow(): JSX.Element {
                     min={1}
                     placeholder={t("settings.network.proxyPortPlaceholder")}
                     type="number"
-                    value={proxyPort}
-                    onChange={(event) => setProxyPort(event.target.value)}
+                    value={network.draft.proxyPort}
+                    onChange={(event) =>
+                      updateNetworkDraft({ proxyPort: event.target.value })
+                    }
                   />
                   <ActionFeedbackButton
                     className="min-w-[70px]"
@@ -836,7 +1031,7 @@ export function SettingsWindow(): JSX.Element {
             >
               <div className="min-h-0 overflow-auto bg-(--surface-bg)">
                 {shortcutActionConfigs.map((config) => {
-                  const definitions = shortcutSettings[config.action] ?? [];
+                  const definitions = shortcuts[config.action] ?? [];
 
                   return (
                     <div
@@ -844,10 +1039,10 @@ export function SettingsWindow(): JSX.Element {
                       key={config.action}
                     >
                       <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
-                        {t(config.labelKey)}
+                        {config.label}
                       </span>
                       <small className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-(--muted)">
-                        {t(config.descriptionKey)}
+                        {config.description}
                       </small>
                       <div className="flex min-w-0 flex-wrap gap-1 [&_button]:h-[22px] [&_button]:cursor-default [&_button]:border [&_button]:border-(--line-strong) [&_button]:bg-(--surface-inset-bg) [&_button]:px-1.5 [&_button]:leading-5 [&_button]:text-(--ink) [&_button:disabled]:text-(--disabled-ink)">
                         {definitions.map((definition, index) => (

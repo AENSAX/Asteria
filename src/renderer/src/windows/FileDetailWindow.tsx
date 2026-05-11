@@ -171,7 +171,11 @@ export function FileDetailWindow({
       setMessage(nextFile ? "" : t("window.fileDetail.notFound"));
     } catch (error) {
       setFile(null);
-      setMessage(error instanceof Error ? error.message : t("window.fileDetail.loadFailed"));
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : t("window.fileDetail.loadFailed"),
+      );
     }
   }
 
@@ -254,6 +258,15 @@ export function FileDetailWindow({
 
     setContextMenu(null);
     await window.asteria?.openExportWindow([file.id]);
+  }
+
+  async function openBatchOperation(): Promise<void> {
+    if (!file) {
+      return;
+    }
+
+    setContextMenu(null);
+    await window.asteria?.openBatchOperationWindow([file.id]);
   }
 
   async function translateCurrentTags(): Promise<void> {
@@ -448,6 +461,7 @@ export function FileDetailWindow({
               activeRatingGroups={activeRatingGroups}
               canAiAppendTag={contextMenu.canAiAppendTag}
               canAiRetag={contextMenu.canAiRetag}
+              canBatchOperate={isImageExtension(file.extension ?? "")}
               canManageTags={false}
               canOpenExternally
               canScreening={file.domain === "pending"}
@@ -458,6 +472,7 @@ export function FileDetailWindow({
               onAiAppendTag={() => void tagCurrentFileWithAi(false)}
               onAiRetag={() => void tagCurrentFileWithAi(true)}
               onTranslateTags={() => void translateCurrentTags()}
+              onBatchOperate={() => void openBatchOperation()}
               onManageTags={() => undefined}
               onManageUrl={() => void openUrlManager()}
               onExport={() => void openExportWindow()}
@@ -590,7 +605,11 @@ function ScreeningMedia({ file }: { file: FileDetailRecord }): JSX.Element {
     return <audio className={detailAudioClass} controls src={file.mediaUrl} />;
   }
 
-  return <div className={detailMessageClass}>{t("window.fileDetail.cannotPreview")}</div>;
+  return (
+    <div className={detailMessageClass}>
+      {t("window.fileDetail.cannotPreview")}
+    </div>
+  );
 }
 
 interface FileDetailTagColumnProps {
@@ -911,7 +930,11 @@ function DetailMedia({
     return <audio className={detailAudioClass} controls src={file.mediaUrl} />;
   }
 
-  return <div className={detailMessageClass}>{t("window.fileDetail.cannotPreview")}</div>;
+  return (
+    <div className={detailMessageClass}>
+      {t("window.fileDetail.cannotPreview")}
+    </div>
+  );
 }
 
 interface DetailVideoProps {
