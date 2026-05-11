@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="resources/icons/app1.ico" alt="Asteria" width="160" height="160" />
+  <img src="resources/icons/app.ico" alt="Asteria" width="160" height="160" />
 </div>
 
 <h1 align="center">Asteria</h1>
