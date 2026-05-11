@@ -69,6 +69,7 @@
     "better-sqlite3": "^12.9.0",
     "flexlayout-react": "^0.7.15",
     "jsonc-parser": "^3.3.1",
+    "monaco-editor": "^0.55.1",
     "onnxruntime-node": "^1.25.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

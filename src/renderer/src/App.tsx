@@ -46,6 +46,7 @@ import {
 } from "./views/TagListView";
 import { AiManagerWindow } from "./windows/AiManagerWindow";
 import { ApiManagerWindow } from "./windows/ApiManagerWindow";
+import { BatchOperationWindow } from "./windows/BatchOperationWindow";
 import { BatchTagManagerWindow } from "./windows/BatchTagManagerWindow";
 import { DialogWindow } from "./windows/DialogWindow";
 import { EHentaiImportWindow } from "./windows/EHentaiImportWindow";
@@ -325,6 +326,14 @@ export function App(): JSX.Element {
     return (
       <main className={standaloneWindowClass}>
         <BatchTagManagerWindow fileIds={parseIdList(query.get("ids"))} />
+      </main>
+    );
+  }
+
+  if (windowMode === "batch-operation") {
+    return (
+      <main className={standaloneWindowClass}>
+        <BatchOperationWindow fileIds={parseIdList(query.get("ids"))} />
       </main>
     );
   }
