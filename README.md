@@ -11,7 +11,7 @@
 - Browser, search, tag list, file detail, recycle bin, and database views
 - Tag management, tag styles, ratings, favorites, and URL management
 - Batch tag editing and batch image scripting
-- AI tagging and tag translation
+- AI tagging and multilingual support
 - External API management
 - Theme and language settings
 - Export tools and thumbnail caching
@@ -27,7 +27,7 @@ yarn dev
 ## Todo
 
 - [x] Batch image scripting
-- [x] Tag translation
+- [x] Multilingual support
 - [ ] Tag semantic system
 - [ ] Search enhancements
 - [ ] Subscriptions and auto download
