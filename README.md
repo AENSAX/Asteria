@@ -24,19 +24,6 @@ yarn rebuild:native
 yarn dev
 ```
 
-If `better-sqlite3` needs to be rebuilt for the current Electron version:
-
-```bash
-yarn rebuild:native
-```
-
-For packaging on Windows:
-
-```bash
-yarn build
-npx electron-builder --win --x64
-```
-
 ## Todo
 
 - [x] Batch image scripting
