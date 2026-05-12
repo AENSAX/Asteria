@@ -1,8 +1,6 @@
 <div align="center">
-  <img src="resources/images/logo.png" alt="Asteria" width="160" height="160" />
+  <img src="resources/images/logo.png" alt="Asteria" width="360" />
 </div>
-
-<h1 align="center">Asteria</h1>
 
 ## Features
 
