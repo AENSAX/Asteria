@@ -42,6 +42,27 @@ export interface TagRecord {
   namespace: string;
   name: string;
   displayName: string | null;
+  fileCount?: number;
+}
+
+export interface TagParentRecord {
+  child: TagRecord;
+  parent: TagRecord;
+  createdAt: string;
+}
+
+export interface TagRelationTreeNode extends TagRecord {
+  selected: boolean;
+}
+
+export interface TagRelationTreeEdge {
+  childTagId: number;
+  parentTagId: number;
+}
+
+export interface TagRelationTree {
+  nodes: TagRelationTreeNode[];
+  edges: TagRelationTreeEdge[];
 }
 
 export interface TagStyleRecord {
@@ -504,6 +525,7 @@ export interface AsteriaApi {
   openEHentaiImportWindow: () => Promise<void>;
   openAiManagerWindow: () => Promise<void>;
   openTagTranslationWindow: () => Promise<void>;
+  openTagRelationTreeWindow: (tagIds: number[]) => Promise<void>;
   openFileRatingEditorWindow: (
     fileIds: number[],
     groupId: number,
@@ -596,6 +618,7 @@ export interface AsteriaApi {
     entryIds: number[],
   ) => Promise<void>;
   listFileTags: (fileId: number) => Promise<FileTagRecord[]>;
+  listFileParentTags: (fileId: number) => Promise<FileTagRecord[]>;
   listBatchFileTags: (fileIds: number[]) => Promise<BatchFileTagRecord[]>;
   searchTags: (query: string) => Promise<TagRecord[]>;
   searchHints: (query: string) => Promise<SearchHintRecord[]>;
@@ -609,10 +632,18 @@ export interface AsteriaApi {
     sortKey: ManagedTagSortKey,
     direction: SortDirection,
   ) => Promise<ManagedTagRecord[]>;
+  listTagParents: () => Promise<TagParentRecord[]>;
+  getTagRelationTree: (tagIds: number[]) => Promise<TagRelationTree>;
+  addTagParent: (
+    childTagId: number,
+    parentTagId: number,
+  ) => Promise<TagParentRecord>;
+  removeTagParent: (childTagId: number, parentTagId: number) => Promise<void>;
   createManagedTag: (
     styleId: number,
     tag: TagDraft,
   ) => Promise<ManagedTagRecord>;
+  renameManagedTag: (tagId: number, tag: TagDraft) => Promise<ManagedTagRecord>;
   deleteManagedTag: (tagId: number) => Promise<DeleteManagedTagsResult>;
   deleteManagedTags: (tagIds: number[]) => Promise<DeleteManagedTagsResult>;
   addFileTags: (fileId: number, tags: TagDraft[]) => Promise<FileTagRecord[]>;

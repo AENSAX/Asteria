@@ -117,6 +117,12 @@ const configTitleClass =
   "flex h-6 items-center justify-between border-b border-(--line) bg-(--panel-strong) px-2 text-[11px] font-semibold leading-6 text-(--text)";
 const smallInputButtonClass =
   "[&>input]:h-6 [&>input]:min-w-0 [&>input]:border [&>input]:border-(--line-strong) [&>input]:bg-(--surface-inset-bg) [&>input]:px-1.5 [&>input]:text-(--ink) [&>input::placeholder]:text-(--disabled-ink) [&>button]:h-6 [&>button]:min-w-0 [&>button]:cursor-default [&>button]:border [&>button]:border-(--line-strong) [&>button]:bg-(--panel-strong) [&>button]:px-1.5 [&>button]:text-(--ink) [&>button:disabled]:text-(--disabled-ink)";
+const compactSelectRowClass =
+  "grid grid-cols-[104px_160px_58px_minmax(0,1fr)] items-center gap-1.5 [&>span]:text-[11px] [&>span]:text-(--text) [&>select]:h-6 [&>select]:min-w-0 [&>select]:border [&>select]:border-(--line-strong) [&>select]:bg-(--surface-inset-bg) [&>select]:px-1.5 [&>select]:text-(--ink) [&>button]:h-6 [&>button]:min-w-0 [&>button]:cursor-default [&>button]:border [&>button]:border-(--line-strong) [&>button]:bg-(--panel-strong) [&>button]:text-(--ink)";
+const shortcutRowClass =
+  "grid min-h-7 grid-cols-[130px_150px_minmax(0,1fr)] items-center gap-1.5 border-b border-(--line) px-2 py-[3px] text-(--ink)";
+const shortcutControlsClass =
+  "flex min-w-0 flex-wrap gap-1 [&_button]:h-[22px] [&_button]:cursor-default [&_button]:border [&_button]:border-(--line-strong) [&_button]:bg-(--surface-inset-bg) [&_button]:px-1.5 [&_button]:leading-5 [&_button]:text-(--ink) [&_button:disabled]:text-(--disabled-ink)";
 
 export function SettingsWindow(): JSX.Element {
   const { t } = useLanguage();
@@ -917,7 +923,7 @@ export function SettingsWindow(): JSX.Element {
                   {t("settings.language.languageSettings")}
                 </header>
                 <div className="grid gap-1.5 bg-(--surface-bg) p-2">
-                  <label className="grid grid-cols-[104px_160px_58px_minmax(0,1fr)] items-center gap-1.5 [&>span]:text-[11px] [&>span]:text-(--text) [&>select]:h-6 [&>select]:min-w-0 [&>select]:border [&>select]:border-(--line-strong) [&>select]:bg-(--surface-inset-bg) [&>select]:px-1.5 [&>select]:text-(--ink) [&>button]:h-6 [&>button]:min-w-0 [&>button]:cursor-default [&>button]:border [&>button]:border-(--line-strong) [&>button]:bg-(--panel-strong)">
+                  <label className={compactSelectRowClass}>
                     <span>{t("settings.language.interfaceLanguage")}</span>
                     <select
                       aria-label={t("settings.language.interfaceLanguage")}
@@ -950,7 +956,7 @@ export function SettingsWindow(): JSX.Element {
                 {t("settings.theme.themeSettings")}
               </header>
               <div className="grid gap-1.5 bg-(--surface-bg) p-2">
-                <label className="grid grid-cols-[104px_160px_58px_minmax(0,1fr)] items-center gap-1.5 [&>span]:text-[11px] [&>span]:text-(--text) [&>select]:h-6 [&>select]:min-w-0 [&>select]:border [&>select]:border-(--line-strong) [&>select]:bg-(--surface-inset-bg) [&>select]:px-1.5 [&>select]:text-(--ink) [&>button]:h-6 [&>button]:min-w-0 [&>button]:cursor-default [&>button]:border [&>button]:border-(--line-strong) [&>button]:bg-(--panel-strong)">
+                <label className={compactSelectRowClass}>
                   <span>{t("settings.theme.theme")}</span>
                   <select
                     aria-label={t("settings.theme.theme")}
@@ -963,7 +969,7 @@ export function SettingsWindow(): JSX.Element {
                   >
                     {themeOptions.map((theme) => (
                       <option key={theme.id} value={theme.id}>
-                        {theme.name}
+                        {t(theme.nameKey)}
                       </option>
                     ))}
                   </select>
@@ -1034,17 +1040,14 @@ export function SettingsWindow(): JSX.Element {
                   const definitions = shortcuts[config.action] ?? [];
 
                   return (
-                    <div
-                      className="grid min-h-7 grid-cols-[130px_150px_minmax(0,1fr)] items-center gap-1.5 border-b border-(--line) px-2 py-[3px]"
-                      key={config.action}
-                    >
+                    <div className={shortcutRowClass} key={config.action}>
                       <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
-                        {config.label}
+                        {t(config.labelKey)}
                       </span>
                       <small className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-(--muted)">
-                        {config.description}
+                        {t(config.descriptionKey)}
                       </small>
-                      <div className="flex min-w-0 flex-wrap gap-1 [&_button]:h-[22px] [&_button]:cursor-default [&_button]:border [&_button]:border-(--line-strong) [&_button]:bg-(--surface-inset-bg) [&_button]:px-1.5 [&_button]:leading-5 [&_button]:text-(--ink) [&_button:disabled]:text-(--disabled-ink)">
+                      <div className={shortcutControlsClass}>
                         {definitions.map((definition, index) => (
                           <span
                             className="inline-grid h-[22px] min-w-0 grid-cols-[minmax(42px,auto)_20px]"

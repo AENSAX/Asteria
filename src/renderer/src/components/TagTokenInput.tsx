@@ -38,8 +38,8 @@ export function TagTokenInput({
               className={getTagNamespaceClassName(
                 tag,
                 index === selectedSuggestionIndex
-                  ? "block h-6 w-full border-0 border-b border-(--line) bg-(--accent-weak) px-1.5 text-left text-[11px] text-(--ink)"
-                  : "block h-6 w-full border-0 border-b border-(--line) bg-transparent px-1.5 text-left text-[11px] text-(--ink)",
+                  ? "grid h-6 w-full grid-cols-[minmax(0,1fr)_44px] items-center gap-2 border-0 border-b border-(--line) bg-(--accent-weak) px-1.5 text-left text-[11px] text-(--ink)"
+                  : "grid h-6 w-full grid-cols-[minmax(0,1fr)_44px] items-center gap-2 border-0 border-b border-(--line) bg-transparent px-1.5 text-left text-[11px] text-(--ink)",
               )}
               key={tag.id}
               style={getTagNamespaceStyle(tag)}
@@ -49,7 +49,12 @@ export function TagTokenInput({
                 onPickSuggestion(tag);
               }}
             >
-              {formatTagLabel(tag)}
+              <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
+                {formatTagLabel(tag)}
+              </span>
+              <span className="min-w-0 overflow-hidden text-right text-ellipsis whitespace-nowrap text-(--muted)">
+                {tag.fileCount ?? 0}
+              </span>
             </button>
           ))}
         </div>

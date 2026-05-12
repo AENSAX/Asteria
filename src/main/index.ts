@@ -18,6 +18,7 @@ import { pathToFileURL } from "node:url";
 import {
   closeDatabase,
   addFileTags,
+  addTagParent,
   addFileUrl,
   addTagsToFiles,
   createApiService,
@@ -33,6 +34,7 @@ import {
   getFileOriginalPath,
   getNetworkSettings,
   getTagTranslationSettings,
+  getTagRelationTree,
   getAppSetting,
   getDatabaseStatus,
   hasStoredFileReference,
@@ -49,21 +51,25 @@ import {
   listApiServices,
   listFilesForStorageMigration,
   listFavoriteFiles,
+  listFileParentTags,
   listFileTags,
   listFileUrls,
   listBatchFileTags,
   listBrowserFiles,
   listDatabaseFiles,
   listManagedTags,
+  listTagParents,
   listRatingEntries,
   listRatingGroups,
   listTrashedFiles,
   listTagStyles,
   removeFileTags,
+  removeTagParent,
   removeFileUrl,
   removeTagsFromFiles,
   deleteRatingEntry,
   deleteRatingGroup,
+  renameManagedTag,
   renameRatingGroup,
   reorderRatingEntries,
   restoreFiles,
@@ -306,6 +312,27 @@ function createTagManagerWindow(): BrowserWindow {
 
   setupWindowDiagnostics(window);
   loadRenderer(window, { window: "tag-manager" });
+
+  showWhenReady(window);
+
+  return window;
+}
+
+function createTagRelationTreeWindow(tagIds: number[]): BrowserWindow {
+  const window = createAsteriaWindow({
+    width: 980,
+    height: 680,
+    minWidth: 720,
+    minHeight: 460,
+    title: "标签关系树",
+    show: false,
+  });
+
+  setupWindowDiagnostics(window);
+  loadRenderer(window, {
+    window: "tag-relation-tree",
+    ids: tagIds.join(","),
+  });
 
   showWhenReady(window);
 
@@ -2231,6 +2258,9 @@ app.whenReady().then(async () => {
   ipcMain.handle("window:open-tag-manager", () => {
     createTagManagerWindow();
   });
+  ipcMain.handle("window:open-tag-relation-tree", (_event, tagIds: unknown) => {
+    createTagRelationTreeWindow(normalizeIpcFileIds(tagIds));
+  });
   ipcMain.handle("window:open-recycle-bin", () => {
     createRecycleBinWindow();
   });
@@ -2757,6 +2787,17 @@ app.whenReady().then(async () => {
 
     return listFileTags(fileId);
   });
+  ipcMain.handle("tag:list-file-parent-tags", (_event, fileId: unknown) => {
+    if (
+      typeof fileId !== "number" ||
+      !Number.isInteger(fileId) ||
+      fileId <= 0
+    ) {
+      return [];
+    }
+
+    return listFileParentTags(fileId);
+  });
   ipcMain.handle("tag:list-batch-file-tags", (_event, fileIds: unknown) =>
     listBatchFileTags(normalizeIpcFileIds(fileIds)),
   );
@@ -2833,6 +2874,47 @@ app.whenReady().then(async () => {
       );
     },
   );
+  ipcMain.handle("tag:list-parents", () => listTagParents());
+  ipcMain.handle("tag:get-relation-tree", (_event, tagIds: unknown) =>
+    getTagRelationTree(normalizeIpcFileIds(tagIds)),
+  );
+  ipcMain.handle(
+    "tag:add-parent",
+    (_event, childTagId: unknown, parentTagId: unknown) => {
+      if (
+        typeof childTagId !== "number" ||
+        !Number.isInteger(childTagId) ||
+        childTagId <= 0 ||
+        typeof parentTagId !== "number" ||
+        !Number.isInteger(parentTagId) ||
+        parentTagId <= 0
+      ) {
+        throw new Error("标签父子级关系无效");
+      }
+
+      const parent = addTagParent(childTagId, parentTagId);
+      broadcastFilesChanged();
+      return parent;
+    },
+  );
+  ipcMain.handle(
+    "tag:remove-parent",
+    (_event, childTagId: unknown, parentTagId: unknown) => {
+      if (
+        typeof childTagId !== "number" ||
+        !Number.isInteger(childTagId) ||
+        childTagId <= 0 ||
+        typeof parentTagId !== "number" ||
+        !Number.isInteger(parentTagId) ||
+        parentTagId <= 0
+      ) {
+        throw new Error("标签父子级关系无效");
+      }
+
+      removeTagParent(childTagId, parentTagId);
+      broadcastFilesChanged();
+    },
+  );
   ipcMain.handle(
     "tag:create-managed-tag",
     (_event, styleId: unknown, tag: unknown) => {
@@ -2846,6 +2928,23 @@ app.whenReady().then(async () => {
       }
 
       return createManagedTag(styleId, tag);
+    },
+  );
+  ipcMain.handle(
+    "tag:rename-managed-tag",
+    (_event, tagId: unknown, tag: unknown) => {
+      if (
+        typeof tagId !== "number" ||
+        !Number.isInteger(tagId) ||
+        tagId <= 0 ||
+        !isTagDraft(tag)
+      ) {
+        throw new Error("标签无效");
+      }
+
+      const renamed = renameManagedTag(tagId, tag);
+      broadcastFilesChanged();
+      return renamed;
     },
   );
   ipcMain.handle("tag:delete-managed-tag", (_event, tagId: unknown) => {

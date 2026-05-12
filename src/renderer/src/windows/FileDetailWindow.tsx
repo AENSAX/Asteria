@@ -41,6 +41,8 @@ const fileTagHeaderClass =
 const fileTagGroupBodyClass = "flex flex-wrap content-start gap-1";
 const fileTagItemClass =
   "file-tag-item inline-flex max-w-full min-h-[18px] cursor-default overflow-hidden border border-(--line-strong) bg-(--tag-bg) px-1.5 text-[11px] text-(--ink)";
+const inferredFileTagItemClass =
+  "inline-flex max-w-full min-h-[18px] cursor-default overflow-hidden border border-(--line) bg-(--surface-bg) px-1.5 text-[11px] text-(--muted)";
 const fileTagPendingClass = "pending";
 const detailContentClass =
   "relative grid min-h-0 min-w-0 place-items-center overflow-hidden bg-(--surface-media-bg)";
@@ -621,6 +623,7 @@ function FileDetailTagColumn({
 }: FileDetailTagColumnProps): JSX.Element {
   const { t } = useLanguage();
   const [fileTags, setFileTags] = useState<FileTagRecord[]>([]);
+  const [fileParentTags, setFileParentTags] = useState<FileTagRecord[]>([]);
   const [tagStyles, setTagStyles] = useState<TagStyleRecord[]>([]);
   const [pendingTagIds, setPendingTagIds] = useState<number[]>([]);
   const [lastPendingTagId, setLastPendingTagId] = useState<number | null>(null);
@@ -631,8 +634,8 @@ function FileDetailTagColumn({
         return;
       }
 
-      const nextFileTags = await window.asteria.addFileTags(fileId, nextTokens);
-      setFileTags(nextFileTags);
+      await window.asteria.addFileTags(fileId, nextTokens);
+      await loadFileTags();
     },
   });
   const groupedFileTags = useMemo(
@@ -642,6 +645,10 @@ function FileDetailTagColumn({
   const orderedFileTags = useMemo(
     () => groupedFileTags.flatMap((group) => group.tags),
     [groupedFileTags],
+  );
+  const groupedFileParentTags = useMemo(
+    () => groupFileTagsByStyle(fileParentTags, tagStyles),
+    [fileParentTags, tagStyles],
   );
   const boxSelection = useBoxSelection({
     containerRef: tagListRef,
@@ -685,15 +692,19 @@ function FileDetailTagColumn({
   async function loadFileTags(): Promise<void> {
     if (!window.asteria || !Number.isInteger(fileId) || fileId <= 0) {
       setFileTags([]);
+      setFileParentTags([]);
       setTagStyles([]);
       return;
     }
 
-    const [nextFileTags, nextTagStyles] = await Promise.all([
-      window.asteria.listFileTags(fileId),
-      window.asteria.listTagStyles(),
-    ]);
+    const [nextFileTags, nextFileParentTags, nextTagStyles] =
+      await Promise.all([
+        window.asteria.listFileTags(fileId),
+        window.asteria.listFileParentTags(fileId),
+        window.asteria.listTagStyles(),
+      ]);
     setFileTags(nextFileTags);
+    setFileParentTags(nextFileParentTags);
     setTagStyles(nextTagStyles);
   }
 
@@ -702,8 +713,8 @@ function FileDetailTagColumn({
       return;
     }
 
-    const nextFileTags = await window.asteria.removeFileTags(fileId, tagIds);
-    setFileTags(nextFileTags);
+    await window.asteria.removeFileTags(fileId, tagIds);
+    await loadFileTags();
     setPendingTagIds([]);
     setLastPendingTagId(null);
   }
@@ -802,6 +813,42 @@ function FileDetailTagColumn({
             </div>
           </section>
         ))}
+        {groupedFileParentTags.length > 0 ? (
+          <section className={fileTagGroupClass}>
+            <header className={fileTagHeaderClass}>
+              <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
+                {t("window.fileDetail.inferredTags")}
+              </span>
+              <span className="pl-1.5 text-right">
+                {fileParentTags.length}
+              </span>
+            </header>
+            {groupedFileParentTags.map((group) => (
+              <div className="mb-1" key={group.styleName}>
+                <div className="mb-1 px-1.5 text-[10px] text-(--muted)">
+                  {group.displayName}
+                </div>
+                <div className={fileTagGroupBodyClass}>
+                  {group.tags.map((tag) => (
+                    <span
+                      className={getTagNamespaceClassName(
+                        tag,
+                        inferredFileTagItemClass,
+                      )}
+                      key={tag.id}
+                      style={getTagNamespaceStyle(tag)}
+                      title={t("window.fileDetail.inferredTagTitle", {
+                        tag: formatTagLabel(tag),
+                      })}
+                    >
+                      {formatTagLabel(tag)}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </section>
+        ) : null}
         {boxSelection.selectionBox ? (
           <div
             className="absolute z-40 border border-(--accent) bg-(--accent-overlay) pointer-events-none"

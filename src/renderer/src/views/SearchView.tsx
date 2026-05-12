@@ -59,7 +59,7 @@ const tokenInputClass =
 const operatorTokenClass =
   "inline-flex h-[18px] min-w-[18px] items-center justify-center border border-(--line-strong) bg-(--surface-bg) text-(--muted)";
 const suggestionListClass =
-  "absolute left-0 top-full z-[4] border border-(--line-strong) bg-(--panel) [&>button]:block [&>button]:h-6 [&>button]:w-full [&>button]:cursor-default [&>button]:border-0 [&>button]:border-b [&>button]:border-(--line) [&>button]:bg-transparent [&>button]:px-1.5 [&>button]:text-left [&>button]:text-[11px] [&>button:last-child]:border-b-0 [&>button:hover]:bg-(--accent-weak)";
+  "absolute left-0 top-full z-[4] border border-(--line-strong) bg-(--panel) [&>button]:grid [&>button]:h-6 [&>button]:w-full [&>button]:grid-cols-[minmax(0,1fr)_44px] [&>button]:items-center [&>button]:gap-2 [&>button]:cursor-default [&>button]:border-0 [&>button]:border-b [&>button]:border-(--line) [&>button]:bg-transparent [&>button]:px-1.5 [&>button]:text-left [&>button]:text-[11px] [&>button:last-child]:border-b-0 [&>button:hover]:bg-(--accent-weak)";
 const selectedSuggestionClass = "bg-(--accent-weak)";
 const suggestionItemClass = "text-(--ink)";
 const tagTokenClass =
@@ -452,7 +452,12 @@ export function SearchView({
                   appendSuggestion(tag);
                 }}
               >
-                {formatSearchTagLabel(tag, t)}
+                <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
+                  {formatSearchTagLabel(tag, t)}
+                </span>
+                <span className="min-w-0 overflow-hidden text-right text-ellipsis whitespace-nowrap text-(--muted)">
+                  {tag.fileCount}
+                </span>
               </button>
             ))}
           </div>

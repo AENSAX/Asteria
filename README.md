@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="resources/icons/app.ico" alt="Asteria" width="160" height="160" />
+  <img src="resources/images/logo.png" alt="Asteria" width="160" height="160" />
 </div>
 
 <h1 align="center">Asteria</h1>
@@ -29,5 +29,17 @@ yarn dev
 - [x] Batch image scripting
 - [x] Multilingual support
 - [ ] Tag semantic system
+  - [x] Tag parent relation storage
+  - [x] Parent and child relation management UI
+  - [x] Common parent and child views for selected tags
+  - [x] Read-only tag relation tree window
+  - [x] Recursive implied tag expansion
+  - [x] Semantic-aware tag search
+  - [x] Semantic-aware tag counts
+  - [x] Implied parent tag display in file details
+  - [ ] Tag sibling and canonical tag rules
+  - [ ] Semantic-aware autocomplete
+  - [ ] Implied tag display in search results
+  - [ ] Batch rename preview with semantic impact
 - [ ] Search enhancements
 - [ ] Subscriptions and auto download

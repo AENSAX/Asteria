@@ -36,11 +36,13 @@ import type {
   TagTranslationSettings,
   TagTranslationSummary,
   TagDraft,
+  TagParentRecord,
   TagRecord,
+  TagRelationTree,
   TagStyleRecord,
 } from "../shared/ipc.js";
 
-const SCHEMA_VERSION = 9;
+const SCHEMA_VERSION = 10;
 const FILE_STORAGE_SETTING_KEY = "file_storage_path";
 const THUMBNAIL_STORAGE_SETTING_KEY = "thumbnail_storage_path";
 const CONVERT_IMPORTED_IMAGES_TO_PNG_SETTING_KEY =
@@ -404,7 +406,7 @@ export function searchHints(query: string, limit = 16): SearchHintRecord[] {
     name: tag.name,
     displayName: tag.displayName,
     color: null,
-    fileCount: 0,
+    fileCount: tag.fileCount ?? 0,
   }));
 
   hints.push(...tagHints);
@@ -1676,6 +1678,42 @@ export function listFileTags(fileId: number): FileTagRecord[] {
     .all(fileId) as FileTagRecord[];
 }
 
+export function listFileParentTags(fileId: number): FileTagRecord[] {
+  const db = getDatabase();
+
+  return db
+    .prepare(
+      `WITH RECURSIVE parent_tags(tag_id) AS (
+        SELECT tag_parents.parent_tag_id
+        FROM file_tags
+        JOIN tag_parents ON tag_parents.child_tag_id = file_tags.tag_id
+        WHERE file_tags.file_id = ?
+        UNION
+        SELECT tag_parents.parent_tag_id
+        FROM parent_tags
+        JOIN tag_parents ON tag_parents.child_tag_id = parent_tags.tag_id
+      )
+      SELECT
+        tags.id,
+        tag_styles.name AS styleName,
+        tags.namespace,
+        tags.name,
+        tags.display_name AS displayName,
+        tags.created_at AS createdAt
+       FROM parent_tags
+       JOIN tags ON tags.id = parent_tags.tag_id
+       JOIN tag_styles ON tag_styles.id = tags.style_id
+       WHERE NOT EXISTS (
+         SELECT 1
+         FROM file_tags
+         WHERE file_tags.file_id = ?
+           AND file_tags.tag_id = tags.id
+       )
+       ORDER BY tag_styles.name ASC, tags.namespace ASC, tags.name ASC`,
+    )
+    .all(fileId, fileId) as FileTagRecord[];
+}
+
 export function searchTags(query: string, limit = 12): TagRecord[] {
   const db = getDatabase();
   const normalizedQuery = normalizeTagSearchQuery(query);
@@ -1689,17 +1727,21 @@ export function searchTags(query: string, limit = 12): TagRecord[] {
 
   return db
     .prepare(
-      `SELECT
+      `${createEffectiveTagFilesCte()}
+       SELECT
         tags.id,
         tag_styles.name AS styleName,
         tags.namespace,
         tags.name,
-        tags.display_name AS displayName
+        tags.display_name AS displayName,
+        COUNT(DISTINCT effective_tag_files.file_id) AS fileCount
        FROM tags
        JOIN tag_styles ON tag_styles.id = tags.style_id
+       LEFT JOIN effective_tag_files ON effective_tag_files.tag_id = tags.id
        WHERE lower(tags.name) LIKE ?
           OR lower(tags.namespace || ':' || tags.name) LIKE ?
           OR lower(coalesce(tags.display_name, '')) LIKE ?
+       GROUP BY tags.id
        ORDER BY
         CASE
           WHEN lower(tags.namespace || ':' || tags.name) LIKE ? THEN 0
@@ -1707,6 +1749,7 @@ export function searchTags(query: string, limit = 12): TagRecord[] {
           ELSE 2
         END,
         tag_styles.is_default DESC,
+        fileCount DESC,
         tags.namespace ASC,
         tags.name ASC
        LIMIT ?`,
@@ -1885,7 +1928,8 @@ export function listManagedTags(
 
   return db
     .prepare(
-      `SELECT
+      `${createEffectiveTagFilesCte()}
+       SELECT
         tags.id,
         tags.style_id AS styleId,
         tag_styles.name AS styleName,
@@ -1893,10 +1937,10 @@ export function listManagedTags(
         tags.name,
         tags.display_name AS displayName,
         tags.created_at AS createdAt,
-        COUNT(file_tags.file_id) AS fileCount
+        COUNT(DISTINCT effective_tag_files.file_id) AS fileCount
        FROM tags
        JOIN tag_styles ON tag_styles.id = tags.style_id
-       LEFT JOIN file_tags ON file_tags.tag_id = tags.id
+       LEFT JOIN effective_tag_files ON effective_tag_files.tag_id = tags.id
        WHERE tags.style_id = ?
        GROUP BY tags.id
        ORDER BY ${orderColumn} ${orderDirection}, lower(tags.namespace) ASC, lower(tags.name) ASC`,
@@ -1957,6 +2001,81 @@ export function createManagedTag(
   return created;
 }
 
+export function renameManagedTag(
+  tagId: number,
+  tag: TagDraft,
+): ManagedTagRecord {
+  const db = getDatabase();
+  const normalizedTag = normalizeTagDrafts([tag])[0];
+
+  if (!Number.isInteger(tagId) || tagId <= 0) {
+    throw new Error("标签无效");
+  }
+
+  if (!normalizedTag) {
+    throw new Error("标签不能为空");
+  }
+
+  return db.transaction(() => {
+    const existingTag = db
+      .prepare("SELECT id, style_id AS styleId FROM tags WHERE id = ?")
+      .get(tagId) as { id: number; styleId: number } | undefined;
+
+    if (!existingTag) {
+      throw new Error("标签不存在");
+    }
+
+    const duplicate = db
+      .prepare(
+        `SELECT id
+         FROM tags
+         WHERE style_id = ?
+           AND namespace = ?
+           AND name = ?
+           AND id <> ?`,
+      )
+      .get(
+        existingTag.styleId,
+        normalizedTag.namespace,
+        normalizedTag.name,
+        existingTag.id,
+      ) as { id: number } | undefined;
+
+    if (duplicate) {
+      throw new Error("同个风格不能包含完全相同的标签");
+    }
+
+    const namespaceId = ensureTagNamespace(
+      db,
+      existingTag.styleId,
+      normalizedTag.namespace,
+    );
+
+    db.prepare(
+      `UPDATE tags
+       SET namespace_id = ?,
+           namespace = ?,
+           name = ?,
+           display_name = NULL,
+           updated_at = datetime('now')
+       WHERE id = ?`,
+    ).run(
+      namespaceId,
+      normalizedTag.namespace,
+      normalizedTag.name,
+      existingTag.id,
+    );
+
+    const renamed = readManagedTag(db, existingTag.id);
+
+    if (!renamed) {
+      throw new Error("标签重命名失败");
+    }
+
+    return renamed;
+  })();
+}
+
 export function deleteManagedTag(tagId: number): DeleteManagedTagsResult {
   return deleteManagedTags([tagId]);
 }
@@ -1992,6 +2111,163 @@ export function deleteManagedTags(tagIds: number[]): DeleteManagedTagsResult {
     deletedTagCount: tagCount?.count ?? 0,
     deletedFileCount: fileCount?.count ?? 0,
   };
+}
+
+export function listTagParents(): TagParentRecord[] {
+  const db = getDatabase();
+  return readTagParentRecords(db);
+}
+
+export function getTagRelationTree(tagIds: number[]): TagRelationTree {
+  const db = getDatabase();
+  const normalizedTagIds = normalizeExistingTagIds(db, tagIds);
+
+  if (normalizedTagIds.length === 0) {
+    return { nodes: [], edges: [] };
+  }
+
+  const placeholders = createPlaceholders(normalizedTagIds.length);
+  const nodeRows = db
+    .prepare(
+      `WITH RECURSIVE related_tags(tag_id) AS (
+        SELECT id
+        FROM tags
+        WHERE id IN (${placeholders})
+        UNION
+        SELECT tag_parents.parent_tag_id
+        FROM related_tags
+        JOIN tag_parents ON tag_parents.child_tag_id = related_tags.tag_id
+        UNION
+        SELECT tag_parents.child_tag_id
+        FROM related_tags
+        JOIN tag_parents ON tag_parents.parent_tag_id = related_tags.tag_id
+      )
+      SELECT
+        tags.id,
+        tag_styles.name AS styleName,
+        tags.namespace,
+        tags.name,
+        tags.display_name AS displayName
+       FROM tags
+       JOIN tag_styles ON tag_styles.id = tags.style_id
+       WHERE tags.id IN (SELECT tag_id FROM related_tags)
+       ORDER BY tag_styles.name ASC, tags.namespace ASC, tags.name ASC`,
+    )
+    .all(...normalizedTagIds) as TagRecord[];
+  const edgeRows = db
+    .prepare(
+      `WITH RECURSIVE related_tags(tag_id) AS (
+        SELECT id
+        FROM tags
+        WHERE id IN (${placeholders})
+        UNION
+        SELECT tag_parents.parent_tag_id
+        FROM related_tags
+        JOIN tag_parents ON tag_parents.child_tag_id = related_tags.tag_id
+        UNION
+        SELECT tag_parents.child_tag_id
+        FROM related_tags
+        JOIN tag_parents ON tag_parents.parent_tag_id = related_tags.tag_id
+      )
+      SELECT
+        child_tag_id AS childTagId,
+        parent_tag_id AS parentTagId
+       FROM tag_parents
+       WHERE child_tag_id IN (SELECT tag_id FROM related_tags)
+         AND parent_tag_id IN (SELECT tag_id FROM related_tags)
+       ORDER BY parent_tag_id ASC, child_tag_id ASC`,
+    )
+    .all(...normalizedTagIds) as Array<{
+    childTagId: number;
+    parentTagId: number;
+  }>;
+  const selectedTagIds = new Set(normalizedTagIds);
+
+  return {
+    nodes: nodeRows.map((row) => ({
+      ...row,
+      selected: selectedTagIds.has(row.id),
+    })),
+    edges: edgeRows,
+  };
+}
+
+export function addTagParent(
+  childTagId: number,
+  parentTagId: number,
+): TagParentRecord {
+  const db = getDatabase();
+
+  return db.transaction(() => {
+    const childId = readTagId(db, childTagId);
+    const parentId = readTagId(db, parentTagId);
+
+    if (childId === parentId) {
+      throw new Error("标签不能成为自己的父级");
+    }
+
+    const existing = db
+      .prepare(
+        "SELECT 1 FROM tag_parents WHERE child_tag_id = ? AND parent_tag_id = ?",
+      )
+      .get(childId, parentId) as { 1: number } | undefined;
+
+    if (existing) {
+      throw new Error("标签父子级关系已存在");
+    }
+
+    if (wouldCreateTagParentCycle(db, childId, parentId)) {
+      throw new Error("标签父子级关系不能形成循环");
+    }
+
+    db.prepare(
+      "INSERT INTO tag_parents (child_tag_id, parent_tag_id) VALUES (?, ?)",
+    ).run(childId, parentId);
+
+    const record = readTagParentRecord(db, childId, parentId);
+
+    if (!record) {
+      throw new Error("标签父子级关系创建失败");
+    }
+
+    return record;
+  })();
+}
+
+export function removeTagParent(childTagId: number, parentTagId: number): void {
+  const db = getDatabase();
+  const childId = readTagId(db, childTagId);
+  const parentId = readTagId(db, parentTagId);
+
+  db.prepare(
+    "DELETE FROM tag_parents WHERE child_tag_id = ? AND parent_tag_id = ?",
+  ).run(childId, parentId);
+}
+
+export function getDirectParentTagIds(tagId: number): number[] {
+  const db = getDatabase();
+  const normalizedTagId = readTagId(db, tagId);
+
+  return readDirectParentTagIds(db, normalizedTagId);
+}
+
+export function resolveParentTagIds(tagIds: number[]): number[] {
+  const db = getDatabase();
+  const normalizedTagIds = normalizeExistingTagIds(db, tagIds);
+
+  return resolveParentTagIdsFromDb(db, normalizedTagIds);
+}
+
+export function resolveEffectiveTagIds(tagIds: number[]): number[] {
+  const db = getDatabase();
+  const normalizedTagIds = normalizeExistingTagIds(db, tagIds);
+  const effectiveTagIds = new Set(normalizedTagIds);
+
+  for (const tagId of resolveParentTagIdsFromDb(db, normalizedTagIds)) {
+    effectiveTagIds.add(tagId);
+  }
+
+  return [...effectiveTagIds];
 }
 
 export function addFileTags(fileId: number, tags: TagDraft[]): FileTagRecord[] {
@@ -3417,12 +3693,13 @@ function readSearchTagIndex(): Map<string, Set<number>> {
   const db = getDatabase();
   const tagRows = db
     .prepare(
-      `SELECT
-        file_tags.file_id AS fileId,
+      `${createEffectiveTagFilesCte()}
+       SELECT DISTINCT
+        effective_tag_files.file_id AS fileId,
         tags.namespace,
         tags.name
-       FROM file_tags
-       JOIN tags ON tags.id = file_tags.tag_id`,
+       FROM effective_tag_files
+       JOIN tags ON tags.id = effective_tag_files.tag_id`,
     )
     .all() as Array<{ fileId: number; namespace: string; name: string }>;
   const tagIndex = new Map<string, Set<number>>();
@@ -3591,6 +3868,18 @@ function createPlaceholders(count: number): string {
   return Array.from({ length: count }, () => "?").join(", ");
 }
 
+function createEffectiveTagFilesCte(): string {
+  return `
+    WITH RECURSIVE effective_tag_files(tag_id, file_id) AS (
+      SELECT tag_id, file_id
+      FROM file_tags
+      UNION
+      SELECT tag_parents.parent_tag_id, effective_tag_files.file_id
+      FROM effective_tag_files
+      JOIN tag_parents ON tag_parents.child_tag_id = effective_tag_files.tag_id
+    )`;
+}
+
 function ensureFilesExist(db: Database.Database, fileIds: number[]): void {
   if (fileIds.length === 0) {
     return;
@@ -3724,6 +4013,156 @@ function ensureTag(
   return Number(result.lastInsertRowid);
 }
 
+interface TagParentJoinedRow {
+  childTagId: number;
+  childStyleName: string;
+  childNamespace: string;
+  childName: string;
+  childDisplayName: string | null;
+  parentTagId: number;
+  parentStyleName: string;
+  parentNamespace: string;
+  parentName: string;
+  parentDisplayName: string | null;
+  createdAt: string;
+}
+
+function readTagParentRecords(db: Database.Database): TagParentRecord[] {
+  return (
+    db.prepare(createTagParentRecordQuery()).all() as TagParentJoinedRow[]
+  ).map(toTagParentRecord);
+}
+
+function readTagParentRecord(
+  db: Database.Database,
+  childTagId: number,
+  parentTagId: number,
+): TagParentRecord | null {
+  const row = db
+    .prepare(
+      `${createTagParentRecordQuery(false)}
+       WHERE tag_parents.child_tag_id = ?
+         AND tag_parents.parent_tag_id = ?`,
+    )
+    .get(childTagId, parentTagId) as TagParentJoinedRow | undefined;
+
+  return row ? toTagParentRecord(row) : null;
+}
+
+function createTagParentRecordQuery(includeOrder = true): string {
+  const query = `
+    SELECT
+      child_tags.id AS childTagId,
+      child_styles.name AS childStyleName,
+      child_tags.namespace AS childNamespace,
+      child_tags.name AS childName,
+      child_tags.display_name AS childDisplayName,
+      parent_tags.id AS parentTagId,
+      parent_styles.name AS parentStyleName,
+      parent_tags.namespace AS parentNamespace,
+      parent_tags.name AS parentName,
+      parent_tags.display_name AS parentDisplayName,
+      tag_parents.created_at AS createdAt
+    FROM tag_parents
+    JOIN tags AS child_tags ON child_tags.id = tag_parents.child_tag_id
+    JOIN tag_styles AS child_styles ON child_styles.id = child_tags.style_id
+    JOIN tags AS parent_tags ON parent_tags.id = tag_parents.parent_tag_id
+    JOIN tag_styles AS parent_styles ON parent_styles.id = parent_tags.style_id`;
+
+  if (!includeOrder) {
+    return query;
+  }
+
+  return `${query}
+    ORDER BY
+      child_styles.name ASC,
+      child_tags.namespace ASC,
+      child_tags.name ASC,
+      parent_styles.name ASC,
+      parent_tags.namespace ASC,
+      parent_tags.name ASC`;
+}
+
+function toTagParentRecord(row: TagParentJoinedRow): TagParentRecord {
+  return {
+    child: {
+      id: row.childTagId,
+      styleName: row.childStyleName,
+      namespace: row.childNamespace,
+      name: row.childName,
+      displayName: row.childDisplayName,
+    },
+    parent: {
+      id: row.parentTagId,
+      styleName: row.parentStyleName,
+      namespace: row.parentNamespace,
+      name: row.parentName,
+      displayName: row.parentDisplayName,
+    },
+    createdAt: row.createdAt,
+  };
+}
+
+function readDirectParentTagIds(
+  db: Database.Database,
+  tagId: number,
+): number[] {
+  const rows = db
+    .prepare(
+      `SELECT parent_tag_id AS tagId
+       FROM tag_parents
+       WHERE child_tag_id = ?
+       ORDER BY parent_tag_id ASC`,
+    )
+    .all(tagId) as Array<{ tagId: number }>;
+
+  return rows.map((row) => row.tagId);
+}
+
+function resolveParentTagIdsFromDb(
+  db: Database.Database,
+  tagIds: number[],
+): number[] {
+  const visitedTagIds = new Set(tagIds);
+  const parentTagIds: number[] = [];
+  const queue = [...tagIds];
+
+  while (queue.length > 0) {
+    const currentTagId = queue.shift();
+
+    if (!currentTagId) {
+      continue;
+    }
+
+    for (const parentTagId of readDirectParentTagIds(db, currentTagId)) {
+      if (visitedTagIds.has(parentTagId)) {
+        continue;
+      }
+
+      visitedTagIds.add(parentTagId);
+      parentTagIds.push(parentTagId);
+      queue.push(parentTagId);
+    }
+  }
+
+  return parentTagIds;
+}
+
+function wouldCreateTagParentCycle(
+  db: Database.Database,
+  childTagId: number,
+  parentTagId: number,
+): boolean {
+  return resolveParentTagIdsFromDb(db, [parentTagId]).includes(childTagId);
+}
+
+function normalizeExistingTagIds(
+  db: Database.Database,
+  tagIds: number[],
+): number[] {
+  return normalizeTagIds(tagIds).map((tagId) => readTagId(db, tagId));
+}
+
 function readTagId(db: Database.Database, tagId: number): number {
   const existing = db.prepare("SELECT id FROM tags WHERE id = ?").get(tagId) as
     | { id: number }
@@ -3742,7 +4181,8 @@ function readManagedTag(
 ): ManagedTagRecord | null {
   const row = db
     .prepare(
-      `SELECT
+      `${createEffectiveTagFilesCte()}
+       SELECT
         tags.id,
         tags.style_id AS styleId,
         tag_styles.name AS styleName,
@@ -3750,10 +4190,10 @@ function readManagedTag(
         tags.name,
         tags.display_name AS displayName,
         tags.created_at AS createdAt,
-        COUNT(file_tags.file_id) AS fileCount
+        COUNT(DISTINCT effective_tag_files.file_id) AS fileCount
        FROM tags
        JOIN tag_styles ON tag_styles.id = tags.style_id
-       LEFT JOIN file_tags ON file_tags.tag_id = tags.id
+       LEFT JOIN effective_tag_files ON effective_tag_files.tag_id = tags.id
        WHERE tags.id = ?
        GROUP BY tags.id`,
     )
@@ -3957,7 +4397,12 @@ function runMigrations(db: Database.Database): void {
     migrateToApiFileIdentifiers(db);
   }
 
+  if (currentVersion < 10) {
+    migrateToTagParents(db);
+  }
+
   ensureApiFileIdentifiersSchema(db);
+  ensureTagParentsSchema(db);
 }
 
 function migrateToApiFileIdentifiers(db: Database.Database): void {
@@ -3995,6 +4440,30 @@ function ensureApiFileIdentifiersSchema(db: Database.Database): void {
   db.exec(`
     CREATE UNIQUE INDEX IF NOT EXISTS idx_files_api_identifier
       ON files(api_identifier);
+  `);
+}
+
+function migrateToTagParents(db: Database.Database): void {
+  db.transaction(() => {
+    ensureTagParentsSchema(db);
+    db.prepare(
+      "INSERT INTO schema_migrations (version, name) VALUES (?, ?)",
+    ).run(10, "tag_parents");
+  })();
+}
+
+function ensureTagParentsSchema(db: Database.Database): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS tag_parents (
+      child_tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+      parent_tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      CHECK (child_tag_id != parent_tag_id),
+      PRIMARY KEY (child_tag_id, parent_tag_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_tag_parents_parent_tag_id
+      ON tag_parents(parent_tag_id);
   `);
 }
 

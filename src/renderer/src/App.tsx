@@ -70,6 +70,7 @@ import { RecycleBinWindow } from "./windows/RecycleBinWindow";
 import { RatingManagerWindow } from "./windows/RatingManagerWindow";
 import { SettingsWindow } from "./windows/SettingsWindow";
 import { TagManagerWindow } from "./windows/TagManagerWindow";
+import { TagRelationTreeWindow } from "./windows/TagRelationTreeWindow";
 import { TagTranslationWindow } from "./windows/TagTranslationWindow";
 import { UrlManagerWindow } from "./windows/UrlManagerWindow";
 import "flexlayout-react/style/dark.css";
@@ -212,10 +213,7 @@ function getViewTabTitle(
   return t("app.action.tags");
 }
 
-function syncViewTabTitles(
-  page: PageItem,
-  t: TranslationFunction,
-): PageItem {
+function syncViewTabTitles(page: PageItem, t: TranslationFunction): PageItem {
   const renames: Array<{ id: string; title: string }> = [];
 
   page.model.visitNodes((node) => {
@@ -356,6 +354,14 @@ export function App(): JSX.Element {
     return (
       <StandaloneWindowFrame title={t("app.action.manageTags")}>
         <TagManagerWindow />
+      </StandaloneWindowFrame>
+    );
+  }
+
+  if (windowMode === "tag-relation-tree") {
+    return (
+      <StandaloneWindowFrame title={t("window.tagRelationTree.title")}>
+        <TagRelationTreeWindow tagIds={parseIdList(query.get("ids"))} />
       </StandaloneWindowFrame>
     );
   }
@@ -2226,10 +2232,7 @@ function WorkbenchApp(): JSX.Element {
   );
 }
 
-function formatWorkStatus(
-  status: WorkStatus,
-  t: TranslationFunction,
-): string {
+function formatWorkStatus(status: WorkStatus, t: TranslationFunction): string {
   const message = formatWorkStatusMessage(status.message, t);
 
   if (!status.active) {

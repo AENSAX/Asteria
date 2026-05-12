@@ -82,6 +82,18 @@ button {
   white-space: nowrap;
 }
 
+select {
+  color: var(--ink);
+  background-color: var(--surface-inset-bg);
+  color-scheme: var(--color-scheme, dark);
+  font: inherit;
+}
+
+option {
+  color: var(--ink);
+  background-color: var(--surface-inset-bg);
+}
+
 button:not(:disabled):hover {
   border-color: var(--border-hover);
   background-color: var(--button-hover);
@@ -188,6 +200,10 @@ canvas {
 
 .resizing-columns {
   cursor: col-resize;
+}
+
+.resizing-rows {
+  cursor: row-resize;
 }
 
 .module-view {
@@ -339,6 +355,11 @@ progress::-webkit-progress-value {
 }
 
 .search-token-item.pending {
+  border-color: var(--pending-border) !important;
+  box-shadow: inset 0 0 0 1px var(--pending-border) !important;
+}
+
+.tag-manager-pending {
   border-color: var(--pending-border) !important;
   box-shadow: inset 0 0 0 1px var(--pending-border) !important;
 }
