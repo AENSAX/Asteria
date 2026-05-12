@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="resources/images/logo.png" alt="Asteria" width="360" />
+  <img src="resources/images/logo.png" alt="Asteria" width="640" />
 </div>
 
 ## Features
