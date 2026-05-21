@@ -2,12 +2,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import cytoscape from "cytoscape";
 import dagre from "cytoscape-dagre";
 import type { Core, ElementDefinition } from "cytoscape";
-import type { TagRelationTree } from "../../../shared/ipc";
+import type { TagRelationTree, TagRelationTreeKind } from "../../../shared/ipc";
 import { formatTagLabel } from "../utils/tags";
 import { useLanguage } from "../utils/language";
 
 interface TagRelationTreeWindowProps {
   tagIds: number[];
+  kind: TagRelationTreeKind;
 }
 
 let dagreRegistered = false;
@@ -37,6 +38,7 @@ function runGraphLayout(graph: Core): void {
 
 export function TagRelationTreeWindow({
   tagIds,
+  kind,
 }: TagRelationTreeWindowProps): JSX.Element {
   const { t } = useLanguage();
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -48,9 +50,13 @@ export function TagRelationTreeWindow({
   const [message, setMessage] = useState(() =>
     t("window.tagRelationTree.loading"),
   );
-  const tagIdKey = tagIds.join(",");
+  const tagIdKey = `${kind}:${tagIds.join(",")}`;
   const elements = useMemo(() => createElements(tree), [tree]);
   const selectedCount = tree.nodes.filter((node) => node.selected).length;
+  const titleKey =
+    kind === "sibling"
+      ? "window.tagRelationTree.siblingTitle"
+      : "window.tagRelationTree.title";
 
   useEffect(() => {
     ensureDagreRegistered();
@@ -122,7 +128,7 @@ export function TagRelationTreeWindow({
     }
 
     try {
-      const nextTree = await window.asteria.getTagRelationTree(tagIds);
+      const nextTree = await window.asteria.getTagRelationTree(tagIds, kind);
       setTree(nextTree);
       setMessage(
         t("window.tagRelationTree.loaded", {
@@ -147,7 +153,7 @@ export function TagRelationTreeWindow({
     <section className="grid h-full min-h-0 min-w-0 grid-rows-[32px_minmax(0,1fr)_24px] bg-(--panel) text-[11px] text-(--ink)">
       <header className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-1.5 border-b border-(--line) bg-(--panel-strong) px-2">
         <div className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap font-semibold">
-          {t("window.tagRelationTree.title")}
+          {t(titleKey)}
           <span className="ml-2 font-normal text-(--muted)">
             {t("window.tagRelationTree.summary", {
               selectedCount,
@@ -157,14 +163,14 @@ export function TagRelationTreeWindow({
           </span>
         </div>
         <button
-          className="h-6 min-w-[64px] border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px] text-(--ink)"
+          className="ui-button min-w-[64px]"
           type="button"
           onClick={fitGraph}
         >
           {t("window.tagRelationTree.fit")}
         </button>
         <button
-          className="h-6 min-w-[64px] border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px] text-(--ink)"
+          className="ui-button min-w-[64px]"
           type="button"
           onClick={() => void loadTree()}
         >

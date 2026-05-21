@@ -23,7 +23,7 @@ const translationFooterClass =
 const translationFooterTextClass =
   "min-w-0 overflow-hidden px-2 leading-[31px] text-ellipsis whitespace-nowrap text-(--muted)";
 const translationButtonClass =
-  "h-8 border-0 border-l border-(--line) bg-(--panel-strong) px-2 text-[11px] text-(--ink)";
+  "ui-button ui-button-fill min-w-0 border-y-0 border-r-0 border-l-(--line)";
 
 export function TagTranslationWindow(): JSX.Element {
   const { t } = useLanguage();
@@ -103,7 +103,7 @@ export function TagTranslationWindow(): JSX.Element {
             }
           />
           <button
-            className="h-6 cursor-default border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px] text-(--ink)"
+            className="ui-button min-w-0"
             type="button"
             onClick={() => void selectCsvPath()}
           >

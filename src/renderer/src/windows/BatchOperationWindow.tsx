@@ -316,7 +316,7 @@ export function BatchOperationWindow({
           {t("window.batchOperation.description")}
         </div>
         <button
-          className="h-7 cursor-default border border-(--line-strong) bg-(--panel-strong) text-(--ink)"
+          className="ui-button"
           disabled={running}
           type="button"
           onClick={resetScript}
@@ -324,7 +324,7 @@ export function BatchOperationWindow({
           {t("window.batchOperation.resetExample")}
         </button>
         <button
-          className="h-7 cursor-default border border-(--line-strong) bg-(--accent) text-(--active-ink) disabled:bg-(--panel-strong) disabled:text-(--disabled-ink)"
+          className="ui-button ui-button-primary"
           disabled={running || imageFiles.length === 0}
           type="button"
           onClick={() => void runBatchOperation()}

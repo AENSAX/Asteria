@@ -57,7 +57,7 @@ export function ImportView({
     <section className="grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_auto_minmax(0,1fr)] bg-(--panel)">
       <header className="flex h-[30px] items-center gap-1.5 border-b border-(--line) bg-(--panel-strong) px-1.5">
         <button
-          className="h-[22px] min-w-[66px] cursor-default border border-(--line-strong) bg-(--surface-bg) px-2 text-[11px]"
+          className="ui-button ui-button-compact min-w-[66px]"
           disabled={readyCount === 0}
           type="button"
           onClick={() => onCommitQueue(queueFiles)}
@@ -65,7 +65,7 @@ export function ImportView({
           {t("window.import.now")}
         </button>
         <button
-          className="h-[22px] min-w-[66px] cursor-default border border-(--line-strong) bg-(--surface-bg) px-2 text-[11px]"
+          className="ui-button ui-button-compact min-w-[66px]"
           disabled={queueFiles.length === 0}
           type="button"
           onClick={onCancelQueue}

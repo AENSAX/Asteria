@@ -65,7 +65,7 @@ export function ActionFeedbackButton({
   return (
     <button
       {...buttonProps}
-      className={[className, responded ? successClass : ""]
+      className={["ui-button", className, responded ? successClass : ""]
         .filter(Boolean)
         .join(" ")}
       disabled={disabled}

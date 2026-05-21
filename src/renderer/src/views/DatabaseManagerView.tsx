@@ -115,7 +115,7 @@ export function DatabaseManagerView(): JSX.Element {
         </span>
         <div className="flex gap-1.5">
           <button
-            className="h-6 min-w-[58px] cursor-default border border-(--line-strong) bg-(--panel-strong)"
+            className="ui-button min-w-[58px]"
             disabled={!databasePage || databasePage.page <= 1}
             type="button"
             onClick={goToPreviousDatabasePage}
@@ -123,7 +123,7 @@ export function DatabaseManagerView(): JSX.Element {
             {t("window.database.previous")}
           </button>
           <button
-            className="h-6 min-w-[58px] cursor-default border border-(--line-strong) bg-(--panel-strong)"
+            className="ui-button min-w-[58px]"
             disabled={!databasePage || databasePage.page >= databaseTotalPages}
             type="button"
             onClick={goToNextDatabasePage}

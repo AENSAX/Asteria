@@ -58,7 +58,10 @@ export function FavoritesWindow(): JSX.Element {
   }
 
   async function openFileDetail(fileId: number): Promise<void> {
-    await window.asteria?.openFileDetailWindow(fileId);
+    await window.asteria?.openFileDetailWindow(
+      fileId,
+      files.map((file) => file.id),
+    );
   }
 
   async function toggleFavorite(file: BrowserFileRecord): Promise<void> {

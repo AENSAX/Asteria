@@ -24,7 +24,7 @@ const apiSidebarCreateClass =
 const apiInputClass =
   "h-6 min-w-0 border border-(--line-strong) bg-(--surface-inset-bg) px-1.5 text-(--ink)";
 const apiButtonClass =
-  "h-6 cursor-default border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px] text-(--ink)";
+  "ui-button";
 const apiContentClass =
   "grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] bg-(--panel)";
 const apiToolbarClass =
@@ -214,7 +214,7 @@ export function ApiManagerWindow(): JSX.Element {
                 }
               }}
             />
-            <button type="button" onClick={() => void createService()}>
+            <button className="ui-button" type="button" onClick={() => void createService()}>
               {t("window.api.create")}
             </button>
           </div>

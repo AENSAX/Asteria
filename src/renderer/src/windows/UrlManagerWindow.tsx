@@ -97,7 +97,7 @@ export function UrlManagerWindow({
             }
           }}
         />
-        <button type="button" onClick={() => void addUrl()}>
+        <button className="ui-button" type="button" onClick={() => void addUrl()}>
           {t("window.url.add")}
         </button>
       </div>
@@ -134,13 +134,13 @@ export function UrlManagerWindow({
               </span>
               {editingUrlId === url.id ? (
                 <ActionFeedbackButton
-                  className="h-6 border-0 border-r border-(--line) bg-(--panel-strong) px-2 text-[11px]"
+                  className="ui-button-fill min-w-0 border-y-0 border-l-0 border-r-(--line)"
                   label={t("common.save")}
                   onAction={() => saveUrl(url)}
                 />
               ) : (
                 <button
-                  className="h-6 border-0 border-r border-(--line) bg-(--panel-strong) px-2 text-[11px]"
+                  className="ui-button ui-button-fill min-w-0 border-y-0 border-l-0 border-r-(--line)"
                   type="button"
                   onClick={() => {
                     setEditingUrlId(url.id);
@@ -151,7 +151,7 @@ export function UrlManagerWindow({
                 </button>
               )}
               <button
-                className="h-6 border-0 bg-(--panel-strong) px-2 text-[11px]"
+                className="ui-button ui-button-fill min-w-0 border-0"
                 type="button"
                 onClick={() => void removeUrl(url)}
               >

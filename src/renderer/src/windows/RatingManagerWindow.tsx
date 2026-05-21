@@ -16,16 +16,16 @@ const sidebarItemClass =
   "grid min-h-[26px] w-full grid-cols-[18px_minmax(0,1fr)_42px] items-center border-0 border-b border-(--line) bg-transparent px-2 text-left text-[11px] text-(--ink)";
 const sidebarItemActiveClass = "bg-(--surface-raised-bg)";
 const createRowClass =
-  "grid grid-cols-[minmax(0,1fr)_auto] gap-1.5 border-t border-(--line) p-2";
+  "ui-button-scope grid grid-cols-[minmax(0,1fr)_auto] gap-1.5 border-t border-(--line) p-2";
 const inputClass =
   "h-6 min-w-0 border border-(--line-strong) bg-(--surface-inset-bg) px-1.5 text-(--ink)";
 const buttonClass =
-  "h-6 min-w-[72px] cursor-default border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px] text-(--ink)";
+  "ui-button min-w-[72px]";
 const panelClass =
   "grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_minmax(0,1fr)] bg-(--panel)";
 const toolbarClass = "grid gap-1 border-b border-(--line) bg-(--panel) p-2";
 const groupEditRowClass =
-  "grid grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-1.5";
+  "ui-button-scope grid grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-1.5";
 const entryCreateRowClass =
   "grid grid-cols-[minmax(0,1fr)_24px_minmax(72px,auto)_minmax(0,1fr)] gap-1.5 items-center";
 const entryCountClass =
@@ -38,7 +38,7 @@ const entryRowDraggingClass = "bg-(--selection-bg)";
 const dragHandleClass = "cursor-grab text-center text-(--muted)";
 const swatchClass = "h-4 w-4 border border-(--line-strong)";
 const entryActionClass =
-  "h-6 min-w-[56px] cursor-default border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px] text-(--ink)";
+  "ui-button min-w-[56px]";
 
 export function RatingManagerWindow(): JSX.Element {
   const { t } = useLanguage();

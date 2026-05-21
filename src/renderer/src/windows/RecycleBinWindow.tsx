@@ -302,7 +302,7 @@ export function RecycleBinWindow(): JSX.Element {
         </span>
         <div className="flex gap-1.5">
           <button
-            className="h-6 cursor-default border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px]"
+            className="ui-button"
             disabled={pendingFileIds.length === 0}
             type="button"
             onClick={() => void restorePendingFiles()}
@@ -310,7 +310,7 @@ export function RecycleBinWindow(): JSX.Element {
             {t("window.recycle.restore")}
           </button>
           <button
-            className="h-6 cursor-default border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px]"
+            className="ui-button"
             disabled={pendingFileIds.length === 0}
             type="button"
             onClick={() => void deletePendingFiles()}
@@ -318,7 +318,7 @@ export function RecycleBinWindow(): JSX.Element {
             {t("window.recycle.delete")}
           </button>
           <button
-            className="h-6 cursor-default border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px]"
+            className="ui-button"
             disabled={!page || page.total === 0 || bulkOperating}
             type="button"
             onClick={() => void restoreAllFiles()}
@@ -326,7 +326,7 @@ export function RecycleBinWindow(): JSX.Element {
             {t("window.recycle.restoreAll")}
           </button>
           <button
-            className="h-6 cursor-default border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px]"
+            className="ui-button"
             disabled={!page || page.total === 0 || bulkOperating}
             type="button"
             onClick={() => void deleteAllFiles()}
@@ -334,7 +334,7 @@ export function RecycleBinWindow(): JSX.Element {
             {t("window.recycle.deleteAll")}
           </button>
           <button
-            className="h-6 cursor-default border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px]"
+            className="ui-button"
             disabled={!page || page.page <= 1}
             type="button"
             onClick={() => setPageNumber((value) => value - 1)}
@@ -342,7 +342,7 @@ export function RecycleBinWindow(): JSX.Element {
             {t("window.recycle.previous")}
           </button>
           <button
-            className="h-6 cursor-default border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px]"
+            className="ui-button"
             disabled={!page || page.page >= totalPages}
             type="button"
             onClick={() => setPageNumber((value) => value + 1)}

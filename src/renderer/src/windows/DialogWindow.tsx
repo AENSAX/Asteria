@@ -103,7 +103,7 @@ export function DialogWindow({ dialogId }: DialogWindowProps): JSX.Element {
         <footer className="flex justify-end gap-1 border-t border-(--line) bg-(--surface-bg) p-2">
           {state.kind === "confirm" ? (
             <button
-              className="h-6 min-w-14.5 border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px] text-(--ink)"
+              className="ui-button min-w-14.5"
               type="button"
               onClick={() => void resolve(false)}
             >
@@ -111,7 +111,7 @@ export function DialogWindow({ dialogId }: DialogWindowProps): JSX.Element {
             </button>
           ) : null}
           <button
-            className="h-6 min-w-[58px] border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px] text-(--ink)"
+            className="ui-button min-w-[58px]"
             type="button"
             onClick={() => void resolve(true)}
           >

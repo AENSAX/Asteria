@@ -19,6 +19,7 @@ import {
   closeDatabase,
   addFileTags,
   addTagParent,
+  addTagSibling,
   addFileUrl,
   addTagsToFiles,
   createApiService,
@@ -49,6 +50,7 @@ import {
   listDomains,
   listApiPermissions,
   listApiServices,
+  listBatchEffectiveFileTags,
   listFilesForStorageMigration,
   listFavoriteFiles,
   listFileParentTags,
@@ -59,16 +61,19 @@ import {
   listDatabaseFiles,
   listManagedTags,
   listTagParents,
+  listTagSiblings,
   listRatingEntries,
   listRatingGroups,
   listTrashedFiles,
   listTagStyles,
   removeFileTags,
   removeTagParent,
+  removeTagSibling,
   removeFileUrl,
   removeTagsFromFiles,
   deleteRatingEntry,
   deleteRatingGroup,
+  previewManagedTagRename,
   renameManagedTag,
   renameRatingGroup,
   reorderRatingEntries,
@@ -318,7 +323,10 @@ function createTagManagerWindow(): BrowserWindow {
   return window;
 }
 
-function createTagRelationTreeWindow(tagIds: number[]): BrowserWindow {
+function createTagRelationTreeWindow(
+  tagIds: number[],
+  kind: "parent" | "sibling" = "parent",
+): BrowserWindow {
   const window = createAsteriaWindow({
     width: 980,
     height: 680,
@@ -332,6 +340,7 @@ function createTagRelationTreeWindow(tagIds: number[]): BrowserWindow {
   loadRenderer(window, {
     window: "tag-relation-tree",
     ids: tagIds.join(","),
+    kind,
   });
 
   showWhenReady(window);
@@ -2202,6 +2211,12 @@ app.whenReady().then(async () => {
       BrowserWindow.fromWebContents(event.sender),
     ),
   );
+  ipcMain.handle("dialog:alert", (event, options: unknown) =>
+    openAlertDialog(
+      normalizeConfirmDialogOptions(options),
+      BrowserWindow.fromWebContents(event.sender),
+    ),
+  );
   ipcMain.handle("dialog:get-state", (_event, dialogId: unknown) => {
     if (typeof dialogId !== "string") {
       return null;
@@ -2258,9 +2273,15 @@ app.whenReady().then(async () => {
   ipcMain.handle("window:open-tag-manager", () => {
     createTagManagerWindow();
   });
-  ipcMain.handle("window:open-tag-relation-tree", (_event, tagIds: unknown) => {
-    createTagRelationTreeWindow(normalizeIpcFileIds(tagIds));
-  });
+  ipcMain.handle(
+    "window:open-tag-relation-tree",
+    (_event, tagIds: unknown, kind: unknown) => {
+      createTagRelationTreeWindow(
+        normalizeIpcFileIds(tagIds),
+        kind === "sibling" ? "sibling" : "parent",
+      );
+    },
+  );
   ipcMain.handle("window:open-recycle-bin", () => {
     createRecycleBinWindow();
   });
@@ -2801,6 +2822,11 @@ app.whenReady().then(async () => {
   ipcMain.handle("tag:list-batch-file-tags", (_event, fileIds: unknown) =>
     listBatchFileTags(normalizeIpcFileIds(fileIds)),
   );
+  ipcMain.handle(
+    "tag:list-batch-effective-file-tags",
+    (_event, fileIds: unknown) =>
+      listBatchEffectiveFileTags(normalizeIpcFileIds(fileIds)),
+  );
   ipcMain.handle("tag:search", (_event, query: unknown) =>
     searchTags(typeof query === "string" ? query : ""),
   );
@@ -2875,8 +2901,14 @@ app.whenReady().then(async () => {
     },
   );
   ipcMain.handle("tag:list-parents", () => listTagParents());
-  ipcMain.handle("tag:get-relation-tree", (_event, tagIds: unknown) =>
-    getTagRelationTree(normalizeIpcFileIds(tagIds)),
+  ipcMain.handle("tag:list-siblings", () => listTagSiblings());
+  ipcMain.handle(
+    "tag:get-relation-tree",
+    (_event, tagIds: unknown, kind: unknown) =>
+      getTagRelationTree(
+        normalizeIpcFileIds(tagIds),
+        kind === "sibling" ? "sibling" : "parent",
+      ),
   );
   ipcMain.handle(
     "tag:add-parent",
@@ -2916,6 +2948,37 @@ app.whenReady().then(async () => {
     },
   );
   ipcMain.handle(
+    "tag:add-sibling",
+    (_event, aliasTagId: unknown, canonicalTagId: unknown) => {
+      if (
+        typeof aliasTagId !== "number" ||
+        !Number.isInteger(aliasTagId) ||
+        aliasTagId <= 0 ||
+        typeof canonicalTagId !== "number" ||
+        !Number.isInteger(canonicalTagId) ||
+        canonicalTagId <= 0
+      ) {
+        throw new Error("标签别名关系无效");
+      }
+
+      const sibling = addTagSibling(aliasTagId, canonicalTagId);
+      broadcastFilesChanged();
+      return sibling;
+    },
+  );
+  ipcMain.handle("tag:remove-sibling", (_event, aliasTagId: unknown) => {
+    if (
+      typeof aliasTagId !== "number" ||
+      !Number.isInteger(aliasTagId) ||
+      aliasTagId <= 0
+    ) {
+      throw new Error("标签别名关系无效");
+    }
+
+    removeTagSibling(aliasTagId);
+    broadcastFilesChanged();
+  });
+  ipcMain.handle(
     "tag:create-managed-tag",
     (_event, styleId: unknown, tag: unknown) => {
       if (
@@ -2945,6 +3008,21 @@ app.whenReady().then(async () => {
       const renamed = renameManagedTag(tagId, tag);
       broadcastFilesChanged();
       return renamed;
+    },
+  );
+  ipcMain.handle(
+    "tag:preview-managed-rename",
+    (_event, tagId: unknown, tag: unknown) => {
+      if (
+        typeof tagId !== "number" ||
+        !Number.isInteger(tagId) ||
+        tagId <= 0 ||
+        !isTagDraft(tag)
+      ) {
+        throw new Error("标签无效");
+      }
+
+      return previewManagedTagRename(tagId, tag);
     },
   );
   ipcMain.handle("tag:delete-managed-tag", (_event, tagId: unknown) => {

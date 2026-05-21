@@ -26,6 +26,7 @@ import type {
   DeleteTagStyleResult,
   HydrusImportOptions,
   ManagedTagRecord,
+  ManagedTagRenamePreview,
   ManagedTagSortKey,
   NetworkSettings,
   RatingEntryRecord,
@@ -39,10 +40,11 @@ import type {
   TagParentRecord,
   TagRecord,
   TagRelationTree,
+  TagSiblingRecord,
   TagStyleRecord,
 } from "../shared/ipc.js";
 
-const SCHEMA_VERSION = 10;
+const SCHEMA_VERSION = 11;
 const FILE_STORAGE_SETTING_KEY = "file_storage_path";
 const THUMBNAIL_STORAGE_SETTING_KEY = "thumbnail_storage_path";
 const CONVERT_IMPORTED_IMAGES_TO_PNG_SETTING_KEY =
@@ -1683,35 +1685,32 @@ export function listFileParentTags(fileId: number): FileTagRecord[] {
 
   return db
     .prepare(
-      `WITH RECURSIVE parent_tags(tag_id) AS (
-        SELECT tag_parents.parent_tag_id
-        FROM file_tags
-        JOIN tag_parents ON tag_parents.child_tag_id = file_tags.tag_id
-        WHERE file_tags.file_id = ?
-        UNION
-        SELECT tag_parents.parent_tag_id
-        FROM parent_tags
-        JOIN tag_parents ON tag_parents.child_tag_id = parent_tags.tag_id
-      )
+      `${createSemanticTagFilesCte("file_tags.file_id = ?")}
       SELECT
         tags.id,
         tag_styles.name AS styleName,
         tags.namespace,
         tags.name,
         tags.display_name AS displayName,
-        tags.created_at AS createdAt
-       FROM parent_tags
-       JOIN tags ON tags.id = parent_tags.tag_id
+        tags.created_at AS createdAt,
+        CASE MIN(semantic_tag_files.semanticRank)
+          WHEN 1 THEN 'parent'
+          ELSE 'canonical'
+        END AS semanticKind
+       FROM semantic_tag_files
+       JOIN tags ON tags.id = semantic_tag_files.tag_id
        JOIN tag_styles ON tag_styles.id = tags.style_id
-       WHERE NOT EXISTS (
+       WHERE semantic_tag_files.semanticRank > 0
+         AND NOT EXISTS (
          SELECT 1
          FROM file_tags
-         WHERE file_tags.file_id = ?
+         WHERE file_tags.file_id = semantic_tag_files.file_id
            AND file_tags.tag_id = tags.id
        )
+       GROUP BY tags.id
        ORDER BY tag_styles.name ASC, tags.namespace ASC, tags.name ASC`,
     )
-    .all(fileId, fileId) as FileTagRecord[];
+    .all(fileId, fileId, fileId) as FileTagRecord[];
 }
 
 export function searchTags(query: string, limit = 12): TagRecord[] {
@@ -1738,15 +1737,51 @@ export function searchTags(query: string, limit = 12): TagRecord[] {
        FROM tags
        JOIN tag_styles ON tag_styles.id = tags.style_id
        LEFT JOIN effective_tag_files ON effective_tag_files.tag_id = tags.id
+       LEFT JOIN tag_siblings AS alias_siblings
+         ON alias_siblings.canonical_tag_id = tags.id
+       LEFT JOIN tags AS alias_tags
+         ON alias_tags.id = alias_siblings.alias_tag_id
+       LEFT JOIN tag_siblings AS canonical_siblings
+         ON canonical_siblings.alias_tag_id = tags.id
+       LEFT JOIN tags AS canonical_tags
+         ON canonical_tags.id = canonical_siblings.canonical_tag_id
+       LEFT JOIN tag_parents AS parent_relations
+         ON parent_relations.child_tag_id = tags.id
+       LEFT JOIN tags AS parent_tags
+         ON parent_tags.id = parent_relations.parent_tag_id
+       LEFT JOIN tag_parents AS child_relations
+         ON child_relations.parent_tag_id = tags.id
+       LEFT JOIN tags AS child_tags
+         ON child_tags.id = child_relations.child_tag_id
        WHERE lower(tags.name) LIKE ?
           OR lower(tags.namespace || ':' || tags.name) LIKE ?
           OR lower(coalesce(tags.display_name, '')) LIKE ?
+          OR lower(alias_tags.name) LIKE ?
+          OR lower(alias_tags.namespace || ':' || alias_tags.name) LIKE ?
+          OR lower(coalesce(alias_tags.display_name, '')) LIKE ?
+          OR lower(canonical_tags.name) LIKE ?
+          OR lower(canonical_tags.namespace || ':' || canonical_tags.name) LIKE ?
+          OR lower(coalesce(canonical_tags.display_name, '')) LIKE ?
+          OR lower(parent_tags.name) LIKE ?
+          OR lower(parent_tags.namespace || ':' || parent_tags.name) LIKE ?
+          OR lower(coalesce(parent_tags.display_name, '')) LIKE ?
+          OR lower(child_tags.name) LIKE ?
+          OR lower(child_tags.namespace || ':' || child_tags.name) LIKE ?
+          OR lower(coalesce(child_tags.display_name, '')) LIKE ?
        GROUP BY tags.id
        ORDER BY
         CASE
           WHEN lower(tags.namespace || ':' || tags.name) LIKE ? THEN 0
           WHEN lower(tags.name) LIKE ? THEN 1
-          ELSE 2
+          WHEN lower(alias_tags.namespace || ':' || alias_tags.name) LIKE ? THEN 2
+          WHEN lower(alias_tags.name) LIKE ? THEN 3
+          WHEN lower(canonical_tags.namespace || ':' || canonical_tags.name) LIKE ? THEN 4
+          WHEN lower(canonical_tags.name) LIKE ? THEN 5
+          WHEN lower(parent_tags.namespace || ':' || parent_tags.name) LIKE ? THEN 6
+          WHEN lower(parent_tags.name) LIKE ? THEN 7
+          WHEN lower(child_tags.namespace || ':' || child_tags.name) LIKE ? THEN 8
+          WHEN lower(child_tags.name) LIKE ? THEN 9
+          ELSE 10
         END,
         tag_styles.is_default DESC,
         fileCount DESC,
@@ -1758,6 +1793,26 @@ export function searchTags(query: string, limit = 12): TagRecord[] {
       likeQuery,
       likeQuery,
       likeQuery,
+      likeQuery,
+      likeQuery,
+      likeQuery,
+      likeQuery,
+      likeQuery,
+      likeQuery,
+      likeQuery,
+      likeQuery,
+      likeQuery,
+      likeQuery,
+      likeQuery,
+      likeQuery,
+      prefixQuery,
+      prefixQuery,
+      prefixQuery,
+      prefixQuery,
+      prefixQuery,
+      prefixQuery,
+      prefixQuery,
+      prefixQuery,
       prefixQuery,
       prefixQuery,
       limit,
@@ -2076,6 +2131,91 @@ export function renameManagedTag(
   })();
 }
 
+export function previewManagedTagRename(
+  tagId: number,
+  tag: TagDraft,
+): ManagedTagRenamePreview {
+  const db = getDatabase();
+  const normalizedTag = normalizeTagDrafts([tag])[0];
+
+  if (!Number.isInteger(tagId) || tagId <= 0) {
+    throw new Error("标签无效");
+  }
+
+  if (!normalizedTag) {
+    throw new Error("标签不能为空");
+  }
+
+  const existingTag = db
+    .prepare("SELECT id, style_id AS styleId FROM tags WHERE id = ?")
+    .get(tagId) as { id: number; styleId: number } | undefined;
+
+  if (!existingTag) {
+    throw new Error("标签不存在");
+  }
+
+  const duplicate = db
+    .prepare(
+      `SELECT id
+       FROM tags
+       WHERE style_id = ?
+         AND namespace = ?
+         AND name = ?
+         AND id <> ?`,
+    )
+    .get(
+      existingTag.styleId,
+      normalizedTag.namespace,
+      normalizedTag.name,
+      existingTag.id,
+    ) as { id: number } | undefined;
+  const directFileCount = readSqlCount(
+    db,
+    "SELECT COUNT(DISTINCT file_id) AS count FROM file_tags WHERE tag_id = ?",
+    existingTag.id,
+  );
+  const effectiveFileCount = readSqlCount(
+    db,
+    `${createEffectiveTagFilesCte()}
+     SELECT COUNT(DISTINCT file_id) AS count
+     FROM effective_tag_files
+     WHERE tag_id = ?`,
+    existingTag.id,
+  );
+  const directParentCount = readSqlCount(
+    db,
+    "SELECT COUNT(*) AS count FROM tag_parents WHERE child_tag_id = ?",
+    existingTag.id,
+  );
+  const directChildCount = readSqlCount(
+    db,
+    "SELECT COUNT(*) AS count FROM tag_parents WHERE parent_tag_id = ?",
+    existingTag.id,
+  );
+  const aliasCount = readSqlCount(
+    db,
+    "SELECT COUNT(*) AS count FROM tag_siblings WHERE canonical_tag_id = ?",
+    existingTag.id,
+  );
+  const canonicalTargetCount = readSqlCount(
+    db,
+    "SELECT COUNT(*) AS count FROM tag_siblings WHERE alias_tag_id = ?",
+    existingTag.id,
+  );
+
+  return {
+    tagId: existingTag.id,
+    directFileCount,
+    effectiveFileCount,
+    impliedFileCount: Math.max(0, effectiveFileCount - directFileCount),
+    directParentCount,
+    directChildCount,
+    aliasCount,
+    canonicalTargetCount,
+    duplicateTagId: duplicate?.id ?? null,
+  };
+}
+
 export function deleteManagedTag(tagId: number): DeleteManagedTagsResult {
   return deleteManagedTags([tagId]);
 }
@@ -2118,7 +2258,15 @@ export function listTagParents(): TagParentRecord[] {
   return readTagParentRecords(db);
 }
 
-export function getTagRelationTree(tagIds: number[]): TagRelationTree {
+export function listTagSiblings(): TagSiblingRecord[] {
+  const db = getDatabase();
+  return readTagSiblingRecords(db);
+}
+
+export function getTagRelationTree(
+  tagIds: number[],
+  kind: "parent" | "sibling" = "parent",
+): TagRelationTree {
   const db = getDatabase();
   const normalizedTagIds = normalizeExistingTagIds(db, tagIds);
 
@@ -2126,22 +2274,53 @@ export function getTagRelationTree(tagIds: number[]): TagRelationTree {
     return { nodes: [], edges: [] };
   }
 
+  return readTagRelationTree(
+    db,
+    normalizedTagIds,
+    kind === "sibling"
+      ? {
+          tableName: "tag_siblings",
+          childColumn: "alias_tag_id",
+          parentColumn: "canonical_tag_id",
+        }
+      : {
+          tableName: "tag_parents",
+          childColumn: "child_tag_id",
+          parentColumn: "parent_tag_id",
+        },
+  );
+}
+
+interface TagRelationTreeColumns {
+  tableName: "tag_parents" | "tag_siblings";
+  childColumn: "child_tag_id" | "alias_tag_id";
+  parentColumn: "parent_tag_id" | "canonical_tag_id";
+}
+
+function readTagRelationTree(
+  db: Database.Database,
+  normalizedTagIds: number[],
+  columns: TagRelationTreeColumns,
+): TagRelationTree {
   const placeholders = createPlaceholders(normalizedTagIds.length);
+  const relatedTagsCte = `WITH RECURSIVE related_tags(tag_id) AS (
+    SELECT id
+    FROM tags
+    WHERE id IN (${placeholders})
+    UNION
+    SELECT ${columns.tableName}.${columns.parentColumn}
+    FROM related_tags
+    JOIN ${columns.tableName}
+      ON ${columns.tableName}.${columns.childColumn} = related_tags.tag_id
+    UNION
+    SELECT ${columns.tableName}.${columns.childColumn}
+    FROM related_tags
+    JOIN ${columns.tableName}
+      ON ${columns.tableName}.${columns.parentColumn} = related_tags.tag_id
+  )`;
   const nodeRows = db
     .prepare(
-      `WITH RECURSIVE related_tags(tag_id) AS (
-        SELECT id
-        FROM tags
-        WHERE id IN (${placeholders})
-        UNION
-        SELECT tag_parents.parent_tag_id
-        FROM related_tags
-        JOIN tag_parents ON tag_parents.child_tag_id = related_tags.tag_id
-        UNION
-        SELECT tag_parents.child_tag_id
-        FROM related_tags
-        JOIN tag_parents ON tag_parents.parent_tag_id = related_tags.tag_id
-      )
+      `${relatedTagsCte}
       SELECT
         tags.id,
         tag_styles.name AS styleName,
@@ -2156,26 +2335,14 @@ export function getTagRelationTree(tagIds: number[]): TagRelationTree {
     .all(...normalizedTagIds) as TagRecord[];
   const edgeRows = db
     .prepare(
-      `WITH RECURSIVE related_tags(tag_id) AS (
-        SELECT id
-        FROM tags
-        WHERE id IN (${placeholders})
-        UNION
-        SELECT tag_parents.parent_tag_id
-        FROM related_tags
-        JOIN tag_parents ON tag_parents.child_tag_id = related_tags.tag_id
-        UNION
-        SELECT tag_parents.child_tag_id
-        FROM related_tags
-        JOIN tag_parents ON tag_parents.parent_tag_id = related_tags.tag_id
-      )
+      `${relatedTagsCte}
       SELECT
-        child_tag_id AS childTagId,
-        parent_tag_id AS parentTagId
-       FROM tag_parents
-       WHERE child_tag_id IN (SELECT tag_id FROM related_tags)
-         AND parent_tag_id IN (SELECT tag_id FROM related_tags)
-       ORDER BY parent_tag_id ASC, child_tag_id ASC`,
+        ${columns.childColumn} AS childTagId,
+        ${columns.parentColumn} AS parentTagId
+       FROM ${columns.tableName}
+       WHERE ${columns.childColumn} IN (SELECT tag_id FROM related_tags)
+         AND ${columns.parentColumn} IN (SELECT tag_id FROM related_tags)
+       ORDER BY ${columns.parentColumn} ASC, ${columns.childColumn} ASC`,
     )
     .all(...normalizedTagIds) as Array<{
     childTagId: number;
@@ -2242,6 +2409,61 @@ export function removeTagParent(childTagId: number, parentTagId: number): void {
   db.prepare(
     "DELETE FROM tag_parents WHERE child_tag_id = ? AND parent_tag_id = ?",
   ).run(childId, parentId);
+}
+
+export function addTagSibling(
+  aliasTagId: number,
+  canonicalTagId: number,
+): TagSiblingRecord {
+  const db = getDatabase();
+
+  return db.transaction(() => {
+    const aliasId = readTagId(db, aliasTagId);
+    const canonicalId = readTagId(db, canonicalTagId);
+
+    if (aliasId === canonicalId) {
+      throw new Error("别名标签不能指向自己");
+    }
+
+    const aliasIsCanonical = db
+      .prepare("SELECT 1 FROM tag_siblings WHERE canonical_tag_id = ?")
+      .get(aliasId) as { 1: number } | undefined;
+
+    if (aliasIsCanonical) {
+      throw new Error("别名标签不能同时作为标准标签");
+    }
+
+    const canonicalIsAlias = db
+      .prepare("SELECT 1 FROM tag_siblings WHERE alias_tag_id = ?")
+      .get(canonicalId) as { 1: number } | undefined;
+
+    if (canonicalIsAlias) {
+      throw new Error("标准标签不能同时作为别名标签");
+    }
+
+    db.prepare(
+      `INSERT INTO tag_siblings (alias_tag_id, canonical_tag_id)
+       VALUES (?, ?)
+       ON CONFLICT(alias_tag_id) DO UPDATE SET
+         canonical_tag_id = excluded.canonical_tag_id,
+         created_at = datetime('now')`,
+    ).run(aliasId, canonicalId);
+
+    const record = readTagSiblingRecord(db, aliasId);
+
+    if (!record) {
+      throw new Error("标签别名关系创建失败");
+    }
+
+    return record;
+  })();
+}
+
+export function removeTagSibling(aliasTagId: number): void {
+  const db = getDatabase();
+  const aliasId = readTagId(db, aliasTagId);
+
+  db.prepare("DELETE FROM tag_siblings WHERE alias_tag_id = ?").run(aliasId);
 }
 
 export function getDirectParentTagIds(tagId: number): number[] {
@@ -2980,6 +3202,42 @@ export function listBatchFileTags(fileIds: number[]): BatchFileTagRecord[] {
     .all(...normalizedFileIds) as BatchFileTagRecord[];
 }
 
+export function listBatchEffectiveFileTags(
+  fileIds: number[],
+): BatchFileTagRecord[] {
+  const db = getDatabase();
+  const normalizedFileIds = normalizeFileIds(fileIds);
+
+  if (normalizedFileIds.length === 0) {
+    return [];
+  }
+
+  const placeholders = createPlaceholders(normalizedFileIds.length);
+
+  return db
+    .prepare(
+      `${createSemanticTagFilesCte(`file_tags.file_id IN (${placeholders})`)}
+      SELECT
+        tags.id,
+        tag_styles.name AS styleName,
+        tags.namespace,
+        tags.name,
+        tags.display_name AS displayName,
+        MIN(tags.created_at) AS createdAt,
+        COUNT(DISTINCT semantic_tag_files.file_id) AS fileCount
+       FROM semantic_tag_files
+       JOIN tags ON tags.id = semantic_tag_files.tag_id
+       JOIN tag_styles ON tag_styles.id = tags.style_id
+       GROUP BY tags.id
+       ORDER BY tag_styles.name ASC, tags.namespace ASC, tags.name ASC`,
+    )
+    .all(
+      ...normalizedFileIds,
+      ...normalizedFileIds,
+      ...normalizedFileIds,
+    ) as BatchFileTagRecord[];
+}
+
 export function addTagsToFiles(
   fileIds: number[],
   tags: TagDraft[],
@@ -3696,18 +3954,26 @@ function readSearchTagIndex(): Map<string, Set<number>> {
       `${createEffectiveTagFilesCte()}
        SELECT DISTINCT
         effective_tag_files.file_id AS fileId,
+        tags.id AS tagId,
         tags.namespace,
         tags.name
        FROM effective_tag_files
        JOIN tags ON tags.id = effective_tag_files.tag_id`,
     )
-    .all() as Array<{ fileId: number; namespace: string; name: string }>;
+    .all() as Array<{
+    fileId: number;
+    tagId: number;
+    namespace: string;
+    name: string;
+  }>;
+  const siblingSearchKeysByTagId = readSiblingSearchKeysByTagId(db);
   const tagIndex = new Map<string, Set<number>>();
 
   for (const row of tagRows) {
     const keys = [
       row.name,
       row.namespace ? `${row.namespace}:${row.name}` : row.name,
+      ...(siblingSearchKeysByTagId.get(row.tagId) ?? []),
     ];
 
     for (const key of keys) {
@@ -3780,6 +4046,61 @@ function readSearchTagIndex(): Map<string, Set<number>> {
   }
 
   return tagIndex;
+}
+
+function readSiblingSearchKeysByTagId(
+  db: Database.Database,
+): Map<number, string[]> {
+  const rows = db
+    .prepare(
+      `SELECT
+        alias_tags.id AS aliasTagId,
+        alias_tags.namespace AS aliasNamespace,
+        alias_tags.name AS aliasName,
+        canonical_tags.id AS canonicalTagId,
+        canonical_tags.namespace AS canonicalNamespace,
+        canonical_tags.name AS canonicalName
+       FROM tag_siblings
+       JOIN tags AS alias_tags ON alias_tags.id = tag_siblings.alias_tag_id
+       JOIN tags AS canonical_tags ON canonical_tags.id = tag_siblings.canonical_tag_id`,
+    )
+    .all() as Array<{
+    aliasTagId: number;
+    aliasNamespace: string;
+    aliasName: string;
+    canonicalTagId: number;
+    canonicalNamespace: string;
+    canonicalName: string;
+  }>;
+  const keysByTagId = new Map<number, string[]>();
+
+  function addKeys(
+    tagId: number,
+    relatedTag: Pick<TagRecord, "namespace" | "name">,
+  ): void {
+    const keys = keysByTagId.get(tagId) ?? [];
+
+    keys.push(
+      relatedTag.name,
+      relatedTag.namespace
+        ? `${relatedTag.namespace}:${relatedTag.name}`
+        : relatedTag.name,
+    );
+    keysByTagId.set(tagId, keys);
+  }
+
+  for (const row of rows) {
+    addKeys(row.aliasTagId, {
+      namespace: row.canonicalNamespace,
+      name: row.canonicalName,
+    });
+    addKeys(row.canonicalTagId, {
+      namespace: row.aliasNamespace,
+      name: row.aliasName,
+    });
+  }
+
+  return keysByTagId;
 }
 
 function getDomainSearchAliases(domain: FileDomain): string[] {
@@ -3868,6 +4189,16 @@ function createPlaceholders(count: number): string {
   return Array.from({ length: count }, () => "?").join(", ");
 }
 
+function readSqlCount(
+  db: Database.Database,
+  query: string,
+  ...params: unknown[]
+): number {
+  const row = db.prepare(query).get(...params) as { count: number } | undefined;
+
+  return row?.count ?? 0;
+}
+
 function createEffectiveTagFilesCte(): string {
   return `
     WITH RECURSIVE effective_tag_files(tag_id, file_id) AS (
@@ -3878,6 +4209,36 @@ function createEffectiveTagFilesCte(): string {
       FROM effective_tag_files
       JOIN tag_parents ON tag_parents.child_tag_id = effective_tag_files.tag_id
     )`;
+}
+
+function createSemanticTagFilesCte(filePredicate: string): string {
+  return `WITH RECURSIVE parent_tags(file_id, tag_id) AS (
+    SELECT file_tags.file_id, tag_parents.parent_tag_id
+    FROM file_tags
+    JOIN tag_parents ON tag_parents.child_tag_id = file_tags.tag_id
+    WHERE ${filePredicate}
+    UNION
+    SELECT parent_tags.file_id, tag_parents.parent_tag_id
+    FROM parent_tags
+    JOIN tag_parents ON tag_parents.child_tag_id = parent_tags.tag_id
+  ),
+  semantic_tag_files(file_id, tag_id, semanticRank) AS (
+    SELECT file_tags.file_id, file_tags.tag_id, 0
+    FROM file_tags
+    WHERE ${filePredicate}
+    UNION
+    SELECT parent_tags.file_id, parent_tags.tag_id, 1
+    FROM parent_tags
+    UNION
+    SELECT file_tags.file_id, tag_siblings.canonical_tag_id, 2
+    FROM file_tags
+    JOIN tag_siblings ON tag_siblings.alias_tag_id = file_tags.tag_id
+    WHERE ${filePredicate}
+    UNION
+    SELECT parent_tags.file_id, tag_siblings.canonical_tag_id, 2
+    FROM parent_tags
+    JOIN tag_siblings ON tag_siblings.alias_tag_id = parent_tags.tag_id
+  )`;
 }
 
 function ensureFilesExist(db: Database.Database, fileIds: number[]): void {
@@ -4098,6 +4459,94 @@ function toTagParentRecord(row: TagParentJoinedRow): TagParentRecord {
       namespace: row.parentNamespace,
       name: row.parentName,
       displayName: row.parentDisplayName,
+    },
+    createdAt: row.createdAt,
+  };
+}
+
+interface TagSiblingJoinedRow {
+  aliasTagId: number;
+  aliasStyleName: string;
+  aliasNamespace: string;
+  aliasName: string;
+  aliasDisplayName: string | null;
+  canonicalTagId: number;
+  canonicalStyleName: string;
+  canonicalNamespace: string;
+  canonicalName: string;
+  canonicalDisplayName: string | null;
+  createdAt: string;
+}
+
+function readTagSiblingRecords(db: Database.Database): TagSiblingRecord[] {
+  return (
+    db.prepare(createTagSiblingRecordQuery()).all() as TagSiblingJoinedRow[]
+  ).map(toTagSiblingRecord);
+}
+
+function readTagSiblingRecord(
+  db: Database.Database,
+  aliasTagId: number,
+): TagSiblingRecord | null {
+  const row = db
+    .prepare(
+      `${createTagSiblingRecordQuery(false)}
+       WHERE tag_siblings.alias_tag_id = ?`,
+    )
+    .get(aliasTagId) as TagSiblingJoinedRow | undefined;
+
+  return row ? toTagSiblingRecord(row) : null;
+}
+
+function createTagSiblingRecordQuery(includeOrder = true): string {
+  const query = `
+    SELECT
+      alias_tags.id AS aliasTagId,
+      alias_styles.name AS aliasStyleName,
+      alias_tags.namespace AS aliasNamespace,
+      alias_tags.name AS aliasName,
+      alias_tags.display_name AS aliasDisplayName,
+      canonical_tags.id AS canonicalTagId,
+      canonical_styles.name AS canonicalStyleName,
+      canonical_tags.namespace AS canonicalNamespace,
+      canonical_tags.name AS canonicalName,
+      canonical_tags.display_name AS canonicalDisplayName,
+      tag_siblings.created_at AS createdAt
+    FROM tag_siblings
+    JOIN tags AS alias_tags ON alias_tags.id = tag_siblings.alias_tag_id
+    JOIN tag_styles AS alias_styles ON alias_styles.id = alias_tags.style_id
+    JOIN tags AS canonical_tags ON canonical_tags.id = tag_siblings.canonical_tag_id
+    JOIN tag_styles AS canonical_styles ON canonical_styles.id = canonical_tags.style_id`;
+
+  if (!includeOrder) {
+    return query;
+  }
+
+  return `${query}
+    ORDER BY
+      canonical_styles.name ASC,
+      canonical_tags.namespace ASC,
+      canonical_tags.name ASC,
+      alias_styles.name ASC,
+      alias_tags.namespace ASC,
+      alias_tags.name ASC`;
+}
+
+function toTagSiblingRecord(row: TagSiblingJoinedRow): TagSiblingRecord {
+  return {
+    alias: {
+      id: row.aliasTagId,
+      styleName: row.aliasStyleName,
+      namespace: row.aliasNamespace,
+      name: row.aliasName,
+      displayName: row.aliasDisplayName,
+    },
+    canonical: {
+      id: row.canonicalTagId,
+      styleName: row.canonicalStyleName,
+      namespace: row.canonicalNamespace,
+      name: row.canonicalName,
+      displayName: row.canonicalDisplayName,
     },
     createdAt: row.createdAt,
   };
@@ -4401,8 +4850,13 @@ function runMigrations(db: Database.Database): void {
     migrateToTagParents(db);
   }
 
+  if (currentVersion < 11) {
+    migrateToTagSiblings(db);
+  }
+
   ensureApiFileIdentifiersSchema(db);
   ensureTagParentsSchema(db);
+  ensureTagSiblingsSchema(db);
 }
 
 function migrateToApiFileIdentifiers(db: Database.Database): void {
@@ -4464,6 +4918,30 @@ function ensureTagParentsSchema(db: Database.Database): void {
 
     CREATE INDEX IF NOT EXISTS idx_tag_parents_parent_tag_id
       ON tag_parents(parent_tag_id);
+  `);
+}
+
+function migrateToTagSiblings(db: Database.Database): void {
+  db.transaction(() => {
+    ensureTagSiblingsSchema(db);
+    db.prepare(
+      "INSERT INTO schema_migrations (version, name) VALUES (?, ?)",
+    ).run(11, "tag_siblings");
+  })();
+}
+
+function ensureTagSiblingsSchema(db: Database.Database): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS tag_siblings (
+      alias_tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+      canonical_tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      CHECK (alias_tag_id != canonical_tag_id),
+      PRIMARY KEY (alias_tag_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_tag_siblings_canonical_tag_id
+      ON tag_siblings(canonical_tag_id);
   `);
 }
 

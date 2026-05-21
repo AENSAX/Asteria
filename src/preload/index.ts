@@ -43,8 +43,8 @@ const api: AsteriaApi = {
   openAiManagerWindow: () => ipcRenderer.invoke("window:open-ai-manager"),
   openTagTranslationWindow: () =>
     ipcRenderer.invoke("window:open-tag-translation"),
-  openTagRelationTreeWindow: (tagIds) =>
-    ipcRenderer.invoke("window:open-tag-relation-tree", tagIds),
+  openTagRelationTreeWindow: (tagIds, kind) =>
+    ipcRenderer.invoke("window:open-tag-relation-tree", tagIds, kind),
   openFileRatingEditorWindow: (fileIds, groupId) =>
     ipcRenderer.invoke("window:open-file-rating-editor", fileIds, groupId),
   openFavoritesWindow: () => ipcRenderer.invoke("window:open-favorites"),
@@ -134,6 +134,8 @@ const api: AsteriaApi = {
     ipcRenderer.invoke("tag:list-file-parent-tags", fileId),
   listBatchFileTags: (fileIds) =>
     ipcRenderer.invoke("tag:list-batch-file-tags", fileIds),
+  listBatchEffectiveFileTags: (fileIds) =>
+    ipcRenderer.invoke("tag:list-batch-effective-file-tags", fileIds),
   searchTags: (query) => ipcRenderer.invoke("tag:search", query),
   searchHints: (query) => ipcRenderer.invoke("search:hints", query),
   listTagStyles: () => ipcRenderer.invoke("tag:list-styles"),
@@ -146,16 +148,23 @@ const api: AsteriaApi = {
   listManagedTags: (styleId, sortKey, direction) =>
     ipcRenderer.invoke("tag:list-managed-tags", styleId, sortKey, direction),
   listTagParents: () => ipcRenderer.invoke("tag:list-parents"),
-  getTagRelationTree: (tagIds) =>
-    ipcRenderer.invoke("tag:get-relation-tree", tagIds),
+  listTagSiblings: () => ipcRenderer.invoke("tag:list-siblings"),
+  getTagRelationTree: (tagIds, kind) =>
+    ipcRenderer.invoke("tag:get-relation-tree", tagIds, kind),
   addTagParent: (childTagId, parentTagId) =>
     ipcRenderer.invoke("tag:add-parent", childTagId, parentTagId),
   removeTagParent: (childTagId, parentTagId) =>
     ipcRenderer.invoke("tag:remove-parent", childTagId, parentTagId),
+  addTagSibling: (aliasTagId, canonicalTagId) =>
+    ipcRenderer.invoke("tag:add-sibling", aliasTagId, canonicalTagId),
+  removeTagSibling: (aliasTagId) =>
+    ipcRenderer.invoke("tag:remove-sibling", aliasTagId),
   createManagedTag: (styleId, tag) =>
     ipcRenderer.invoke("tag:create-managed-tag", styleId, tag),
   renameManagedTag: (tagId, tag) =>
     ipcRenderer.invoke("tag:rename-managed-tag", tagId, tag),
+  previewManagedTagRename: (tagId, tag) =>
+    ipcRenderer.invoke("tag:preview-managed-rename", tagId, tag),
   deleteManagedTag: (tagId) =>
     ipcRenderer.invoke("tag:delete-managed-tag", tagId),
   deleteManagedTags: (tagIds) =>
@@ -229,6 +238,7 @@ const api: AsteriaApi = {
   getApiServiceAvailability: (serviceId) =>
     ipcRenderer.invoke("api:get-service-availability", serviceId),
   confirmDialog: (options) => ipcRenderer.invoke("dialog:confirm", options),
+  alertDialog: (options) => ipcRenderer.invoke("dialog:alert", options),
   getDialogState: (dialogId) =>
     ipcRenderer.invoke("dialog:get-state", dialogId),
   resizeDialog: (dialogId, width, height) =>

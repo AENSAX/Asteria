@@ -124,14 +124,14 @@ export function FileRatingEditorWindow({
 
       <footer className="flex items-center justify-end gap-1.5 border-t border-(--line) bg-(--surface-bg) px-2">
         <button
-          className="h-6 cursor-default border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px]"
+          className="ui-button"
           type="button"
           onClick={() => window.close()}
         >
           {t("window.fileRating.cancel")}
         </button>
         <ActionFeedbackButton
-          className="h-6 cursor-default border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px]"
+          className="ui-button"
           afterFeedback={() => window.close()}
           disabled={!group || normalizedFileIds.length === 0}
           label={t("window.fileRating.save")}

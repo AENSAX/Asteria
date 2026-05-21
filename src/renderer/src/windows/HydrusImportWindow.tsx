@@ -20,7 +20,7 @@ const hydrusContentClass =
   "grid min-h-0 min-w-0 grid-rows-[auto_auto_auto_auto_auto_minmax(0,1fr)] gap-2 overflow-hidden p-2";
 const hydrusToolbarClass = "flex h-6 items-center gap-1.5";
 const hydrusButtonClass =
-  "h-6 cursor-default border border-(--line-strong) bg-(--surface-raised-bg) px-2 text-[11px] text-(--ink)";
+  "ui-button";
 const hydrusProgressClass =
   "grid h-5 grid-cols-[minmax(0,1fr)_42px] items-center gap-1.5";
 const hydrusStatsClass =

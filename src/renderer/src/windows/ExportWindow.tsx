@@ -22,7 +22,7 @@ const exportRowClass =
 const exportInputClass =
   "h-6 min-w-0 border border-(--line-strong) bg-(--surface-inset-bg) px-1.5 text-(--ink)";
 const exportButtonClass =
-  "h-6 min-w-[58px] cursor-default border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px] text-(--ink)";
+  "ui-button min-w-[58px]";
 const exportPreviewClass =
   "flex min-h-6 flex-wrap items-center gap-1 border border-(--line) bg-(--surface-inset-bg) p-1";
 const exportTokenClass =

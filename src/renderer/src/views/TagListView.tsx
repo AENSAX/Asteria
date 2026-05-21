@@ -240,7 +240,9 @@ export function TagListView({
     }
 
     try {
-      setSelectionTags(await window.asteria.listBatchFileTags(selectedFileIds));
+      setSelectionTags(
+        await window.asteria.listBatchEffectiveFileTags(selectedFileIds),
+      );
     } catch {
       setSelectionTags([]);
     }

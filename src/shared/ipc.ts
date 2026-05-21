@@ -51,6 +51,14 @@ export interface TagParentRecord {
   createdAt: string;
 }
 
+export interface TagSiblingRecord {
+  alias: TagRecord;
+  canonical: TagRecord;
+  createdAt: string;
+}
+
+export type TagRelationTreeKind = "parent" | "sibling";
+
 export interface TagRelationTreeNode extends TagRecord {
   selected: boolean;
 }
@@ -85,6 +93,18 @@ export interface DeleteManagedTagsResult {
   deletedFileCount: number;
 }
 
+export interface ManagedTagRenamePreview {
+  tagId: number;
+  directFileCount: number;
+  effectiveFileCount: number;
+  impliedFileCount: number;
+  directParentCount: number;
+  directChildCount: number;
+  aliasCount: number;
+  canonicalTargetCount: number;
+  duplicateTagId: number | null;
+}
+
 export type FileDomain = "pending" | "library" | "trash";
 
 export interface DomainRecord {
@@ -102,6 +122,7 @@ export interface ManagedTagRecord extends TagRecord {
 
 export interface FileTagRecord extends TagRecord {
   createdAt: string;
+  semanticKind?: "parent" | "canonical";
 }
 
 export interface BatchFileTagRecord extends FileTagRecord {
@@ -525,7 +546,10 @@ export interface AsteriaApi {
   openEHentaiImportWindow: () => Promise<void>;
   openAiManagerWindow: () => Promise<void>;
   openTagTranslationWindow: () => Promise<void>;
-  openTagRelationTreeWindow: (tagIds: number[]) => Promise<void>;
+  openTagRelationTreeWindow: (
+    tagIds: number[],
+    kind?: TagRelationTreeKind,
+  ) => Promise<void>;
   openFileRatingEditorWindow: (
     fileIds: number[],
     groupId: number,
@@ -620,6 +644,9 @@ export interface AsteriaApi {
   listFileTags: (fileId: number) => Promise<FileTagRecord[]>;
   listFileParentTags: (fileId: number) => Promise<FileTagRecord[]>;
   listBatchFileTags: (fileIds: number[]) => Promise<BatchFileTagRecord[]>;
+  listBatchEffectiveFileTags: (
+    fileIds: number[],
+  ) => Promise<BatchFileTagRecord[]>;
   searchTags: (query: string) => Promise<TagRecord[]>;
   searchHints: (query: string) => Promise<SearchHintRecord[]>;
   listTagStyles: () => Promise<TagStyleRecord[]>;
@@ -633,17 +660,30 @@ export interface AsteriaApi {
     direction: SortDirection,
   ) => Promise<ManagedTagRecord[]>;
   listTagParents: () => Promise<TagParentRecord[]>;
-  getTagRelationTree: (tagIds: number[]) => Promise<TagRelationTree>;
+  listTagSiblings: () => Promise<TagSiblingRecord[]>;
+  getTagRelationTree: (
+    tagIds: number[],
+    kind?: TagRelationTreeKind,
+  ) => Promise<TagRelationTree>;
   addTagParent: (
     childTagId: number,
     parentTagId: number,
   ) => Promise<TagParentRecord>;
   removeTagParent: (childTagId: number, parentTagId: number) => Promise<void>;
+  addTagSibling: (
+    aliasTagId: number,
+    canonicalTagId: number,
+  ) => Promise<TagSiblingRecord>;
+  removeTagSibling: (aliasTagId: number) => Promise<void>;
   createManagedTag: (
     styleId: number,
     tag: TagDraft,
   ) => Promise<ManagedTagRecord>;
   renameManagedTag: (tagId: number, tag: TagDraft) => Promise<ManagedTagRecord>;
+  previewManagedTagRename: (
+    tagId: number,
+    tag: TagDraft,
+  ) => Promise<ManagedTagRenamePreview>;
   deleteManagedTag: (tagId: number) => Promise<DeleteManagedTagsResult>;
   deleteManagedTags: (tagIds: number[]) => Promise<DeleteManagedTagsResult>;
   addFileTags: (fileId: number, tags: TagDraft[]) => Promise<FileTagRecord[]>;
@@ -726,6 +766,7 @@ export interface AsteriaApi {
     serviceId: number,
   ) => Promise<ApiServiceAvailability>;
   confirmDialog: (options: ConfirmDialogOptions) => Promise<boolean>;
+  alertDialog: (options: ConfirmDialogOptions) => Promise<void>;
   getDialogState: (dialogId: string) => Promise<GenericDialogState | null>;
   resizeDialog: (
     dialogId: string,

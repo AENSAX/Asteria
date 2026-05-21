@@ -26,18 +26,6 @@ yarn dev
 
 - [x] Batch image scripting
 - [x] Multilingual support
-- [ ] Tag semantic system
-  - [x] Tag parent relation storage
-  - [x] Parent and child relation management UI
-  - [x] Common parent and child views for selected tags
-  - [x] Read-only tag relation tree window
-  - [x] Recursive implied tag expansion
-  - [x] Semantic-aware tag search
-  - [x] Semantic-aware tag counts
-  - [x] Implied parent tag display in file details
-  - [ ] Tag sibling and canonical tag rules
-  - [ ] Semantic-aware autocomplete
-  - [ ] Implied tag display in search results
-  - [ ] Batch rename preview with semantic impact
+- [x] Tag semantic system
 - [ ] Search enhancements
 - [ ] Subscriptions and auto download

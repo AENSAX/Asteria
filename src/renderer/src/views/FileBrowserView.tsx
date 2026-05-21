@@ -75,8 +75,7 @@ const browserStatusClass =
 const browserSelectClass =
   "h-[18px] min-w-[72px] border border-(--line-strong) bg-(--surface-inset-bg) text-(--ink)";
 const browserPagerClass = "inline-flex min-w-0 items-center gap-1";
-const browserPagerButtonClass =
-  "h-[18px] min-w-[38px] cursor-default border border-(--line-strong) bg-(--panel-strong) px-1.5 leading-4 text-(--ink)";
+const browserPagerButtonClass = "ui-button ui-button-compact min-w-[38px]";
 const browserPagerInputClass =
   "h-[18px] w-[42px] border border-(--line-strong) bg-(--surface-inset-bg) px-1 text-(--ink) leading-4";
 const contextMenuClass =

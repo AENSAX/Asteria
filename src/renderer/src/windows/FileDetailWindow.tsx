@@ -24,7 +24,7 @@ import {
   getTagNamespaceClassName,
   getTagNamespaceStyle,
 } from "../utils/tags";
-import { useLanguage } from "../utils/language";
+import { type TranslationFunction, useLanguage } from "../utils/language";
 
 interface FileDetailWindowProps {
   fileId: number;
@@ -697,12 +697,13 @@ function FileDetailTagColumn({
       return;
     }
 
-    const [nextFileTags, nextFileParentTags, nextTagStyles] =
-      await Promise.all([
+    const [nextFileTags, nextFileParentTags, nextTagStyles] = await Promise.all(
+      [
         window.asteria.listFileTags(fileId),
         window.asteria.listFileParentTags(fileId),
         window.asteria.listTagStyles(),
-      ]);
+      ],
+    );
     setFileTags(nextFileTags);
     setFileParentTags(nextFileParentTags);
     setTagStyles(nextTagStyles);
@@ -819,9 +820,7 @@ function FileDetailTagColumn({
               <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
                 {t("window.fileDetail.inferredTags")}
               </span>
-              <span className="pl-1.5 text-right">
-                {fileParentTags.length}
-              </span>
+              <span className="pl-1.5 text-right">{fileParentTags.length}</span>
             </header>
             {groupedFileParentTags.map((group) => (
               <div className="mb-1" key={group.styleName}>
@@ -837,9 +836,7 @@ function FileDetailTagColumn({
                       )}
                       key={tag.id}
                       style={getTagNamespaceStyle(tag)}
-                      title={t("window.fileDetail.inferredTagTitle", {
-                        tag: formatTagLabel(tag),
-                      })}
+                      title={getInferredTagTitle(tag, t)}
                     >
                       {formatTagLabel(tag)}
                     </span>
@@ -919,6 +916,19 @@ function groupFileTagsByStyle(
 
       return left.displayName.localeCompare(right.displayName);
     });
+}
+
+function getInferredTagTitle(
+  tag: FileTagRecord,
+  t: TranslationFunction,
+): string {
+  const label = formatTagLabel(tag);
+
+  if (tag.semanticKind === "canonical") {
+    return t("window.fileDetail.canonicalTagTitle", { tag: label });
+  }
+
+  return t("window.fileDetail.inferredTagTitle", { tag: label });
 }
 
 interface DetailMediaProps {

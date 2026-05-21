@@ -57,7 +57,7 @@ const aiPathRowClass =
   "grid grid-cols-[70px_minmax(0,1fr)_34px] items-center gap-0";
 const aiModelActionsClass = "grid grid-cols-[80px_104px_minmax(0,1fr)] gap-1.5";
 const aiButtonClass =
-  "h-6 cursor-default border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px] text-(--ink)";
+  "ui-button";
 const aiModelPanelClass =
   "grid min-h-0 min-w-0 grid-rows-[26px_minmax(0,1fr)] border border-(--line) bg-(--panel)";
 const aiModelHeaderClass =
@@ -74,7 +74,7 @@ const aiFooterClass =
 const aiFooterSpanClass =
   "min-w-0 overflow-hidden px-2 leading-[33px] text-ellipsis whitespace-nowrap text-(--muted)";
 const aiFooterButtonClass =
-  "border-0 border-l border-(--line) bg-(--panel-strong) px-2 text-[11px] text-(--ink)";
+  "ui-button ui-button-fill min-w-0 border-y-0 border-r-0 border-l-(--line)";
 
 export function AiManagerWindow(): JSX.Element {
   const { t } = useLanguage();

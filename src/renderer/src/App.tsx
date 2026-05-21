@@ -9,6 +9,7 @@ import {
 } from "flexlayout-react";
 import { parse } from "jsonc-parser";
 import defaultPageTemplateText from "../../../config/page-templates/default-page.jsonc?raw";
+import logoUrl from "../../../resources/images/logo.png";
 import type {
   ImportProgress,
   ImportQueueFileRecord,
@@ -134,7 +135,8 @@ const defaultTagListViewState: TagListViewState = {
 
 const standaloneWindowClass = "h-full min-h-0 min-w-0 bg-(--bg)";
 const emptyPageClass =
-  "grid h-full min-h-0 min-w-0 place-items-center bg-(--panel) text-(--muted)";
+  "grid h-full min-h-0 min-w-0 place-items-center bg-(--panel)";
+const emptyPageLogoClass = "h-80 w-80 object-contain opacity-80";
 const menuButtonClass =
   "h-full min-w-12 cursor-default border-0 bg-transparent px-3 text-[11px] hover:bg-(--panel-strong)";
 const activeMenuButtonClass = `${menuButtonClass} bg-(--panel-strong)`;
@@ -211,6 +213,14 @@ function getViewTabTitle(
   }
 
   return t("app.action.tags");
+}
+
+function EmptyPagePlaceholder(): JSX.Element {
+  return (
+    <section className={emptyPageClass}>
+      <img className={emptyPageLogoClass} alt="Asteria" src={logoUrl} />
+    </section>
+  );
 }
 
 function syncViewTabTitles(page: PageItem, t: TranslationFunction): PageItem {
@@ -361,7 +371,10 @@ export function App(): JSX.Element {
   if (windowMode === "tag-relation-tree") {
     return (
       <StandaloneWindowFrame title={t("window.tagRelationTree.title")}>
-        <TagRelationTreeWindow tagIds={parseIdList(query.get("ids"))} />
+        <TagRelationTreeWindow
+          tagIds={parseIdList(query.get("ids"))}
+          kind={query.get("kind") === "sibling" ? "sibling" : "parent"}
+        />
       </StandaloneWindowFrame>
     );
   }
@@ -1825,7 +1838,7 @@ function WorkbenchApp(): JSX.Element {
       activePage?.viewRefreshSequenceByTabId[node.getId()] ?? 0;
 
     if (component === "empty-page") {
-      return <section className={emptyPageClass}>{t("app.emptyPage")}</section>;
+      return <EmptyPagePlaceholder />;
     }
 
     if (component === "file-import") {
@@ -2145,7 +2158,7 @@ function WorkbenchApp(): JSX.Element {
             onModelChange={queueWorkbenchStateSave}
           />
         ) : (
-          <section className={emptyPageClass}>{t("app.noOpenPage")}</section>
+          <EmptyPagePlaceholder />
         )}
       </main>
 
