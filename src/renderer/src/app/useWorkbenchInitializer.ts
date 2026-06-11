@@ -1,8 +1,8 @@
 import { useEffect, type Dispatch, type SetStateAction } from "react";
-import { Model } from "flexlayout-react";
 import type { TranslationFunction } from "../utils/language";
 import { createPageItemFromTemplate } from "./workbenchPageFactory";
 import {
+  createPageModelFromJson,
   getPageNumber,
   getPageTitle,
   syncViewTabTitles,
@@ -53,7 +53,7 @@ export function useWorkbenchInitializer({
                 ? getPageTitle(getPageNumber(page.id), t)
                 : page.title,
             titleMode: page.titleMode,
-            model: Model.fromJson(page.modelJson),
+            model: createPageModelFromJson(page.modelJson),
             searchFilters: page.searchFilters,
             searchInputState: page.searchInputState,
             searchAppendTagRequest: null,

@@ -11,7 +11,6 @@ import {
   createAsteriaWindow,
   loadRenderer,
   setupWindowDiagnostics,
-  showWhenReady,
 } from "./windowFactory.js";
 
 interface DialogManagerOptions {
@@ -70,7 +69,11 @@ export function createDialogManager({
     setupWindowDiagnostics(window);
     loadRenderer(window, { window: "dialog", dialogId: state.id });
 
-    showWhenReady(window);
+    // 等渲染端按内容完成首次 resize 后再显示（见 resizeGenericDialog），
+    // 避免默认尺寸先闪一下；ready-to-show 后短暂兜底，防止窗口永不显示
+    window.once("ready-to-show", () => {
+      setTimeout(() => showDialogWindow(window), 300);
+    });
 
     window.once("closed", () => {
       const request = dialogs.get(state.id);
@@ -277,6 +280,7 @@ export function createDialogManager({
     const nextWidth = Math.min(900, Math.max(280, Math.ceil(width)));
     const nextHeight = Math.min(560, Math.max(90, Math.ceil(height)));
     request.window.setContentSize(nextWidth, nextHeight);
+    showDialogWindow(request.window);
   }
 
   function resolveGenericDialog(id: string, confirmed: boolean): void {
@@ -300,6 +304,15 @@ export function createDialogManager({
     resizeGenericDialog,
     resolveGenericDialog,
   };
+}
+
+function showDialogWindow(window: BrowserWindow): void {
+  if (window.isDestroyed() || window.isVisible()) {
+    return;
+  }
+
+  window.center();
+  window.show();
 }
 
 function getGenericConfirmTitle(languageId: MainLanguageId): string {

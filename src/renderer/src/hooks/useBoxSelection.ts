@@ -14,6 +14,8 @@ interface UseBoxSelectionOptions {
   itemSelector: string;
   selectedIds: number[];
   startOnlyFromContainer?: boolean;
+  // 条目自身支持原生拖拽时，框选只能从条目以外的空白处发起
+  startOnlyOutsideItems?: boolean;
   onSelect: (ids: number[]) => void;
   onLastSelectedId?: (id: number | null) => void;
 }
@@ -40,6 +42,7 @@ export function useBoxSelection({
   onSelect,
   selectedIds,
   startOnlyFromContainer = false,
+  startOnlyOutsideItems = false,
 }: UseBoxSelectionOptions): UseBoxSelectionResult {
   const selectedIdsRef = useRef(selectedIds);
   const dragRef = useRef<DragState | null>(null);
@@ -62,6 +65,14 @@ export function useBoxSelection({
     }
 
     if (startOnlyFromContainer && event.target !== event.currentTarget) {
+      return;
+    }
+
+    if (
+      startOnlyOutsideItems &&
+      event.target instanceof Element &&
+      event.target.closest(itemSelector)
+    ) {
       return;
     }
 

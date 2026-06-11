@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { FileUrlRecord } from "../../../shared/ipc";
 import { ActionFeedbackButton } from "../components/ActionFeedbackButton";
+import { Icon } from "../components/Icon";
 import { useLanguage } from "../utils/language";
 
 interface UrlManagerWindowProps {
@@ -74,6 +75,15 @@ export function UrlManagerWindow({
       return;
     }
 
+    const confirmed = await window.asteria.confirmDialog({
+      title: t("confirm.deleteTitle"),
+      message: t("confirm.removeFileUrl", { url: url.url }),
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
     const nextUrls = await window.asteria.removeFileUrl(
       fileIds,
       url.id,
@@ -86,7 +96,7 @@ export function UrlManagerWindow({
     <section className="grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_24px] border border-(--line) bg-(--panel)">
       <div className="grid grid-cols-[minmax(0,1fr)_58px] gap-1.5 border-b border-(--line) p-2">
         <input
-          className="h-6 min-w-0 border border-(--line-strong) bg-(--surface-inset-bg) px-1.5 text-(--ink)"
+          className="ui-input"
           aria-label={t("window.url.addInput")}
           placeholder={t("window.url.addPlaceholder")}
           value={input}
@@ -140,27 +150,31 @@ export function UrlManagerWindow({
                 />
               ) : (
                 <button
+                  aria-label={t("common.modify")}
                   className="ui-button ui-button-fill min-w-0 border-y-0 border-l-0 border-r-(--line)"
+                  title={t("common.modify")}
                   type="button"
                   onClick={() => {
                     setEditingUrlId(url.id);
                     setEditingText(url.url);
                   }}
                 >
-                  {t("common.modify")}
+                  <Icon name="pencil" />
                 </button>
               )}
               <button
+                aria-label={t("common.delete")}
                 className="ui-button ui-button-fill min-w-0 border-0"
+                title={t("common.delete")}
                 type="button"
                 onClick={() => void removeUrl(url)}
               >
-                {t("common.delete")}
+                <Icon name="trash" />
               </button>
             </div>
           ))
         ) : (
-          <div className="p-2 text-(--muted)">{t("window.url.noUrl")}</div>
+          <div className="ui-empty">{t("window.url.noUrl")}</div>
         )}
       </div>
       <footer className="flex h-6 items-center border-t border-(--line) px-2 text-(--muted)">

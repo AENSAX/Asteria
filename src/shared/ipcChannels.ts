@@ -34,6 +34,7 @@ export const IpcChannel = {
   FILE_OPEN_EXTERNALLY: "file:open-externally",
   FILE_SET_DOMAIN: "file:set-domain",
   FILE_SET_FAVORITE: "file:set-favorite",
+  FILE_START_DRAG: "file:start-drag",
   HYDRUS_CANCEL_IMPORT: "hydrus:cancel-import",
   HYDRUS_GET_SETTINGS: "hydrus:get-settings",
   HYDRUS_IMPORT: "hydrus:import",
@@ -151,5 +152,6 @@ export const IpcEvent = {
   IMPORT_PROGRESS: "import:progress",
   IMPORT_QUEUE_CHANGED: "import-queue:changed",
   PAGE_LAYOUT_CHANGED: "page-layout:changed",
+  SETTINGS_CHANGED: "settings:changed",
   WORK_STATUS_CHANGED: "work-status:changed",
 } as const;

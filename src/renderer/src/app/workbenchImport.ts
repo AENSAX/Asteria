@@ -4,10 +4,8 @@ import type {
   ImportQueueFileRecord,
 } from "../../../shared/ipc";
 import { readDroppedImportData } from "../utils/dropImport";
-import {
-  getFileDomainDisplayName,
-  type TranslationFunction,
-} from "../utils/language";
+import { confirmDuplicateImports } from "../utils/importConfirm";
+import { type TranslationFunction } from "../utils/language";
 
 interface WorkbenchImportHandlersOptions<PageItem> {
   isImporting: boolean;
@@ -215,24 +213,7 @@ export function createWorkbenchImportHandlers<PageItem>({
       return;
     }
 
-    const confirmedDuplicateIds: number[] = [];
-
-    for (const file of queueFiles) {
-      if (!file.duplicate) {
-        continue;
-      }
-
-      const confirmed = await window.asteria.confirmDialog({
-        title: t("app.status.duplicateConfirmTitle"),
-        message: t("app.status.duplicateConfirmMessage", {
-          domainName: getFileDomainDisplayName(file.duplicate.domain, t),
-        }),
-      });
-
-      if (confirmed) {
-        confirmedDuplicateIds.push(file.id);
-      }
-    }
+    const confirmedDuplicateIds = await confirmDuplicateImports(queueFiles, t);
 
     const result = await window.asteria.commitImportQueue(
       queueFiles.map((file) => file.id),
@@ -248,6 +229,21 @@ export function createWorkbenchImportHandlers<PageItem>({
   async function cancelImportQueueFromActivePage(): Promise<void> {
     if (!window.asteria) {
       return;
+    }
+
+    const queueFiles = await window.asteria.listImportQueueFiles();
+
+    if (queueFiles.length > 0) {
+      const confirmed = await window.asteria.confirmDialog({
+        title: t("app.status.clearQueueConfirmTitle"),
+        message: t("app.status.clearQueueConfirmMessage", {
+          count: queueFiles.length,
+        }),
+      });
+
+      if (!confirmed) {
+        return;
+      }
     }
 
     const wasImporting = progress.phase === "importing";

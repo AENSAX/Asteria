@@ -1,4 +1,5 @@
 import type { MouseEvent } from "react";
+import { Icon } from "../components/Icon";
 import { useLanguage } from "../utils/language";
 
 export interface PageTabItem {
@@ -20,7 +21,7 @@ const pageTabClass =
 const activePageTabClass =
   "group bg-(--panel) text-(--ink) relative flex h-[30px] min-w-[132px] max-w-[220px] items-stretch border-r border-(--line)";
 const pageTabTitleClass =
-  "min-w-0 flex-1 cursor-default overflow-hidden text-ellipsis whitespace-nowrap border-0 bg-transparent px-2 pr-7 text-left text-[11px] text-inherit";
+  "min-w-0 flex-1 cursor-default overflow-hidden text-ellipsis whitespace-nowrap border-0 bg-transparent px-2 pr-7 text-left text-[12px] text-inherit";
 const pageTabCloseClass = "page-tab-close";
 
 export function PageTabs<TPage extends PageTabItem>({
@@ -63,7 +64,7 @@ export function PageTabs<TPage extends PageTabItem>({
             onClick={(event) => onClosePage(page.id, event)}
             title={t("common.close")}
           >
-            ×
+            <Icon name="x" size={12} />
           </button>
         </div>
       ))}

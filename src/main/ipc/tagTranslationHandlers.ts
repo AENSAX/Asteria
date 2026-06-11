@@ -1,6 +1,7 @@
 import type { IpcMain, WebContents } from "electron";
 import type {
   FilesChangedPayload,
+  SettingsChangedPayload,
   TagTranslationSettings,
   TagTranslationSummary,
 } from "../../shared/ipc.js";
@@ -23,6 +24,7 @@ export interface TagTranslationHandlersContext {
   updateTagTranslationWorkStatus: (completed: number, total: number) => void;
   finishTagTranslationWorkStatus: () => void;
   broadcastFilesChanged: (payload?: Partial<FilesChangedPayload>) => void;
+  broadcastSettingsChanged: (kind: SettingsChangedPayload["kind"]) => void;
   normalizeIpcFileIds: NormalizeIpcFileIds;
 }
 
@@ -35,10 +37,13 @@ export function registerTagTranslationHandlers(
   );
   ipcMain.handle(
     IpcChannel.TAG_TRANSLATION_UPDATE_SETTINGS,
-    (_event, settings: unknown) =>
-      context.setTagTranslationSettings(
+    (_event, settings: unknown) => {
+      const nextSettings = context.setTagTranslationSettings(
         normalizeTagTranslationSettings(settings),
-      ),
+      );
+      context.broadcastSettingsChanged("tagTranslation");
+      return nextSettings;
+    },
   );
   ipcMain.handle(IpcChannel.TAG_TRANSLATION_SELECT_CSV, (event) =>
     context.chooseTagTranslationCsv(event.sender),

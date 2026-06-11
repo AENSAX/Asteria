@@ -17,7 +17,9 @@ const BASE_FILE_SELECT_COLUMNS = `id,
         size_bytes AS sizeBytes,
         original_path AS originalPath,
         imported_at AS importedAt,
-        updated_at AS updatedAt`;
+        updated_at AS updatedAt,
+        width,
+        height`;
 
 export const DATABASE_FILE_SELECT_COLUMNS = `${BASE_FILE_SELECT_COLUMNS},
         domain,

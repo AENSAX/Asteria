@@ -1,3 +1,4 @@
+import { Icon } from "./Icon";
 import { useLanguage } from "../utils/language";
 
 interface FavoriteButtonProps {
@@ -14,7 +15,7 @@ export function FavoriteButton({
     <button
       aria-label={active ? t("common.unfavorite") : t("common.favorite")}
       className={[
-        "absolute right-1 top-1 z-[2] grid h-5 w-5 place-items-center border border-(--line-strong) bg-(--surface-inset-bg) text-[12px] leading-none text-(--favorite)",
+        "absolute right-1 top-1 z-[2] grid h-5 w-5 place-items-center border border-(--line-strong) bg-(--surface-inset-bg) text-(--favorite)",
         active ? "border-(--favorite) text-(--favorite)" : "",
       ]
         .filter(Boolean)
@@ -31,7 +32,7 @@ export function FavoriteButton({
         event.stopPropagation();
       }}
     >
-      {active ? "♥" : "♡"}
+      <Icon name={active ? "heart-filled" : "heart"} size={12} />
     </button>
   );
 }

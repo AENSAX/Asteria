@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import type { DatabaseFilePage, DatabaseFileRecord } from "../../../shared/ipc";
+import type { DatabaseFilePage } from "../../../shared/ipc";
+import { Icon } from "../components/Icon";
 import { useBoxSelection } from "../hooks/useBoxSelection";
+import { useMultiSelection } from "../hooks/useMultiSelection";
 import { useShortcut } from "../hooks/useShortcut";
 import { useLanguage } from "../utils/language";
-import { formatBytes } from "../utils/format";
-import { mergeIds } from "../utils/ids";
+import { formatBytes, formatDate } from "../utils/format";
 
 export function RecycleBinWindow(): JSX.Element {
   const { t } = useLanguage();
@@ -27,6 +28,14 @@ export function RecycleBinWindow(): JSX.Element {
     onSelect: setPendingFileIds,
     onLastSelectedId: setLastPendingFileId,
   });
+  const rowSelection = useMultiSelection({
+    items: page?.files ?? [],
+    getId: (file) => file.id,
+    selectedIds: pendingFileIds,
+    lastSelectedId: lastPendingFileId,
+    onSelect: setPendingFileIds,
+    onLastSelectedId: setLastPendingFileId,
+  });
 
   useEffect(() => {
     void loadPage(pageNumber);
@@ -37,6 +46,11 @@ export function RecycleBinWindow(): JSX.Element {
     setPendingFileIds(fileIds);
     setLastPendingFileId(fileIds[fileIds.length - 1] ?? null);
   });
+  useShortcut(
+    "remove-selected",
+    () => void deletePendingFiles(),
+    { enabled: pendingFileIds.length > 0 },
+  );
 
   async function loadPage(nextPageNumber: number): Promise<void> {
     if (!window.asteria) {
@@ -52,61 +66,21 @@ export function RecycleBinWindow(): JSX.Element {
     setMessage(t("window.browser.fileCount", { count: nextPage.total }));
   }
 
-  function handleRowMouseDown(
-    event: React.MouseEvent<HTMLTableRowElement>,
-    file: DatabaseFileRecord,
-    index: number,
-  ): void {
-    event.preventDefault();
-
-    if (!page) {
-      return;
-    }
-
-    const isPending = pendingFileIds.includes(file.id);
-
-    if (event.shiftKey && lastPendingFileId !== null) {
-      const anchorIndex = page.files.findIndex(
-        (item) => item.id === lastPendingFileId,
-      );
-
-      if (anchorIndex >= 0) {
-        const start = Math.min(anchorIndex, index);
-        const end = Math.max(anchorIndex, index);
-        const rangeIds = page.files
-          .slice(start, end + 1)
-          .map((item) => item.id);
-
-        setPendingFileIds((currentIds) =>
-          event.ctrlKey ? mergeIds(currentIds, rangeIds) : rangeIds,
-        );
-        return;
-      }
-    }
-
-    if (event.ctrlKey) {
-      setPendingFileIds((currentIds) =>
-        isPending
-          ? currentIds.filter((id) => id !== file.id)
-          : [...currentIds, file.id],
-      );
-      setLastPendingFileId(file.id);
-      return;
-    }
-
-    setPendingFileIds([file.id]);
-    setLastPendingFileId(file.id);
-  }
-
   async function restorePendingFiles(): Promise<void> {
     if (!window.asteria || pendingFileIds.length === 0) {
       return;
     }
 
-    await window.asteria.restoreFiles(pendingFileIds);
-    setPendingFileIds([]);
-    setLastPendingFileId(null);
-    await loadPage(pageNumber);
+    try {
+      await window.asteria.restoreFiles(pendingFileIds);
+      setPendingFileIds([]);
+      setLastPendingFileId(null);
+      await loadPage(pageNumber);
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : t("common.operationFailed"),
+      );
+    }
   }
 
   async function deletePendingFiles(): Promise<void> {
@@ -115,8 +89,8 @@ export function RecycleBinWindow(): JSX.Element {
     }
 
     const confirmed = await window.asteria.confirmDialog({
-      title: t("window.recycle.confirmDeleteTitle"),
-      message: t("window.recycle.confirmDeleteMessage", {
+      title: t("confirm.deleteTitle"),
+      message: t("confirm.deleteFilesPermanently", {
         count: pendingFileIds.length,
       }),
     });
@@ -125,10 +99,16 @@ export function RecycleBinWindow(): JSX.Element {
       return;
     }
 
-    await window.asteria.deleteFilesPermanently(pendingFileIds);
-    setPendingFileIds([]);
-    setLastPendingFileId(null);
-    await loadPage(pageNumber);
+    try {
+      await window.asteria.deleteFilesPermanently(pendingFileIds);
+      setPendingFileIds([]);
+      setLastPendingFileId(null);
+      await loadPage(pageNumber);
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : t("common.operationFailed"),
+      );
+    }
   }
 
   async function collectAllTrashedFileIds(): Promise<number[]> {
@@ -174,6 +154,10 @@ export function RecycleBinWindow(): JSX.Element {
       setLastPendingFileId(null);
       setPageNumber(1);
       await loadPage(1);
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : t("common.operationFailed"),
+      );
     } finally {
       setBulkOperating(false);
     }
@@ -185,8 +169,8 @@ export function RecycleBinWindow(): JSX.Element {
     }
 
     const confirmed = await window.asteria.confirmDialog({
-      title: t("window.recycle.confirmClearTitle"),
-      message: t("window.recycle.confirmClearMessage", { count: page.total }),
+      title: t("confirm.deleteTitle"),
+      message: t("confirm.clearRecycleBin", { count: page.total }),
     });
 
     if (!confirmed) {
@@ -207,6 +191,10 @@ export function RecycleBinWindow(): JSX.Element {
       setLastPendingFileId(null);
       setPageNumber(1);
       await loadPage(1);
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : t("common.operationFailed"),
+      );
     } finally {
       setBulkOperating(false);
     }
@@ -219,7 +207,7 @@ export function RecycleBinWindow(): JSX.Element {
         ref={tableAreaRef}
         onMouseDownCapture={boxSelection.handleMouseDownCapture}
       >
-        <table className="w-full table-fixed border-collapse text-[11px]">
+        <table className="w-full table-fixed border-collapse text-[12px]">
           <thead>
             <tr>
               <th className="h-[26px] border-b border-r border-(--line) bg-(--surface-bg) px-2 text-left font-medium text-(--muted)">
@@ -251,7 +239,7 @@ export function RecycleBinWindow(): JSX.Element {
                   data-box-select-id={file.id}
                   key={file.id}
                   onMouseDown={(event) =>
-                    handleRowMouseDown(event, file, index)
+                    rowSelection.handleItemMouseDown(event, file, index)
                   }
                 >
                   <td className="h-[26px] overflow-hidden border-b border-r border-(--line) px-2">
@@ -263,8 +251,11 @@ export function RecycleBinWindow(): JSX.Element {
                   <td className="h-[26px] overflow-hidden border-b border-r border-(--line) px-2">
                     {formatBytes(file.sizeBytes)}
                   </td>
-                  <td className="h-[26px] overflow-hidden border-b border-r border-(--line) px-2">
-                    {file.importedAt}
+                  <td
+                    className="h-[26px] overflow-hidden border-b border-r border-(--line) px-2"
+                    title={file.importedAt}
+                  >
+                    {formatDate(file.importedAt)}
                   </td>
                   <td
                     className="h-[26px] overflow-hidden border-b border-r border-(--line) px-2"
@@ -334,20 +325,24 @@ export function RecycleBinWindow(): JSX.Element {
             {t("window.recycle.deleteAll")}
           </button>
           <button
-            className="ui-button"
+            aria-label={t("window.recycle.previous")}
+            className="ui-button ui-icon-button"
             disabled={!page || page.page <= 1}
+            title={t("window.recycle.previous")}
             type="button"
             onClick={() => setPageNumber((value) => value - 1)}
           >
-            {t("window.recycle.previous")}
+            <Icon name="chevron-left" />
           </button>
           <button
-            className="ui-button"
+            aria-label={t("window.recycle.next")}
+            className="ui-button ui-icon-button"
             disabled={!page || page.page >= totalPages}
+            title={t("window.recycle.next")}
             type="button"
             onClick={() => setPageNumber((value) => value + 1)}
           >
-            {t("window.recycle.next")}
+            <Icon name="chevron-right" />
           </button>
         </div>
       </footer>

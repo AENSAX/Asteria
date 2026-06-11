@@ -104,21 +104,21 @@ function createNetworkSettingsDraft(
   };
 }
 const navItemClass =
-  "block h-7 w-full cursor-default border-0 border-b border-(--line) bg-transparent px-2 text-left text-[11px]";
+  "block h-7 w-full cursor-default border-0 border-b border-(--line) bg-transparent px-2 text-left text-[12px]";
 const activeNavItemClass =
-  "block h-7 w-full cursor-default border-0 border-b border-l-2 border-b-(--line) border-l-(--accent) bg-(--panel-strong) px-[7px] text-left text-[11px] font-semibold text-(--ink)";
+  "block h-7 w-full cursor-default border-0 border-b border-l-2 border-b-(--line) border-l-(--accent) bg-(--panel-strong) px-[7px] text-left text-[12px] font-semibold text-(--ink)";
 const panelClass = "border border-(--line) bg-(--panel)";
 const titleClass =
   "h-7 border-b border-(--line) bg-(--panel-strong) px-2 font-semibold leading-7";
 const pathListClass = "grid gap-2 p-2";
 const pathRowClass =
-  "ui-button-scope grid grid-cols-[104px_minmax(0,1fr)_32px_58px] items-center gap-1.5 [&>span]:text-[11px] [&>span]:text-(--text) [&>input]:h-6 [&>input]:min-w-0 [&>input]:border [&>input]:border-(--line-strong) [&>input]:bg-(--surface-inset-bg) [&>input]:px-1.5 [&>input]:text-(--ink) [&>input::placeholder]:text-(--disabled-ink) [&>button]:min-w-0";
+  "ui-button-scope grid grid-cols-[104px_minmax(0,1fr)_32px_58px] items-center gap-1.5 [&>span]:text-[12px] [&>span]:text-(--text) [&>input]:h-6 [&>input]:min-w-0 [&>input]:border [&>input]:border-(--line-strong) [&>input]:bg-(--surface-inset-bg) [&>input]:px-1.5 [&>input]:text-(--ink) [&>input::placeholder]:text-(--disabled-ink) [&>button]:min-w-0";
 const checkRowClass =
-  "ui-button-scope grid min-h-6 grid-cols-[16px_minmax(0,1fr)_70px] items-center gap-1.5 text-[11px] [&>input]:m-0 [&>input]:h-3.5 [&>input]:w-3.5 [&>span]:text-(--text)";
+  "ui-button-scope grid min-h-6 grid-cols-[16px_minmax(0,1fr)_70px] items-center gap-1.5 text-[12px] [&>input]:m-0 [&>input]:h-3.5 [&>input]:w-3.5 [&>span]:text-(--text)";
 const smallInputButtonClass =
   "ui-button-scope [&>input]:h-6 [&>input]:min-w-0 [&>input]:border [&>input]:border-(--line-strong) [&>input]:bg-(--surface-inset-bg) [&>input]:px-1.5 [&>input]:text-(--ink) [&>input::placeholder]:text-(--disabled-ink) [&>button]:min-w-0 [&>button]:px-1.5";
 const compactSelectRowClass =
-  "ui-button-scope grid grid-cols-[104px_160px_58px_minmax(0,1fr)] items-center gap-1.5 [&>span]:text-[11px] [&>span]:text-(--text) [&>select]:h-6 [&>select]:min-w-0 [&>select]:border [&>select]:border-(--line-strong) [&>select]:bg-(--surface-inset-bg) [&>select]:px-1.5 [&>select]:text-(--ink) [&>button]:min-w-0";
+  "ui-button-scope grid grid-cols-[104px_160px_58px_minmax(0,1fr)] items-center gap-1.5 [&>span]:text-[12px] [&>span]:text-(--text) [&>select]:h-6 [&>select]:min-w-0 [&>select]:border [&>select]:border-(--line-strong) [&>select]:bg-(--surface-inset-bg) [&>select]:px-1.5 [&>select]:text-(--ink) [&>button]:min-w-0";
 const shortcutRowClass =
   "grid min-h-7 grid-cols-[130px_150px_minmax(0,1fr)] items-center gap-1.5 border-b border-(--line) px-2 py-[3px] text-(--ink)";
 const shortcutControlsClass =
@@ -481,6 +481,18 @@ export function SettingsWindow(): JSX.Element {
       return;
     }
 
+    const configName =
+      layout.configs.find((config) => config.id === layout.selectedConfigId)
+        ?.name ?? "";
+    const confirmed = await window.asteria.confirmDialog({
+      title: t("confirm.deleteTitle"),
+      message: t("confirm.deleteLayoutConfig", { name: configName }),
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
     const configs = await window.asteria.deletePageLayoutConfig(
       layout.selectedConfigId,
     );
@@ -541,13 +553,11 @@ export function SettingsWindow(): JSX.Element {
     updateInterfaceState({ browserPageSize: String(settings.browserPageSize) });
   }
 
-  async function saveBrowserPreviewSize(): Promise<void> {
+  function saveBrowserPreviewSize(): void {
     const currentSettings = loadInterfaceSettings();
     const browserPreviewSize = normalizeBrowserPreviewSize(
       interfaceSettings.browserPreviewSize,
     );
-    const shouldPromptRestart =
-      browserPreviewSize !== currentSettings.browserPreviewSize;
     const settings = saveInterfaceSettings({
       ...currentSettings,
       browserPreviewSize,
@@ -555,16 +565,6 @@ export function SettingsWindow(): JSX.Element {
 
     updateInterfaceState({
       browserPreviewSize: String(settings.browserPreviewSize),
-    });
-
-    if (!shouldPromptRestart) {
-      return;
-    }
-
-    await window.asteria.alertDialog({
-      title: t("settings.interface.browserPreviewSizeRestartTitle"),
-      message: t("settings.interface.browserPreviewSizeRestartMessage"),
-      confirmText: t("common.close"),
     });
   }
 
@@ -773,7 +773,7 @@ export function SettingsWindow(): JSX.Element {
                 </header>
                 <div className="grid gap-1.5 bg-(--surface-bg) p-2">
                   <label
-                    className={`grid grid-cols-[104px_120px_58px_minmax(0,1fr)] items-center gap-1.5 [&>span]:text-[11px] [&>span]:text-(--text) ${smallInputButtonClass}`}
+                    className={`grid grid-cols-[104px_120px_58px_minmax(0,1fr)] items-center gap-1.5 [&>span]:text-[12px] [&>span]:text-(--text) ${smallInputButtonClass}`}
                   >
                     <span>{t("settings.interface.browserPageSize")}</span>
                     <input
@@ -796,7 +796,7 @@ export function SettingsWindow(): JSX.Element {
                     />
                   </label>
                   <label
-                    className={`grid grid-cols-[104px_120px_58px_minmax(0,1fr)] items-center gap-1.5 [&>span]:text-[11px] [&>span]:text-(--text) ${smallInputButtonClass}`}
+                    className={`grid grid-cols-[104px_120px_58px_minmax(0,1fr)] items-center gap-1.5 [&>span]:text-[12px] [&>span]:text-(--text) ${smallInputButtonClass}`}
                   >
                     <span>{t("settings.interface.browserPreviewSize")}</span>
                     <input
@@ -829,7 +829,7 @@ export function SettingsWindow(): JSX.Element {
                   className={`${titleClass} flex items-center justify-between`}
                 >
                   <span>{t("settings.interface.pageLayout")}</span>
-                  <span className="text-[11px] font-normal text-(--muted)">
+                  <span className="text-[12px] font-normal text-(--muted)">
                     {layoutMessage}
                   </span>
                 </header>
@@ -839,7 +839,7 @@ export function SettingsWindow(): JSX.Element {
                       {layout.configs.length > 0 ? (
                         layout.configs.map((config) => (
                           <div
-                            className={`grid min-h-[26px] w-full grid-cols-[minmax(0,1fr)] border-0 border-b border-l-[3px] border-b-(--line) p-0 text-[11px] text-(--ink) ${config.id === layout.selectedConfigId ? "border-l-(--accent) bg-(--surface-raised-bg)" : "border-l-transparent bg-transparent"}`}
+                            className={`grid min-h-[26px] w-full grid-cols-[minmax(0,1fr)] border-0 border-b border-l-[3px] border-b-(--line) p-0 text-[12px] text-(--ink) ${config.id === layout.selectedConfigId ? "border-l-(--accent) bg-(--surface-raised-bg)" : "border-l-transparent bg-transparent"}`}
                             key={config.id}
                           >
                             <button
@@ -907,7 +907,7 @@ export function SettingsWindow(): JSX.Element {
                     </div>
 
                     <div className="flex items-center gap-3">
-                      <label className="flex min-w-0 cursor-pointer items-center justify-start gap-1 border-0 bg-transparent p-0 text-[11px] text-(--ink)">
+                      <label className="flex min-w-0 cursor-pointer items-center justify-start gap-1 border-0 bg-transparent p-0 text-[12px] text-(--ink)">
                         <input
                           checked={
                             selectedLayoutConfig
@@ -929,7 +929,7 @@ export function SettingsWindow(): JSX.Element {
                         />
                         <span>{t("settings.interface.defaultImportPage")}</span>
                       </label>
-                      <label className="flex min-w-0 cursor-pointer items-center justify-start gap-1 border-0 bg-transparent p-0 text-[11px] text-(--ink)">
+                      <label className="flex min-w-0 cursor-pointer items-center justify-start gap-1 border-0 bg-transparent p-0 text-[12px] text-(--ink)">
                         <input
                           checked={
                             selectedLayoutConfig
@@ -1040,7 +1040,7 @@ export function SettingsWindow(): JSX.Element {
             </section>
           ) : category === "network" ? (
             <section className={panelClass}>
-              <label className="grid min-h-7 grid-cols-[18px_minmax(0,1fr)] items-center gap-1.5 border-b border-(--line) bg-(--surface-bg) px-2 text-[11px]">
+              <label className="grid min-h-7 grid-cols-[18px_minmax(0,1fr)] items-center gap-1.5 border-b border-(--line) bg-(--surface-bg) px-2 text-[12px]">
                 <input
                   checked={network.draft.proxyEnabled}
                   type="checkbox"
@@ -1080,7 +1080,7 @@ export function SettingsWindow(): JSX.Element {
                     }
                   />
                   <ActionFeedbackButton
-                    className="min-w-[70px]"
+                    className="ui-button-md"
                     disabled={!networkChanged}
                     label={t("common.save")}
                     onAction={saveNetworkSettings}

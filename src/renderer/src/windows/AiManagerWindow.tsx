@@ -41,7 +41,7 @@ const aiShellClass =
 const aiNavClass =
   "grid auto-rows-[28px] content-start min-h-0 min-w-0 border-r border-(--line) bg-(--surface-bg)";
 const aiNavButtonClass =
-  "h-7 border-0 border-b border-(--line) bg-transparent px-2 text-left text-[11px] text-(--ink)";
+  "h-7 border-0 border-b border-(--line) bg-transparent px-2 text-left text-[12px] text-(--ink)";
 const aiNavActiveClass = "border-l-2 border-l-(--accent) bg-(--panel-strong)";
 const aiContentClass =
   "grid min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_34px] bg-(--panel)";
@@ -51,7 +51,7 @@ const aiGridClass = "grid auto-rows-[28px] gap-1.5 content-start min-w-0";
 const aiFieldClass =
   "grid grid-cols-[70px_minmax(0,1fr)] items-center min-w-0 gap-1.5 [&>span]:text-(--muted) [&>input]:h-6 [&>input]:min-w-0 [&>input]:border [&>input]:border-(--line-strong) [&>input]:bg-(--surface-inset-bg) [&>input]:px-1.5 [&>input]:text-(--ink) [&>select]:h-6 [&>select]:min-w-0 [&>select]:border [&>select]:border-(--line-strong) [&>select]:bg-(--surface-inset-bg) [&>select]:px-1.5 [&>select]:text-(--ink)";
 const aiInputClass =
-  "h-6 min-w-0 border border-(--line-strong) bg-(--surface-inset-bg) px-1.5 text-(--ink)";
+  "ui-input";
 const aiSelectClass = aiInputClass;
 const aiPathRowClass =
   "grid grid-cols-[70px_minmax(0,1fr)_34px] items-center gap-0";
@@ -64,11 +64,11 @@ const aiModelHeaderClass =
   "h-[26px] border-b border-(--line) bg-(--surface-raised-bg) px-2 font-semibold leading-[25px]";
 const aiModelListClass = "grid auto-rows-min content-start min-h-0 min-w-0 p-2";
 const aiModelRowClass =
-  "grid min-h-6 grid-cols-[72px_minmax(0,1fr)] border-b border-(--line) text-[11px]";
+  "grid min-h-6 grid-cols-[72px_minmax(0,1fr)] border-b border-(--line) text-[12px]";
 const aiFeaturePanelClass =
   "grid min-h-0 min-w-0 grid-rows-[min-content_min-content_minmax(0,1fr)] gap-2 p-2";
 const aiCheckRowClass =
-  "grid h-7 grid-cols-[20px_minmax(0,1fr)] items-center border border-(--line-strong) bg-(--panel-strong) px-2 text-[11px]";
+  "grid h-7 grid-cols-[20px_minmax(0,1fr)] items-center border border-(--line-strong) bg-(--panel-strong) px-2 text-[12px]";
 const aiFooterClass =
   "grid grid-cols-[minmax(0,1fr)_58px_58px] border-t border-(--line) bg-(--surface-bg)";
 const aiFooterSpanClass =

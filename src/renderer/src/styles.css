@@ -11,13 +11,13 @@
   --muted: #9aa3aa;
   --line: #373d43;
   --line-strong: #4a535b;
-  --accent: #2d7dd2;
-  --pending-border: #8fc8ff;
-  --accent-weak: #183a5a;
-  --accent-overlay: rgb(45 125 210 / 18%);
+  --accent: #3b82f6;
+  --pending-border: #7fb5f5;
+  --accent-weak: #16314f;
+  --accent-overlay: rgb(59 130 246 / 22%);
   --danger: #d06b58;
   --button-hover: #323941;
-  --button-active: #263849;
+  --button-active: #1f3a5c;
   --success: #5fa36f;
   --success-weak: #243f2d;
   --app-bar-bg: #202326;
@@ -25,7 +25,7 @@
   --statusbar-bg: #181b1f;
   --surface-bg: #202428;
   --surface-raised-bg: #242a2f;
-  --surface-inset-bg: #000;
+  --surface-inset-bg: #181a1d;
   --surface-input-panel-bg: #1d2125;
   --surface-media-bg: #171a1d;
   --surface-deep-bg: #15181b;
@@ -33,7 +33,7 @@
   --tag-bg: #26323a;
   --tag-hover-bg: #2b3942;
   --group-header-bg: #30363b;
-  --selection-bg: #202b34;
+  --selection-bg: #1b3050;
   --danger-bg: #3a2525;
   --border-dark: #111417;
   --border-hover: #5d6872;
@@ -51,8 +51,10 @@
   --accent-ink: #cfe5ff;
   --media-ink: #cfe2f2;
   --favorite: #ff6fae;
+  --radius: 3px;
+  --shadow-overlay: 0 6px 20px rgb(0 0 0 / 45%);
   font-family:
-    "Microsoft YaHei UI", "Segoe UI", Inter, ui-sans-serif, system-ui,
+    "Segoe UI", "Microsoft YaHei UI", Inter, ui-sans-serif, system-ui,
     sans-serif;
 }
 
@@ -72,8 +74,68 @@ body {
   margin: 0;
   color: var(--ink);
   background: var(--bg);
-  font-size: 11px;
+  font-size: 12px;
   overflow: hidden;
+}
+
+button,
+input,
+select,
+textarea,
+progress {
+  border-radius: var(--radius);
+}
+
+button,
+.file-tag-item,
+.search-filter-item,
+.flexlayout__tab_button {
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--accent-overlay);
+  outline-offset: 0;
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent-overlay);
+  outline-offset: 0;
+}
+
+.tag-token-input:focus-within {
+  border-color: var(--accent);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: var(--line-strong);
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-hover);
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 button {
@@ -108,7 +170,7 @@ button:not(:disabled):active {
 .ui-button,
 .ui-button-scope button {
   display: inline-grid;
-  height: 24px;
+  height: 26px;
   align-items: center;
   justify-content: center;
   padding: 0 8px;
@@ -116,7 +178,7 @@ button:not(:disabled):active {
   background: var(--panel-strong);
   color: var(--ink);
   cursor: default;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1;
   white-space: nowrap;
 }
@@ -147,16 +209,21 @@ button:not(:disabled):active {
   color: var(--active-ink);
 }
 
-.ui-button-primary:not(:disabled):hover,
+.ui-button-primary:not(:disabled):hover {
+  border-color: color-mix(in srgb, var(--accent) 86%, #fff);
+  background: color-mix(in srgb, var(--accent) 86%, #fff);
+  color: var(--active-ink);
+}
+
 .ui-button-primary:not(:disabled):active {
-  border-color: var(--accent);
-  background: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 84%, #000);
+  background: color-mix(in srgb, var(--accent) 84%, #000);
   color: var(--active-ink);
 }
 
 .ui-button-compact {
   min-width: 38px;
-  height: 22px;
+  height: 24px;
   padding: 0 6px;
 }
 
@@ -166,8 +233,45 @@ button:not(:disabled):active {
 
 .ui-button-compact-scope button {
   min-width: 38px;
-  height: 22px;
+  height: 24px;
   padding: 0 6px;
+}
+
+.ui-icon-button {
+  width: 26px;
+  min-width: 26px;
+  height: 26px;
+  padding: 0;
+  place-items: center;
+}
+
+.ui-button-compact.ui-icon-button {
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+}
+
+.ui-button-md {
+  min-width: 58px;
+}
+
+.ui-button-lg {
+  min-width: 92px;
+}
+
+.ui-input {
+  height: 24px;
+  min-width: 0;
+  padding: 0 6px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface-inset-bg);
+  color: var(--ink);
+  font: inherit;
+}
+
+.ui-empty {
+  padding: 8px;
+  color: var(--muted);
 }
 
 input,
@@ -214,8 +318,9 @@ canvas {
   height: 26px;
   padding: 0 10px;
   border-right: 1px solid var(--line);
+  border-radius: var(--radius) var(--radius) 0 0;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .flexlayout__tab_button--selected {
@@ -249,15 +354,52 @@ canvas {
 }
 
 .flexlayout__splitter {
+  background: var(--line) !important;
+}
+
+.flexlayout__splitter:hover,
+.flexlayout__splitter_drag {
+  background: var(--accent-overlay) !important;
+}
+
+.resizable-row-splitter,
+.resizable-column-splitter {
+  position: relative;
+  background: transparent;
+}
+
+.resizable-row-splitter::before,
+.resizable-column-splitter::before {
+  position: absolute;
+  content: "";
   background: var(--line);
+}
+
+.resizable-row-splitter::before {
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  transform: translateY(-50%);
+}
+
+.resizable-column-splitter::before {
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  transform: translateX(-50%);
+}
+
+.resizable-row-splitter:hover::before,
+.resizable-column-splitter:hover::before {
+  background: var(--accent);
 }
 
 .flexlayout__layout,
 .flexlayout__layout *,
 .flexlayout__drag_rect,
 .flexlayout__outline_rect {
-  border-radius: 0 !important;
-  box-shadow: none !important;
   background-image: none !important;
   transition: none !important;
   animation: none !important;
@@ -295,7 +437,7 @@ canvas {
   color: var(--ink);
   overflow: hidden;
   cursor: default;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .search-filter-item:hover {
@@ -314,16 +456,19 @@ canvas {
 
 progress {
   width: 100%;
-  height: 12px;
-  border: 1px solid var(--line-strong);
-  background: var(--surface-inset-bg);
+  height: 10px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--surface-raised-bg);
+  overflow: hidden;
 }
 
 progress::-webkit-progress-bar {
-  background: var(--surface-inset-bg);
+  background: var(--surface-raised-bg);
 }
 
 progress::-webkit-progress-value {
+  border-radius: 999px;
   background: var(--accent);
 }
 
@@ -333,7 +478,9 @@ progress::-webkit-progress-value {
   width: 142px;
   padding: 4px;
   border: 1px solid var(--line-strong);
+  border-radius: calc(var(--radius) + 2px);
   background: var(--panel);
+  box-shadow: var(--shadow-overlay);
 }
 
 .context-menu button {
@@ -342,15 +489,24 @@ progress::-webkit-progress-value {
   height: 24px;
   padding: 0 8px;
   border: 0;
+  border-radius: var(--radius);
   background: transparent;
   color: var(--ink);
   text-align: left;
   cursor: default;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .context-menu button:hover {
   background: var(--accent-weak);
+}
+
+.ui-popover {
+  border: 1px solid var(--line-strong);
+  border-radius: calc(var(--radius) + 2px);
+  background: var(--panel);
+  box-shadow: var(--shadow-overlay);
+  overflow: hidden;
 }
 
 .page-tab-context-menu {
@@ -365,6 +521,7 @@ progress::-webkit-progress-value {
   grid-template-columns: minmax(0, 1fr) 74px;
   height: 26px;
   border: 1px solid var(--line);
+  border-radius: var(--radius);
   background: var(--panel);
 }
 
@@ -394,6 +551,7 @@ progress::-webkit-progress-value {
   min-height: 18px;
   padding: 0 5px;
   border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
   background: var(--tag-bg);
   color: var(--ink);
   overflow: hidden;
@@ -408,6 +566,7 @@ progress::-webkit-progress-value {
 
 .search-token-item {
   cursor: default;
+  border-radius: var(--radius);
 }
 
 .file-tag-item:hover {
@@ -429,10 +588,39 @@ progress::-webkit-progress-value {
   box-shadow: inset 0 0 0 1px var(--pending-border) !important;
 }
 
+.browser-file-cell {
+  line-height: 0;
+}
+
+.browser-gallery-row + .browser-gallery-row {
+  margin-top: 12px;
+}
+
+.browser-file-media {
+  width: 100%;
+  height: 100%;
+}
+
+.browser-file-media > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.browser-file-media > span {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  border: 1px solid var(--line);
+  background: var(--surface-bg);
+  line-height: 1;
+}
+
 .browser-file-cell.pending {
-  border-color: var(--pending-border) !important;
-  background: var(--selection-bg);
-  box-shadow: inset 0 0 0 1px var(--pending-border) !important;
+  outline: 2px solid var(--pending-border);
+  outline-offset: 1px;
 }
 
 .tag-token-input {

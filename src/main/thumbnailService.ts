@@ -6,6 +6,7 @@ import {
   getFileThumbnailSource,
   getThumbnailStoragePath,
   listBrowserFiles,
+  updateFileDimensions,
 } from "./database.js";
 import { IMAGE_EXTENSIONS, VIDEO_EXTENSIONS } from "../shared/media.js";
 import type { WorkStatus } from "../shared/ipc.js";
@@ -248,6 +249,10 @@ async function createThumbnailForFile(
     return null;
   }
 
+  if (!source.width || !source.height || source.width <= 0 || source.height <= 0) {
+    updateFileDimensions(fileId, size.width, size.height);
+  }
+
   const scale = Math.min(
     1,
     THUMBNAIL_MAX_SIZE / size.width,
@@ -346,7 +351,7 @@ function buildThumbnailStatus(): WorkStatus {
   };
 }
 
-function getThumbnailPath(sha256: string): string {
+export function getThumbnailPath(sha256: string): string {
   return join(getThumbnailStoragePath(), sha256.slice(0, 2), `${sha256}.png`);
 }
 

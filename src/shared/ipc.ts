@@ -19,6 +19,8 @@ export interface DatabaseFileRecord {
   domain: FileDomain;
   domainName: string;
   isFavorite: boolean;
+  width: number | null;
+  height: number | null;
 }
 
 export interface DatabaseFilePage {
@@ -70,6 +72,12 @@ export interface FilesChangedPayload {
   kind: FilesChangedKind;
   fileIds?: number[];
   fullRefresh?: boolean;
+}
+
+export type SettingsChangedKind = "ai" | "tagTranslation";
+
+export interface SettingsChangedPayload {
+  kind: SettingsChangedKind;
 }
 
 export interface FileDetailRecord extends BrowserFileRecord {}
@@ -345,6 +353,8 @@ export interface ImportQueueFileRecord {
   fileName: string;
   extension: string | null;
   sizeBytes: number;
+  width: number | null;
+  height: number | null;
   originalPath: string;
   sourceUrl: string | null;
   sha256: string;
@@ -591,6 +601,7 @@ export interface AsteriaApi {
   ) => Promise<void>;
   openFavoritesWindow: () => Promise<void>;
   openFileExternally: (fileId: number) => Promise<void>;
+  startFileDrag: (fileIds: number[]) => void;
   setWindowTitle: (title: string) => Promise<void>;
   getFileDetail: (id: number) => Promise<FileDetailRecord | null>;
   getFileDetailSequence: () => Promise<number[]>;
@@ -821,5 +832,8 @@ export interface AsteriaApi {
     listener: (fileId: number, favorite: boolean) => void,
   ) => () => void;
   onPageLayoutChanged: (listener: () => void) => () => void;
+  onSettingsChanged: (
+    listener: (payload: SettingsChangedPayload) => void,
+  ) => () => void;
   onWorkStatusChanged: (listener: (status: WorkStatus) => void) => () => void;
 }

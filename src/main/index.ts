@@ -4,10 +4,14 @@ import {
   dialog,
   ipcMain,
   Menu,
+  nativeImage,
   net,
   protocol,
   shell,
+  type NativeImage,
+  type WebContents,
 } from "electron";
+import { existsSync } from "node:fs";
 import { copyFile, cp, mkdir, rm, stat, unlink } from "node:fs/promises";
 import { readFile, readdir, rename, writeFile } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
@@ -29,6 +33,7 @@ import {
   getHydrusImportSettings,
   getFileDetail,
   getFileOriginalPath,
+  getFileThumbnailSource,
   getNetworkSettings,
   getTagTranslationSettings,
   getTagRelationTree,
@@ -134,6 +139,7 @@ import {
   ensureThumbnailForFile,
   deleteThumbnailForSha,
   getThumbnailFallbackPath,
+  getThumbnailPath,
   getThumbnailWorkStatus,
   queueAllMissingThumbnails,
   queueThumbnailPreload,
@@ -190,6 +196,7 @@ import {
   broadcastFilesChanged,
   broadcastImportQueueChanged,
   broadcastPageLayoutChanged,
+  broadcastSettingsChanged,
 } from "./app/broadcasts.js";
 import {
   mainT,
@@ -960,7 +967,7 @@ async function readBundledPageLayoutTemplate(): Promise<string> {
         tabEnableClose: true,
         tabEnableRename: false,
         tabSetEnableMaximize: false,
-        splitterSize: 4,
+        splitterSize: 1,
         tabSetTabStripHeight: 26,
         tabSetHeaderHeight: 0,
       },
@@ -1159,6 +1166,48 @@ async function openStoredFileExternally(fileId: number): Promise<void> {
   }
 }
 
+// 透明 1x1 兜底图标：startDrag 的 icon 是必填项，缺省时拖拽无法发起
+const TRANSPARENT_DRAG_ICON_URL =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
+
+function startFileDrag(sender: WebContents, fileIds: number[]): void {
+  const files = fileIds
+    .map((fileId) => getFileOriginalPath(fileId))
+    .filter(
+      (filePath): filePath is string =>
+        Boolean(filePath) && existsSync(filePath as string),
+    );
+  const [firstFile] = files;
+
+  if (!firstFile) {
+    return;
+  }
+
+  sender.startDrag({
+    file: firstFile,
+    files,
+    icon: resolveFileDragIcon(fileIds),
+  });
+}
+
+function resolveFileDragIcon(fileIds: number[]): NativeImage {
+  for (const fileId of fileIds) {
+    const source = getFileThumbnailSource(fileId);
+
+    if (!source) {
+      continue;
+    }
+
+    const icon = nativeImage.createFromPath(getThumbnailPath(source.sha256));
+
+    if (!icon.isEmpty()) {
+      return icon.resize({ height: 64 });
+    }
+  }
+
+  return nativeImage.createFromDataURL(TRANSPARENT_DRAG_ICON_URL);
+}
+
 async function deleteStoredFilesPermanently(fileIds: number[]): Promise<void> {
   const deletedFiles = deleteFilesPermanentlyFromDatabase(fileIds);
   const checkedStoragePaths = new Set<string>();
@@ -1288,6 +1337,7 @@ app.whenReady().then(async () => {
     getFileDetail,
     getFileDetailSequence,
     openStoredFileExternally,
+    startFileDrag,
     listTrashedFiles,
     trashFiles,
     restoreFiles,
@@ -1295,6 +1345,7 @@ app.whenReady().then(async () => {
     setFilesDomain,
     listDomains,
     broadcastFilesChanged,
+    broadcastSettingsChanged,
     normalizeIpcFileIds,
     readWindowLanguageId,
     createAiManagerWindow,

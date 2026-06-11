@@ -19,7 +19,7 @@ interface FormatSegment {
 const defaultFilenameFormat = "{index}-{hash}";
 const defaultTagTextFilenameFormat = "{index}-{hash}";
 const exportRootClass =
-  "grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_32px] bg-(--panel) text-[11px] text-(--ink)";
+  "grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_32px] bg-(--panel) text-[12px] text-(--ink)";
 const exportConfigClass =
   "grid gap-1.5 border-b border-(--line) bg-(--surface-bg) p-2";
 const exportRowClass =
@@ -27,8 +27,8 @@ const exportRowClass =
 const exportCheckRowClass =
   "grid min-h-6 grid-cols-[16px_minmax(0,1fr)] items-center gap-1.5";
 const exportInputClass =
-  "h-6 min-w-0 border border-(--line-strong) bg-(--surface-inset-bg) px-1.5 text-(--ink)";
-const exportButtonClass = "ui-button min-w-[58px]";
+  "ui-input";
+const exportButtonClass = "ui-button ui-button-md";
 const exportPathButtonClass =
   "ui-button h-6 w-8 min-w-0 px-0 text-center text-[13px] leading-none";
 const exportPreviewClass =

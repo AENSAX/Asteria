@@ -138,6 +138,7 @@ export {
   restoreFiles,
   setFileFavorite,
   trashFiles,
+  updateFileDimensions,
   updateFileStorageRecordPath,
 } from "./db/filesRepository.js";
 

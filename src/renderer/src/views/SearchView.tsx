@@ -5,10 +5,11 @@ import {
   formatTagLabel,
   getTagNamespaceClassName,
   getSearchTokenStyle,
-  parseTagText,
   type TagToken,
 } from "../utils/tags";
-import { mergeIds } from "../utils/ids";
+import { useShortcut } from "../hooks/useShortcut";
+import { useMultiSelection } from "../hooks/useMultiSelection";
+import { TagSuggestionList } from "../components/TagSuggestionList";
 import {
   useLanguage,
 } from "../utils/language";
@@ -51,18 +52,14 @@ const searchInputWrapClass = "relative min-w-0";
 const tokenInputClass =
   "flex min-h-[30px] flex-wrap items-center gap-1 p-1 border border-(--line-strong) bg-(--surface-inset-bg) [&>input]:h-5 [&>input]:min-w-[96px] [&>input]:flex-1 [&>input]:border-0 [&>input]:bg-transparent [&>input]:p-0 [&>input]:text-(--ink) [&>input]:outline-0 [&>input::placeholder]:text-(--disabled-ink)";
 const operatorTokenClass =
-  "inline-flex h-[18px] min-w-[18px] items-center justify-center border border-(--line-strong) bg-(--surface-bg) text-(--muted)";
-const suggestionListClass =
-  "absolute left-0 top-full z-[4] border border-(--line-strong) bg-(--panel) [&>button]:grid [&>button]:h-6 [&>button]:w-full [&>button]:grid-cols-[minmax(0,1fr)_44px] [&>button]:items-center [&>button]:gap-2 [&>button]:cursor-default [&>button]:border-0 [&>button]:border-b [&>button]:border-(--line) [&>button]:bg-transparent [&>button]:px-1.5 [&>button]:text-left [&>button]:text-[11px] [&>button:last-child]:border-b-0 [&>button:hover]:bg-(--accent-weak)";
-const selectedSuggestionClass = "bg-(--accent-weak)";
-const suggestionItemClass = "text-(--ink)";
+  "inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-(--radius) border border-(--line-strong) bg-(--surface-bg) text-(--muted)";
 const tagTokenClass =
-  "inline-flex min-h-[18px] max-w-full overflow-hidden border border-(--line-strong) bg-(--tag-bg) px-1.5 text-[11px] text-(--ink)";
+  "inline-flex min-h-[18px] max-w-full overflow-hidden rounded-(--radius) border border-(--line-strong) bg-(--tag-bg) px-1.5 text-[12px] text-(--ink)";
 const pendingTagTokenClass = "pending";
 const filterListClass =
-  "min-h-0 overflow-auto border border-(--line) bg-(--surface-bg) [&>div]:flex [&>div]:min-h-[26px] [&>div]:w-full [&>div]:flex-wrap [&>div]:items-center [&>div]:gap-1 [&>div]:border-0 [&>div]:border-b [&>div]:border-(--line) [&>div]:px-1.5 [&>div]:text-[11px] [&>div]:last:border-b-0 [&>div:hover]:bg-(--button-hover)";
+  "min-h-0 overflow-auto border border-(--line) bg-(--surface-bg) [&>div]:flex [&>div]:min-h-[26px] [&>div]:w-full [&>div]:flex-wrap [&>div]:items-center [&>div]:gap-1 [&>div]:border-0 [&>div]:border-b [&>div]:border-(--line) [&>div]:px-1.5 [&>div]:text-[12px] [&>div]:last:border-b-0 [&>div:hover]:bg-(--button-hover)";
 const pendingFilterClass = "pending";
-const searchFilterEmptyClass = "h-6 px-2 leading-6 text-(--muted)";
+const searchFilterEmptyClass = "ui-empty";
 const searchFilterTokenClass = "max-w-full";
 
 export function SearchView({
@@ -92,19 +89,62 @@ export function SearchView({
     number | null
   >(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const suggestionRequestIdRef = useRef(0);
   const selectableTokenIndexes = tokens
     .map((token, index) => (token.kind === "tag" ? index : null))
     .filter((index): index is number => index !== null);
   const selectableFilterIndexes = filters.map((_filter, index) => index);
+  const filterSelection = useMultiSelection({
+    items: filters,
+    getId: (_filter, index) => index,
+    selectedIds: pendingFilterIndexes,
+    lastSelectedId: lastPendingFilterIndex,
+    onSelect: setPendingFilterIndexes,
+    onLastSelectedId: setLastPendingFilterIndex,
+    onPlainClickSelected: (_filter, index) => {
+      const removingIndexes =
+        pendingFilterIndexes.length > 1 ? pendingFilterIndexes : [index];
+      onRemoveFilters(removingIndexes);
+      setPendingFilterIndexes([]);
+      setLastPendingFilterIndex(null);
+      return true;
+    },
+  });
+  const tokenSelection = useMultiSelection({
+    items: tokens,
+    getId: (_token, index) => index,
+    isSelectable: (token) => token.kind === "tag",
+    selectedIds: pendingTokenIndexes,
+    lastSelectedId: lastPendingTokenIndex,
+    onSelect: setPendingTokenIndexes,
+    onLastSelectedId: setLastPendingTokenIndex,
+    onPlainClickSelected: (_token, index) => {
+      if (pendingTokenIndexes.length === 1) {
+        removePendingTokens([index]);
+        return true;
+      }
+
+      return false;
+    },
+  });
 
   useEffect(() => {
-    if (locked) {
+    if (locked || text.trim().length === 0) {
+      suggestionRequestIdRef.current += 1;
       setSuggestions([]);
       setSelectedSuggestionIndex(0);
-      return;
+      return undefined;
     }
 
-    void searchTagSuggestions(text);
+    const requestId = suggestionRequestIdRef.current + 1;
+    suggestionRequestIdRef.current = requestId;
+    const timer = window.setTimeout(() => {
+      void loadTagSuggestions(text, requestId);
+    }, 150);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
   }, [locked, text, refreshSequence]);
 
   useEffect(() => {
@@ -144,14 +184,39 @@ export function SearchView({
     );
   }, [filters]);
 
-  async function searchTagSuggestions(value: string): Promise<void> {
-    if (!window.asteria || value.trim().length === 0) {
-      setSuggestions([]);
-      setSelectedSuggestionIndex(0);
+  useShortcut(
+    "remove-selected",
+    () => {
+      if (pendingTokenIndexes.length > 0) {
+        removePendingTokens(pendingTokenIndexes);
+        return;
+      }
+
+      onRemoveFilters(pendingFilterIndexes);
+      setPendingFilterIndexes([]);
+      setLastPendingFilterIndex(null);
+    },
+    {
+      enabled:
+        !locked &&
+        (pendingTokenIndexes.length > 0 || pendingFilterIndexes.length > 0),
+    },
+  );
+
+  async function loadTagSuggestions(
+    value: string,
+    requestId: number,
+  ): Promise<void> {
+    if (!window.asteria) {
       return;
     }
 
     const nextSuggestions = await window.asteria.searchHints(value);
+
+    if (suggestionRequestIdRef.current !== requestId) {
+      return;
+    }
+
     setSuggestions(nextSuggestions);
     setSelectedSuggestionIndex(0);
   }
@@ -248,14 +313,6 @@ export function SearchView({
     );
   }
 
-  function appendTextAsTag(): void {
-    const draft = parseTagText(text);
-
-    if (draft) {
-      appendTagToken(createTagToken(draft));
-    }
-  }
-
   function appendTagToken(token: TagToken): void {
     setTokens((currentTokens) => [...currentTokens, { kind: "tag", token }]);
     setText("");
@@ -311,100 +368,28 @@ export function SearchView({
 
   function handleFilterMouseDown(
     event: React.MouseEvent<HTMLElement>,
+    filter: SearchFilter,
     index: number,
   ): void {
     event.preventDefault();
     event.stopPropagation();
 
-    if (locked) {
-      return;
+    if (!locked) {
+      filterSelection.handleItemMouseDown(event, filter, index);
     }
-
-    const isPending = pendingFilterIndexes.includes(index);
-
-    if (event.shiftKey && lastPendingFilterIndex !== null) {
-      const start = Math.min(lastPendingFilterIndex, index);
-      const end = Math.max(lastPendingFilterIndex, index);
-      const rangeIndexes = selectableFilterIndexes.filter(
-        (filterIndex) => filterIndex >= start && filterIndex <= end,
-      );
-
-      setPendingFilterIndexes((currentIndexes) =>
-        event.ctrlKey ? mergeIds(currentIndexes, rangeIndexes) : rangeIndexes,
-      );
-      return;
-    }
-
-    if (event.ctrlKey) {
-      if (isPending) {
-        onRemoveFilters(pendingFilterIndexes);
-        setPendingFilterIndexes([]);
-        setLastPendingFilterIndex(null);
-        return;
-      }
-
-      setPendingFilterIndexes((currentIndexes) => [...currentIndexes, index]);
-      setLastPendingFilterIndex(index);
-      return;
-    }
-
-    if (isPending) {
-      const removingIndexes =
-        pendingFilterIndexes.length > 1 ? pendingFilterIndexes : [index];
-      onRemoveFilters(removingIndexes);
-      setPendingFilterIndexes([]);
-      setLastPendingFilterIndex(null);
-      return;
-    }
-
-    setPendingFilterIndexes([index]);
-    setLastPendingFilterIndex(index);
   }
 
   function handleTokenMouseDown(
     event: React.MouseEvent<HTMLElement>,
+    token: SearchInputToken,
     index: number,
   ): void {
     event.preventDefault();
     event.stopPropagation();
 
-    if (locked || tokens[index]?.kind !== "tag") {
-      return;
+    if (!locked && token.kind === "tag") {
+      tokenSelection.handleItemMouseDown(event, token, index);
     }
-
-    const isPending = pendingTokenIndexes.includes(index);
-
-    if (event.shiftKey && lastPendingTokenIndex !== null) {
-      const start = Math.min(lastPendingTokenIndex, index);
-      const end = Math.max(lastPendingTokenIndex, index);
-      const rangeIndexes = selectableTokenIndexes.filter(
-        (tokenIndex) => tokenIndex >= start && tokenIndex <= end,
-      );
-
-      setPendingTokenIndexes((currentIndexes) =>
-        event.ctrlKey ? mergeIds(currentIndexes, rangeIndexes) : rangeIndexes,
-      );
-      return;
-    }
-
-    if (event.ctrlKey) {
-      if (isPending) {
-        removePendingTokens(pendingTokenIndexes);
-        return;
-      }
-
-      setPendingTokenIndexes((currentIndexes) => [...currentIndexes, index]);
-      setLastPendingTokenIndex(index);
-      return;
-    }
-
-    if (isPending && pendingTokenIndexes.length === 1) {
-      removePendingTokens([index]);
-      return;
-    }
-
-    setPendingTokenIndexes([index]);
-    setLastPendingTokenIndex(index);
   }
 
   function removePendingTokens(indexes: number[]): void {
@@ -436,34 +421,12 @@ export function SearchView({
         <div className={lockMessageClass}>{t("window.search.locked")}</div>
       ) : null}
       <div className={searchInputWrapClass}>
-        {suggestions.length > 0 ? (
-          <div className={suggestionListClass}>
-            {suggestions.map((tag, index) => (
-              <button
-                className={getTagNamespaceClassName(
-                  tag,
-                  index === selectedSuggestionIndex
-                    ? `${suggestionItemClass} ${selectedSuggestionClass}`
-                    : suggestionItemClass,
-                )}
-                key={`${tag.kind}-${tag.id}`}
-                style={getSearchTokenStyle(tag)}
-                type="button"
-                onMouseDown={(event) => {
-                  event.preventDefault();
-                  appendSuggestion(tag);
-                }}
-              >
-                <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
-                  {formatTagLabel(tag)}
-                </span>
-                <span className="min-w-0 overflow-hidden text-right text-ellipsis whitespace-nowrap text-(--muted)">
-                  {tag.fileCount}
-                </span>
-              </button>
-            ))}
-          </div>
-        ) : null}
+        <TagSuggestionList
+          className="absolute left-0 top-full z-[4]"
+          selectedIndex={selectedSuggestionIndex}
+          suggestions={suggestions}
+          onPick={appendSuggestion}
+        />
 
         <div className={tokenInputClass} onMouseDown={clearPendingTokens}>
           {tokens.map((token, index) =>
@@ -477,7 +440,9 @@ export function SearchView({
                 )}
                 key={`${token.token.key}-${index}`}
                 style={getSearchTokenStyle(token.token)}
-                onMouseDown={(event) => handleTokenMouseDown(event, index)}
+                onMouseDown={(event) =>
+                  handleTokenMouseDown(event, token, index)
+                }
               >
                 {formatTagLabel(token.token)}
               </span>
@@ -509,7 +474,9 @@ export function SearchView({
               className={`search-filter-item ${pendingFilterIndexes.includes(index) ? pendingFilterClass : ""}`}
               key={`${buildSearchExpression(filter.tokens, "")}-${index}`}
               title={buildSearchExpression(filter.tokens, "")}
-              onMouseDown={(event) => handleFilterMouseDown(event, index)}
+              onMouseDown={(event) =>
+                handleFilterMouseDown(event, filter, index)
+              }
             >
               {filter.tokens.map((token, tokenIndex) =>
                 token.kind === "tag" ? (

@@ -1,4 +1,5 @@
 import type { TagRecord } from "../../../shared/ipc";
+import { TagSuggestionList } from "./TagSuggestionList";
 import {
   formatTagLabel,
   getTagNamespaceClassName,
@@ -31,41 +32,19 @@ export function TagTokenInput({
 }: TagTokenInputProps): JSX.Element {
   return (
     <div className="relative min-w-0 border-t border-(--line) bg-(--surface-input-panel-bg)">
-      {suggestions.length > 0 ? (
-        <div className="absolute bottom-full left-[-1px] right-[-1px] z-[4] border border-(--line-strong) bg-(--panel)">
-          {suggestions.map((tag, index) => (
-            <button
-              className={getTagNamespaceClassName(
-                tag,
-                index === selectedSuggestionIndex
-                  ? "grid h-6 w-full grid-cols-[minmax(0,1fr)_44px] items-center gap-2 border-0 border-b border-(--line) bg-(--accent-weak) px-1.5 text-left text-[11px] text-(--ink)"
-                  : "grid h-6 w-full grid-cols-[minmax(0,1fr)_44px] items-center gap-2 border-0 border-b border-(--line) bg-transparent px-1.5 text-left text-[11px] text-(--ink)",
-              )}
-              key={tag.id}
-              style={getTagNamespaceStyle(tag)}
-              type="button"
-              onMouseDown={(event) => {
-                event.preventDefault();
-                onPickSuggestion(tag);
-              }}
-            >
-              <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
-                {formatTagLabel(tag)}
-              </span>
-              <span className="min-w-0 overflow-hidden text-right text-ellipsis whitespace-nowrap text-(--muted)">
-                {tag.fileCount ?? 0}
-              </span>
-            </button>
-          ))}
-        </div>
-      ) : null}
+      <TagSuggestionList
+        className="absolute bottom-full left-[-1px] right-[-1px] z-[4]"
+        selectedIndex={selectedSuggestionIndex}
+        suggestions={suggestions}
+        onPick={onPickSuggestion}
+      />
 
       <div className="flex min-h-[30px] flex-wrap items-center gap-1 p-1">
         {tokens.map((token) => (
           <span
             className={getTagNamespaceClassName(
               token,
-              "inline-flex min-h-[18px] max-w-full overflow-hidden border border-(--line-strong) bg-(--tag-bg) px-1.5 text-[11px] text-(--ink)",
+              "inline-flex min-h-[18px] max-w-full overflow-hidden rounded-(--radius) border border-(--line-strong) bg-(--tag-bg) px-1.5 text-[12px] text-(--ink)",
             )}
             key={token.key}
             style={getTagNamespaceStyle(token)}

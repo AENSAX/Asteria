@@ -17,7 +17,7 @@ const translationFieldClass =
   "grid grid-cols-[88px_minmax(0,1fr)_32px] items-center gap-1.5 [&>span]:min-w-0 [&>span]:overflow-hidden [&>span]:text-ellipsis [&>span]:whitespace-nowrap [&>span]:text-(--text) [&>input]:h-6 [&>input]:min-w-0 [&>input]:border [&>input]:border-(--line-strong) [&>input]:bg-(--surface-inset-bg) [&>input]:px-1.5 [&>input]:text-(--ink) [&>textarea]:min-w-0 [&>textarea]:border [&>textarea]:border-(--line-strong) [&>textarea]:bg-(--surface-inset-bg) [&>textarea]:px-1.5 [&>textarea]:text-(--ink)";
 const translationHintClass = "h-5 text-[10px] leading-5 text-(--muted)";
 const translationCheckClass =
-  "grid min-h-6 grid-cols-[18px_minmax(0,1fr)] items-center gap-1.5 border border-(--line) bg-(--panel) px-2 text-[11px]";
+  "grid min-h-6 grid-cols-[18px_minmax(0,1fr)] items-center gap-1.5 border border-(--line) bg-(--panel) px-2 text-[12px]";
 const translationFooterClass =
   "grid grid-cols-[minmax(0,1fr)_58px_70px] items-center border-t border-(--line) bg-(--surface-bg)";
 const translationFooterTextClass =
@@ -94,7 +94,7 @@ export function TagTranslationWindow(): JSX.Element {
         <label className={translationFieldClass}>
           <span>{t("window.translation.file")}</span>
           <input
-            className="h-6 min-w-0 border border-(--line-strong) bg-(--surface-inset-bg) px-1.5 text-(--ink)"
+            className="ui-input"
             aria-label={t("window.translation.csvPath")}
             placeholder={t("window.translation.csvPlaceholder")}
             value={settings.csvPath}

@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import type { BatchFileTagRecord } from "../../../shared/ipc";
 import { TagTokenInput } from "../components/TagTokenInput";
 import { useBoxSelection } from "../hooks/useBoxSelection";
+import { useMultiSelection } from "../hooks/useMultiSelection";
 import { useShortcut } from "../hooks/useShortcut";
 import { useTagTokenInput } from "../hooks/useTagTokenInput";
 import { useLanguage } from "../utils/language";
-import { mergeIds } from "../utils/ids";
 import {
   formatTagLabel,
   getTagNamespaceClassName,
@@ -21,7 +21,7 @@ const batchRootClass =
 const batchListClass =
   "relative flex min-h-0 flex-wrap content-start gap-1 overflow-auto bg-(--surface-bg) p-1.5";
 const batchTagItemClass =
-  "inline-grid min-h-5 max-w-full grid-cols-[minmax(0,1fr)_auto] items-center border border-(--line-strong) bg-(--tag-bg) text-[11px] text-(--ink)";
+  "inline-grid min-h-5 max-w-full grid-cols-[minmax(0,1fr)_auto] items-center border border-(--line-strong) bg-(--tag-bg) text-[12px] text-(--ink)";
 const batchTagPendingClass = "border-(--danger)";
 
 export function BatchTagManagerWindow({
@@ -65,6 +65,11 @@ export function BatchTagManagerWindow({
     setPendingTagIds(tagIds);
     setLastPendingTagId(tagIds[tagIds.length - 1] ?? null);
   });
+  useShortcut(
+    "remove-selected",
+    () => void removePendingTags(pendingTagIds),
+    { enabled: pendingTagIds.length > 0 },
+  );
 
   async function loadFileTags(): Promise<void> {
     if (!window.asteria || fileIds.length === 0) {
@@ -83,6 +88,18 @@ export function BatchTagManagerWindow({
       return;
     }
 
+    const confirmed = await window.asteria.confirmDialog({
+      title: t("confirm.deleteTitle"),
+      message: t("confirm.removeTagsFromFiles", {
+        tagCount: tagIds.length,
+        fileCount: fileIds.length,
+      }),
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
     const nextFileTags = await window.asteria.removeTagsFromFiles(
       fileIds,
       tagIds,
@@ -92,52 +109,22 @@ export function BatchTagManagerWindow({
     setLastPendingTagId(null);
   }
 
-  function handleTagMouseDown(
-    event: React.MouseEvent<HTMLElement>,
-    tag: BatchFileTagRecord,
-    index: number,
-  ): void {
-    event.preventDefault();
-    event.stopPropagation();
-
-    const isPending = pendingTagIds.includes(tag.id);
-
-    if (event.shiftKey && lastPendingTagId !== null) {
-      const anchorIndex = fileTags.findIndex(
-        (item) => item.id === lastPendingTagId,
-      );
-
-      if (anchorIndex >= 0) {
-        const start = Math.min(anchorIndex, index);
-        const end = Math.max(anchorIndex, index);
-        const rangeIds = fileTags.slice(start, end + 1).map((item) => item.id);
-
-        setPendingTagIds((currentTagIds) =>
-          event.ctrlKey ? mergeIds(currentTagIds, rangeIds) : rangeIds,
-        );
-        return;
-      }
-    }
-
-    if (event.ctrlKey) {
-      if (isPending) {
-        void removePendingTags(pendingTagIds);
-        return;
+  const tagSelection = useMultiSelection({
+    items: fileTags,
+    getId: (tag) => tag.id,
+    selectedIds: pendingTagIds,
+    lastSelectedId: lastPendingTagId,
+    onSelect: setPendingTagIds,
+    onLastSelectedId: setLastPendingTagId,
+    onPlainClickSelected: (tag) => {
+      if (pendingTagIds.length === 1) {
+        void removePendingTags([tag.id]);
+        return true;
       }
 
-      setPendingTagIds((currentTagIds) => [...currentTagIds, tag.id]);
-      setLastPendingTagId(tag.id);
-      return;
-    }
-
-    if (isPending && pendingTagIds.length === 1) {
-      void removePendingTags([tag.id]);
-      return;
-    }
-
-    setPendingTagIds([tag.id]);
-    setLastPendingTagId(tag.id);
-  }
+      return false;
+    },
+  });
 
   return (
     <section
@@ -168,7 +155,9 @@ export function BatchTagManagerWindow({
               style={getTagNamespaceStyle(tag)}
               title={formatTagLabel(tag)}
               type="button"
-              onMouseDown={(event) => handleTagMouseDown(event, tag, index)}
+              onMouseDown={(event) =>
+                tagSelection.handleItemMouseDown(event, tag, index)
+              }
             >
               <span className="min-w-0 overflow-hidden px-1.5 text-ellipsis whitespace-nowrap">
                 {formatTagLabel(tag)}
@@ -179,7 +168,7 @@ export function BatchTagManagerWindow({
             </button>
           ))
         ) : (
-          <div className="p-2 text-(--muted)">{t("common.noTags")}</div>
+          <div className="ui-empty">{t("common.noTags")}</div>
         )}
         {boxSelection.selectionBox ? (
           <div

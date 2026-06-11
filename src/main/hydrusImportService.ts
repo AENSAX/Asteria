@@ -26,6 +26,8 @@ interface HydrusFileMetadata {
   hash?: string;
   mime?: string;
   ext?: string;
+  width?: number;
+  height?: number;
   known_urls?: string[];
   detailed_known_urls?: unknown[];
   tags?: unknown;
@@ -395,6 +397,8 @@ async function importHydrusFile(
       fileName: storedFile.fileName,
       extension: storedFile.extension,
       sizeBytes: storedFile.sizeBytes,
+      width: normalizeHydrusDimension(metadata.width),
+      height: normalizeHydrusDimension(metadata.height),
       tags: extractHydrusTags(metadata.tags),
       tagStyleName: options.tagStyleName,
       urls: extractHydrusUrls(metadata),
@@ -597,6 +601,12 @@ function normalizeHydrusExtension(
     .replace(/^\./, "")
     .toLowerCase();
   return extension || null;
+}
+
+function normalizeHydrusDimension(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) && value > 0
+    ? Math.round(value)
+    : null;
 }
 
 function hydrusFetch(

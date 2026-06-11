@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { TagRecord } from "../../../shared/ipc";
 import { createTagToken, parseTagText, type TagToken } from "../utils/tags";
 
@@ -21,19 +21,41 @@ export function useTagTokenInput({ onCommit }: UseTagTokenInputOptions): {
   const [text, setText] = useState("");
   const [suggestions, setSuggestions] = useState<TagRecord[]>([]);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(0);
+  const suggestionRequestIdRef = useRef(0);
 
   useEffect(() => {
-    void searchTagSuggestions(text);
-  }, [text]);
-
-  async function searchTagSuggestions(query: string): Promise<void> {
-    if (!window.asteria || query.trim().length === 0) {
+    if (text.trim().length === 0) {
+      suggestionRequestIdRef.current += 1;
       setSuggestions([]);
       setSelectedSuggestionIndex(0);
+      return undefined;
+    }
+
+    const requestId = suggestionRequestIdRef.current + 1;
+    suggestionRequestIdRef.current = requestId;
+    const timer = window.setTimeout(() => {
+      void searchTagSuggestions(text, requestId);
+    }, 150);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [text]);
+
+  async function searchTagSuggestions(
+    query: string,
+    requestId: number,
+  ): Promise<void> {
+    if (!window.asteria) {
       return;
     }
 
     const nextSuggestions = await window.asteria.searchTags(query);
+
+    if (suggestionRequestIdRef.current !== requestId) {
+      return;
+    }
+
     setSuggestions(nextSuggestions);
     setSelectedSuggestionIndex(0);
   }

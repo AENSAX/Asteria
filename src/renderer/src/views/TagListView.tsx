@@ -74,7 +74,7 @@ const tagListRootClass =
 const tagListToolbarClass =
   "grid grid-cols-[92px_112px_118px_minmax(0,1fr)] items-center gap-1.5 border-b border-(--line) bg-(--panel) p-1.5";
 const tagListSelectClass =
-  "h-6 min-w-0 border border-(--line-strong) bg-(--surface-inset-bg) px-1.5 text-(--ink)";
+  "ui-input";
 const tagListToolbarLabelClass =
   "flex min-w-0 items-center gap-1 whitespace-nowrap text-(--ink)";
 const tagListContentClass = "min-h-0 overflow-auto bg-(--surface-bg)";
@@ -82,7 +82,7 @@ const tagListHeaderClass =
   "absolute w-full h-7 border-b border-t border-(--border-dark) bg-(--group-header-bg) px-2 leading-[26px] font-semibold text-(--group-header-ink)";
 const tagListEmptyClass = "px-2 py-1.5 text-(--muted)";
 const tagListItemClass =
-  "grid h-6 w-full grid-cols-[minmax(0,1fr)_52px] border-0 border-b border-(--line) text-[11px] text-(--ink) hover:bg-(--accent-weak)";
+  "grid h-6 w-full grid-cols-[minmax(0,1fr)_52px] border-0 border-b border-(--line) text-[12px] text-(--ink) hover:bg-(--accent-weak)";
 const tagListItemPendingClass = "border-(--danger) bg-(--danger-bg)";
 
 export type TagListFilterMode = "all" | "namespace" | "plain" | "selection";

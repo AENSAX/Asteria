@@ -17,9 +17,9 @@ const hydrusShellClass =
 const hydrusSidebarClass =
   "grid auto-rows-min gap-2 min-h-0 min-w-0 border-r border-(--line) bg-(--panel) p-2";
 const hydrusFieldClass =
-  "grid gap-1.5 text-[11px] text-(--muted) [&>input]:h-6 [&>input]:min-w-0 [&>input]:border [&>input]:border-(--line-strong) [&>input]:bg-(--surface-media-bg) [&>input]:px-1.5 [&>input]:text-(--ink) [&>textarea]:min-h-[84px] [&>textarea]:min-w-0 [&>textarea]:resize-none [&>textarea]:border [&>textarea]:border-(--line-strong) [&>textarea]:bg-(--surface-media-bg) [&>textarea]:p-1.5 [&>textarea]:text-(--ink)";
+  "grid gap-1.5 text-[12px] text-(--muted) [&>input]:h-6 [&>input]:min-w-0 [&>input]:border [&>input]:border-(--line-strong) [&>input]:bg-(--surface-media-bg) [&>input]:px-1.5 [&>input]:text-(--ink) [&>textarea]:min-h-[84px] [&>textarea]:min-w-0 [&>textarea]:resize-none [&>textarea]:border [&>textarea]:border-(--line-strong) [&>textarea]:bg-(--surface-media-bg) [&>textarea]:p-1.5 [&>textarea]:text-(--ink)";
 const hydrusCheckClass =
-  "grid grid-cols-[14px_1fr] items-center gap-1.5 text-[11px] text-(--ink)";
+  "grid grid-cols-[14px_1fr] items-center gap-1.5 text-[12px] text-(--ink)";
 const hydrusContentClass =
   "grid min-h-0 min-w-0 grid-rows-[auto_auto_auto_auto_auto_minmax(0,1fr)] gap-2 overflow-hidden p-2";
 const hydrusToolbarClass = "flex h-6 items-center gap-1.5";
@@ -27,7 +27,7 @@ const hydrusButtonClass = "ui-button";
 const hydrusProgressClass =
   "grid h-5 grid-cols-[minmax(0,1fr)_42px] items-center gap-1.5";
 const hydrusStatsClass =
-  "grid grid-cols-[repeat(6,minmax(54px,1fr))] gap-1 text-[11px]";
+  "grid grid-cols-[repeat(6,minmax(54px,1fr))] gap-1 text-[12px]";
 const hydrusStatClass =
   "grid h-6 grid-cols-[44px_minmax(0,1fr)] border border-(--line)";
 const hydrusStatLabelClass =

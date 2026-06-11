@@ -65,6 +65,9 @@ const api: AsteriaApi = {
     ipcRenderer.invoke(IpcChannel.WINDOW_OPEN_FAVORITES),
   openFileExternally: (fileId) =>
     ipcRenderer.invoke(IpcChannel.FILE_OPEN_EXTERNALLY, fileId),
+  startFileDrag: (fileIds) => {
+    ipcRenderer.send(IpcChannel.FILE_START_DRAG, fileIds);
+  },
   setWindowTitle: (title) =>
     ipcRenderer.invoke(IpcChannel.WINDOW_SET_TITLE, title),
   getFileDetail: (id) => ipcRenderer.invoke(IpcChannel.FILE_GET_DETAIL, id),
@@ -427,6 +430,24 @@ const api: AsteriaApi = {
 
     return () => {
       ipcRenderer.removeListener(IpcEvent.PAGE_LAYOUT_CHANGED, wrappedListener);
+    };
+  },
+  onSettingsChanged: (listener) => {
+    const wrappedListener = (
+      _event: Electron.IpcRendererEvent,
+      payload: unknown,
+    ): void => {
+      const kind = (payload as { kind?: unknown } | null)?.kind;
+
+      if (kind === "ai" || kind === "tagTranslation") {
+        listener({ kind });
+      }
+    };
+
+    ipcRenderer.on(IpcEvent.SETTINGS_CHANGED, wrappedListener);
+
+    return () => {
+      ipcRenderer.removeListener(IpcEvent.SETTINGS_CHANGED, wrappedListener);
     };
   },
   onWorkStatusChanged: (listener) => {

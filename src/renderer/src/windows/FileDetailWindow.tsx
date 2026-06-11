@@ -12,9 +12,9 @@ import { FileRatingStack } from "../components/FileRatingStack";
 import { ResizableColumns } from "../components/ResizableColumns";
 import { TagTokenInput } from "../components/TagTokenInput";
 import { useBoxSelection } from "../hooks/useBoxSelection";
+import { useMultiSelection } from "../hooks/useMultiSelection";
 import { useShortcut } from "../hooks/useShortcut";
 import { useTagTokenInput } from "../hooks/useTagTokenInput";
-import { mergeIds } from "../utils/ids";
 import {
   isAudioExtension,
   isImageExtension,
@@ -42,11 +42,11 @@ const fileTagHeaderClass =
   "mb-1.5 grid h-6 grid-cols-[minmax(0,1fr)_auto] border-y border-(--border-dark) border-t-(--line-strong) bg-(--group-header-bg) px-1.5 leading-[22px] font-semibold text-(--group-header-ink)";
 const fileTagGroupBodyClass = "flex flex-wrap content-start gap-1";
 const fileTagItemClass =
-  "file-tag-item inline-flex max-w-full min-h-[18px] cursor-default overflow-hidden border border-(--line-strong) bg-(--tag-bg) px-1.5 text-[11px] text-(--ink)";
+  "file-tag-item inline-flex max-w-full min-h-[18px] cursor-default overflow-hidden border border-(--line-strong) bg-(--tag-bg) px-1.5 text-[12px] text-(--ink)";
 const domainFileTagItemClass =
-  "inline-flex max-w-full min-h-[18px] cursor-default overflow-hidden border border-(--line-strong) bg-(--tag-bg) px-1.5 text-[11px] text-(--ink)";
+  "inline-flex max-w-full min-h-[18px] cursor-default overflow-hidden border border-(--line-strong) bg-(--tag-bg) px-1.5 text-[12px] text-(--ink)";
 const inferredFileTagItemClass =
-  "inline-flex max-w-full min-h-[18px] cursor-default overflow-hidden border border-(--line) bg-(--surface-bg) px-1.5 text-[11px] text-(--muted)";
+  "inline-flex max-w-full min-h-[18px] cursor-default overflow-hidden border border-(--line) bg-(--surface-bg) px-1.5 text-[12px] text-(--muted)";
 const fileTagPendingClass = "pending";
 const detailContentClass =
   "relative grid min-h-0 min-w-0 place-items-center overflow-hidden bg-(--surface-media-bg)";
@@ -313,6 +313,16 @@ export function FileDetailWindow({
 
     const trashedFileId = file.id;
     setContextMenu(null);
+
+    const confirmed = await window.asteria.confirmDialog({
+      title: t("confirm.deleteTitle"),
+      message: t("confirm.trashFiles", { count: 1 }),
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
     await window.asteria.trashFiles([trashedFileId]);
 
     const remainingFileIds = orderedFileIds.filter(
@@ -764,6 +774,11 @@ function FileDetailTagColumn({
     setPendingTagIds(tagIds);
     setLastPendingTagId(tagIds[tagIds.length - 1] ?? null);
   });
+  useShortcut(
+    "remove-selected",
+    () => void removePendingFileTags(pendingTagIds),
+    { enabled: pendingTagIds.length > 0 },
+  );
 
   useEffect(() => {
     tagInput.reset();
@@ -814,60 +829,37 @@ function FileDetailTagColumn({
       return;
     }
 
+    const confirmed = await window.asteria.confirmDialog({
+      title: t("confirm.deleteTitle"),
+      message: t("confirm.removeFileTags", { count: tagIds.length }),
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
     await window.asteria.removeFileTags(fileId, tagIds);
     await loadFileTags();
     setPendingTagIds([]);
     setLastPendingTagId(null);
   }
 
-  function handleFileTagMouseDown(
-    event: React.MouseEvent<HTMLElement>,
-    tag: FileTagRecord,
-    index: number,
-  ): void {
-    event.preventDefault();
-    event.stopPropagation();
-
-    const isPending = pendingTagIds.includes(tag.id);
-
-    if (event.shiftKey && lastPendingTagId !== null) {
-      const anchorIndex = orderedFileTags.findIndex(
-        (item) => item.id === lastPendingTagId,
-      );
-
-      if (anchorIndex >= 0) {
-        const start = Math.min(anchorIndex, index);
-        const end = Math.max(anchorIndex, index);
-        const rangeIds = orderedFileTags
-          .slice(start, end + 1)
-          .map((item) => item.id);
-
-        setPendingTagIds((currentTagIds) =>
-          event.ctrlKey ? mergeIds(currentTagIds, rangeIds) : rangeIds,
-        );
-        return;
-      }
-    }
-
-    if (event.ctrlKey) {
-      if (isPending) {
-        void removePendingFileTags(pendingTagIds);
-        return;
+  const fileTagSelection = useMultiSelection({
+    items: orderedFileTags,
+    getId: (tag) => tag.id,
+    selectedIds: pendingTagIds,
+    lastSelectedId: lastPendingTagId,
+    onSelect: setPendingTagIds,
+    onLastSelectedId: setLastPendingTagId,
+    onPlainClickSelected: (tag) => {
+      if (pendingTagIds.length === 1) {
+        void removePendingFileTags([tag.id]);
+        return true;
       }
 
-      setPendingTagIds((currentTagIds) => [...currentTagIds, tag.id]);
-      setLastPendingTagId(tag.id);
-      return;
-    }
-
-    if (isPending && pendingTagIds.length === 1) {
-      void removePendingFileTags([tag.id]);
-      return;
-    }
-
-    setPendingTagIds([tag.id]);
-    setLastPendingTagId(tag.id);
-  }
+      return false;
+    },
+  });
 
   return (
     <aside className={detailTagsClass} aria-label={t("window.fileDetail.tags")}>
@@ -926,7 +918,11 @@ function FileDetailTagColumn({
                     title={formatTagLabel(tag)}
                     type="button"
                     onMouseDown={(event) =>
-                      handleFileTagMouseDown(event, tag, visualIndex)
+                      fileTagSelection.handleItemMouseDown(
+                        event,
+                        tag,
+                        visualIndex,
+                      )
                     }
                   >
                     {formatTagLabel(tag)}

@@ -1,23 +1,27 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties, SyntheticEvent } from "react";
 import type {
   AiSettings,
   BrowserFileRecord,
   ImportQueueFileRecord,
   RatingGroupRecord,
+  TagTranslationSettings,
 } from "../../../shared/ipc";
 import { FileContextMenu } from "../components/FileContextMenu";
 import { FavoriteButton } from "../components/FavoriteButton";
 import { FileRatingStack } from "../components/FileRatingStack";
+import { Icon } from "../components/Icon";
 import { useBoxSelection } from "../hooks/useBoxSelection";
+import { useMultiSelection } from "../hooks/useMultiSelection";
 import { useShortcut } from "../hooks/useShortcut";
-import { mergeIds } from "../utils/ids";
 import {
   listenInterfaceSettingsChanged,
   loadInterfaceSettings,
 } from "../utils/interfaceSettings";
 import { filesChangedAffectsBrowserPage } from "../utils/filesChanged";
+import { confirmDuplicateImports } from "../utils/importConfirm";
 import { isImageExtension, isVideoExtension } from "../utils/media";
-import { getFileDomainDisplayName, useLanguage } from "../utils/language";
+import { useLanguage } from "../utils/language";
 
 interface FileBrowserViewProps {
   searchQuery: string;
@@ -30,6 +34,24 @@ interface FileBrowserViewProps {
 }
 
 type BrowserDisplayFile = BrowserFileRecord | ImportQueueFileRecord;
+interface BrowserGalleryItem {
+  file: BrowserDisplayFile;
+  index: number;
+  width: number;
+  height: number;
+}
+
+interface BrowserRuntimeDimensions {
+  width: number;
+  height: number;
+}
+
+interface BrowserGalleryDraftItem {
+  file: BrowserDisplayFile;
+  index: number;
+  ratio: number;
+}
+
 export type BrowserSortKey = "importedAt" | "updatedAt";
 export type BrowserSortDirection = "asc" | "desc";
 
@@ -38,10 +60,8 @@ export interface BrowserViewState {
   sortDirection: BrowserSortDirection;
 }
 
-const BROWSER_GRID_GAP = 8;
-const BROWSER_GRID_PADDING = 8;
-const BROWSER_PREVIEW_OVERSCAN_ROWS = 1;
 const DECODED_PREVIEW_CACHE_LIMIT = 384;
+const BROWSER_GALLERY_GAP = 12;
 const defaultAiSettings: AiSettings = {
   modelPath: "",
   modelName: "",
@@ -61,25 +81,26 @@ const decodedPreviewCache = new Map<
 const browserRootClass =
   "grid h-full min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_24px] bg-(--panel)";
 const browserGridClass =
-  "relative grid min-h-0 content-start justify-start gap-2 overflow-auto p-2";
+  "relative min-h-0 overflow-auto p-3";
+const browserGalleryRowClass =
+  "browser-gallery-row flex items-start gap-3";
 const browserCellClass =
-  "browser-file-cell relative grid overflow-hidden border border-(--line) bg-(--surface-bg) cursor-default";
+  "browser-file-cell relative inline-grid cursor-default";
 const browserCellPendingClass = "pending";
 const importBadgeClass =
   "absolute right-1 bottom-1 z-[2] border border-(--line-strong) bg-(--surface-bg) px-1.5 leading-5 text-[10px] text-(--muted)";
 const importBadgeDuplicateClass = "border-(--warning) text-(--warning-ink)";
 const browserMediaClass =
-  "grid h-full w-full place-items-center overflow-hidden [&>img]:block [&>img]:h-full [&>img]:w-full [&>img]:object-contain [&>span]:text-(--muted)";
+  "browser-file-media grid place-items-center [&>span]:text-(--muted)";
 const browserStatusClass =
   "flex h-6 min-w-0 items-center justify-end gap-1.5 border-t border-(--line) bg-(--surface-bg) px-2 text-(--muted)";
 const browserSelectClass =
   "h-[18px] min-w-[72px] border border-(--line-strong) bg-(--surface-inset-bg) text-(--ink)";
 const browserPagerClass = "inline-flex min-w-0 items-center gap-1";
-const browserPagerButtonClass = "ui-button ui-button-compact min-w-[38px]";
+const browserPagerButtonClass = "ui-button ui-button-compact ui-icon-button";
 const browserPagerInputClass =
   "h-[18px] w-[42px] border border-(--line-strong) bg-(--surface-inset-bg) px-1 text-(--ink) leading-4";
-const contextMenuClass =
-  "fixed z-30 w-[142px] border border-(--line-strong) bg-(--panel) p-1 [&>button]:block [&>button]:h-6 [&>button]:w-full [&>button]:cursor-default [&>button]:border-0 [&>button]:bg-transparent [&>button]:px-2 [&>button]:text-left [&>button]:text-[11px] [&>button]:text-(--ink) [&>button:hover]:bg-(--accent-weak)";
+const contextMenuClass = "context-menu";
 
 export function FileBrowserView({
   importQueueMode,
@@ -93,6 +114,8 @@ export function FileBrowserView({
   const { t } = useLanguage();
   const [files, setFiles] = useState<BrowserDisplayFile[]>([]);
   const [aiSettings, setAiSettings] = useState<AiSettings>(defaultAiSettings);
+  const [tagTranslationSettings, setTagTranslationSettings] =
+    useState<TagTranslationSettings | null>(null);
   const [activeRatingGroups, setActiveRatingGroups] = useState<
     RatingGroupRecord[]
   >([]);
@@ -111,7 +134,12 @@ export function FileBrowserView({
   const [previewSize, setPreviewSize] = useState(
     () => loadInterfaceSettings().browserPreviewSize,
   );
+  const [gridWidth, setGridWidth] = useState(0);
+  const [runtimeDimensions, setRuntimeDimensions] = useState<
+    Record<number, BrowserRuntimeDimensions>
+  >({});
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageInputValue, setPageInputValue] = useState("1");
   const [totalFileCount, setTotalFileCount] = useState(0);
   const [contextMenu, setContextMenu] = useState<{
     x: number;
@@ -128,8 +156,8 @@ export function FileBrowserView({
     y: number;
   } | null>(null);
   const gridRef = useRef<HTMLDivElement | null>(null);
-  const previewFrameRef = useRef<number | null>(null);
   const onSelectionChangeRef = useRef(onSelectionChange);
+  const deferredPressFileIdRef = useRef<number | null>(null);
   const sortedFiles = useMemo(
     () =>
       importQueueMode
@@ -152,13 +180,34 @@ export function FileBrowserView({
     () => pageFiles.map((file) => file.id).join(","),
     [pageFiles],
   );
+  const galleryRows = useMemo(
+    () =>
+      createJustifiedGalleryRows(
+        pageFiles,
+        gridWidth,
+        previewSize,
+        runtimeDimensions,
+      ),
+    [gridWidth, pageFiles, previewSize, runtimeDimensions],
+  );
   const pageEndIndex = pageStartIndex + pageFiles.length;
   const boxSelection = useBoxSelection({
     containerRef: gridRef,
     itemSelector: "[data-box-select-id]",
     selectedIds: pendingFileIds,
+    startOnlyOutsideItems: true,
     onSelect: setPendingFileIds,
     onLastSelectedId: setLastPendingFileId,
+  });
+  const fileSelection = useMultiSelection({
+    items: pageFiles,
+    getId: (file) => file.id,
+    selectedIds: pendingFileIds,
+    lastSelectedId: lastPendingFileId,
+    onSelect: setPendingFileIds,
+    onLastSelectedId: setLastPendingFileId,
+    leftButtonOnly: true,
+    allowNativeDrag: true,
   });
 
   useEffect(() => {
@@ -201,6 +250,10 @@ export function FileBrowserView({
   ]);
 
   useEffect(() => {
+    setPageInputValue(String(clampedPage));
+  }, [clampedPage]);
+
+  useEffect(() => {
     if (currentPage > totalPages) {
       setCurrentPage(totalPages);
     }
@@ -230,48 +283,34 @@ export function FileBrowserView({
     const grid = gridRef.current;
 
     if (!grid) {
-      setVisiblePreviewIds([]);
+      setGridWidth(0);
       return undefined;
     }
 
-    function updateVisiblePreviews(): void {
-      previewFrameRef.current = null;
+    function updateGridWidth(): void {
       const currentGrid = gridRef.current;
 
       if (!currentGrid) {
-        setVisiblePreviewIds([]);
+        setGridWidth(0);
         return;
       }
 
-      setVisiblePreviewIds(
-        calculateVisiblePreviewIds(currentGrid, pageFiles, previewSize),
-      );
+      setGridWidth(Math.max(0, currentGrid.clientWidth - 24));
     }
 
-    function scheduleVisiblePreviewUpdate(): void {
-      if (previewFrameRef.current !== null) {
-        cancelAnimationFrame(previewFrameRef.current);
-      }
+    updateGridWidth();
 
-      previewFrameRef.current = requestAnimationFrame(updateVisiblePreviews);
-    }
-
-    updateVisiblePreviews();
-    grid.addEventListener("scroll", scheduleVisiblePreviewUpdate, {
-      passive: true,
-    });
-    window.addEventListener("resize", scheduleVisiblePreviewUpdate);
+    const observer = new ResizeObserver(updateGridWidth);
+    observer.observe(grid);
 
     return () => {
-      grid.removeEventListener("scroll", scheduleVisiblePreviewUpdate);
-      window.removeEventListener("resize", scheduleVisiblePreviewUpdate);
-
-      if (previewFrameRef.current !== null) {
-        cancelAnimationFrame(previewFrameRef.current);
-        previewFrameRef.current = null;
-      }
+      observer.disconnect();
     };
-  }, [pageFiles, previewSize]);
+  }, []);
+
+  useEffect(() => {
+    setVisiblePreviewIds(pageFiles.map((file) => file.id));
+  }, [pageFiles]);
 
   useEffect(() => {
     if (visiblePreviewIds.length === 0) {
@@ -298,6 +337,11 @@ export function FileBrowserView({
     setPendingFileIds(fileIds);
     setLastPendingFileId(fileIds[fileIds.length - 1] ?? null);
   });
+  useShortcut(
+    "remove-selected",
+    () => void trashSelectedFiles(pendingFileIds),
+    { enabled: !importQueueMode && pendingFileIds.length > 0 },
+  );
   useShortcut("browser-previous-page", () => changePage(-1), {
     enabled: totalPages > 1,
   });
@@ -346,6 +390,18 @@ export function FileBrowserView({
   }, [importQueueMode, pageFileIdSignature, searchQuery]);
 
   useEffect(() => {
+    if (!window.asteria || importQueueMode) {
+      return undefined;
+    }
+
+    void loadMenuSettings();
+
+    return window.asteria.onSettingsChanged(() => {
+      void loadMenuSettings();
+    });
+  }, [importQueueMode]);
+
+  useEffect(() => {
     function closeContextMenu(): void {
       setContextMenu(null);
       setBlankContextMenu(null);
@@ -357,6 +413,19 @@ export function FileBrowserView({
       window.removeEventListener("mousedown", closeContextMenu);
     };
   }, []);
+
+  async function loadMenuSettings(): Promise<void> {
+    if (!window.asteria) {
+      return;
+    }
+
+    const [nextAiSettings, nextTagTranslationSettings] = await Promise.all([
+      window.asteria.getAiSettings(),
+      window.asteria.getTagTranslationSettings(),
+    ]);
+    setAiSettings(nextAiSettings);
+    setTagTranslationSettings(nextTagTranslationSettings);
+  }
 
   async function loadBrowserFiles(): Promise<void> {
     if (!window.asteria) {
@@ -389,17 +458,13 @@ export function FileBrowserView({
       const nextTotalCount = Array.isArray(nextFiles)
         ? nextFiles.length
         : nextFiles.total;
-      const [nextRatingGroups, nextAiSettings] = importQueueMode
-        ? ([[], defaultAiSettings] as const)
-        : await Promise.all([
-            window.asteria.listRatingGroups(),
-            window.asteria.getAiSettings(),
-          ]);
+      const nextRatingGroups = importQueueMode
+        ? []
+        : await window.asteria.listRatingGroups();
       setFiles(nextDisplayFiles);
       setTotalFileCount(nextTotalCount);
       setVisiblePreviewIds([]);
       setActiveRatingGroups(nextRatingGroups.filter((group) => group.isActive));
-      setAiSettings(nextAiSettings);
       setPendingFileIds((currentIds) =>
         currentIds.filter((id) =>
           nextDisplayFiles.some((file) => file.id === id),
@@ -457,6 +522,62 @@ export function FileBrowserView({
     }
   }
 
+  function handleBrowserFilePress(
+    event: React.MouseEvent<HTMLElement>,
+    file: BrowserDisplayFile,
+    index: number,
+  ): void {
+    const isPlainLeftPress =
+      event.button === 0 && !event.ctrlKey && !event.shiftKey;
+
+    if (isPlainLeftPress && pendingFileIds.includes(file.id)) {
+      // 已选中项的普通按下不立即改选区：立即折叠会在拖拽开始前破坏多选，
+      // 折叠/打开延迟到 click（拖拽发生时 click 不会触发）
+      event.stopPropagation();
+      deferredPressFileIdRef.current = file.id;
+      return;
+    }
+
+    deferredPressFileIdRef.current = null;
+    fileSelection.handleItemMouseDown(event, file, index);
+  }
+
+  function handleBrowserFileClick(file: BrowserDisplayFile): void {
+    if (deferredPressFileIdRef.current !== file.id) {
+      return;
+    }
+
+    deferredPressFileIdRef.current = null;
+
+    if (
+      !importQueueMode &&
+      pendingFileIds.length === 1 &&
+      pendingFileIds[0] === file.id
+    ) {
+      void openFileDetail(file.id);
+      return;
+    }
+
+    setPendingFileIds([file.id]);
+    setLastPendingFileId(file.id);
+  }
+
+  function handleBrowserFileDragStart(
+    event: React.DragEvent<HTMLElement>,
+    file: BrowserDisplayFile,
+  ): void {
+    event.preventDefault();
+    deferredPressFileIdRef.current = null;
+
+    if (importQueueMode || isImportQueueFile(file) || !window.asteria) {
+      return;
+    }
+
+    window.asteria.startFileDrag(
+      pendingFileIds.includes(file.id) ? pendingFileIds : [file.id],
+    );
+  }
+
   function handleBrowserGridMouseDown(
     event: React.MouseEvent<HTMLDivElement>,
   ): void {
@@ -492,92 +613,31 @@ export function FileBrowserView({
     });
   }
 
-  function handleBrowserFileMouseDown(
+  function handleBrowserFileContextMenu(
     event: React.MouseEvent<HTMLElement>,
     file: BrowserDisplayFile,
-    index: number,
   ): void {
-    if (event.button !== 0) {
-      return;
-    }
-
     event.preventDefault();
     event.stopPropagation();
 
-    const isPending = pendingFileIds.includes(file.id);
-
-    if (event.shiftKey && lastPendingFileId !== null) {
-      const anchorIndex = pageFiles.findIndex(
-        (item) => item.id === lastPendingFileId,
-      );
-
-      if (anchorIndex >= 0) {
-        const start = Math.min(anchorIndex, index);
-        const end = Math.max(anchorIndex, index);
-        const rangeIds = pageFiles.slice(start, end + 1).map((item) => item.id);
-
-        setPendingFileIds((currentIds) =>
-          event.ctrlKey ? mergeIds(currentIds, rangeIds) : rangeIds,
-        );
-        return;
-      }
-    }
-
-    if (event.ctrlKey) {
-      setPendingFileIds((currentIds) =>
-        isPending
-          ? currentIds.filter((id) => id !== file.id)
-          : [...currentIds, file.id],
-      );
-      setLastPendingFileId(file.id);
-      return;
-    }
-
-    if (isPending && pendingFileIds.length === 1 && !importQueueMode) {
-      void openFileDetail(file.id);
-      return;
-    }
-
-    setPendingFileIds([file.id]);
-    setLastPendingFileId(file.id);
-  }
-
-  async function handleBrowserFileContextMenu(
-    event: React.MouseEvent<HTMLElement>,
-    file: BrowserDisplayFile,
-  ): Promise<void> {
-    event.preventDefault();
-    event.stopPropagation();
-
-    const menuX = event.clientX;
-    const menuY = event.clientY;
     const fileIds =
       pendingFileIds.includes(file.id) && pendingFileIds.length > 1
         ? pendingFileIds
         : [file.id];
     const selectedFiles = pageFiles.filter((item) => fileIds.includes(item.id));
-    const latestAiSettings =
-      !importQueueMode && window.asteria
-        ? await window.asteria.getAiSettings()
-        : aiSettings;
-    const latestTagTranslationSettings =
-      !importQueueMode && window.asteria
-        ? await window.asteria.getTagTranslationSettings()
-        : null;
 
     if (fileIds.length === 1) {
       setPendingFileIds([file.id]);
       setLastPendingFileId(file.id);
     }
 
-    setAiSettings(latestAiSettings);
     setContextMenu({
-      x: menuX,
-      y: menuY,
+      x: event.clientX,
+      y: event.clientY,
       fileIds,
       canAiRetag:
         !importQueueMode &&
-        latestAiSettings.enableImageRetagContextMenu &&
+        aiSettings.enableImageRetagContextMenu &&
         selectedFiles.length > 0 &&
         selectedFiles.every(
           (item) =>
@@ -585,7 +645,7 @@ export function FileBrowserView({
         ),
       canAiAppendTag:
         !importQueueMode &&
-        latestAiSettings.enableImageAppendTagContextMenu &&
+        aiSettings.enableImageAppendTagContextMenu &&
         selectedFiles.length > 0 &&
         selectedFiles.every(
           (item) =>
@@ -593,7 +653,7 @@ export function FileBrowserView({
         ),
       canTranslateTags:
         !importQueueMode &&
-        Boolean(latestTagTranslationSettings?.enableContextMenuTranslation) &&
+        Boolean(tagTranslationSettings?.enableContextMenuTranslation) &&
         selectedFiles.length > 0 &&
         selectedFiles.every((item) => !isImportQueueFile(item)),
       canBatchOperate:
@@ -657,8 +717,15 @@ export function FileBrowserView({
     }
 
     setContextMenu(null);
-    await window.asteria?.tagFilesWithAi(fileIds, overwrite);
-    await loadBrowserFiles();
+
+    try {
+      await window.asteria?.tagFilesWithAi(fileIds, overwrite);
+      await loadBrowserFiles();
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : t("common.operationFailed"),
+      );
+    }
   }
 
   async function translateTags(fileIds: number[]): Promise<void> {
@@ -667,8 +734,15 @@ export function FileBrowserView({
     }
 
     setContextMenu(null);
-    await window.asteria?.translateFileTags(fileIds);
-    await loadBrowserFiles();
+
+    try {
+      await window.asteria?.translateFileTags(fileIds);
+      await loadBrowserFiles();
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : t("common.operationFailed"),
+      );
+    }
   }
 
   async function openScreening(fileIds: number[]): Promise<void> {
@@ -695,15 +769,31 @@ export function FileBrowserView({
   }
 
   async function trashSelectedFiles(fileIds: number[]): Promise<void> {
-    if (importQueueMode) {
+    if (importQueueMode || !window.asteria) {
       return;
     }
 
     setContextMenu(null);
-    await window.asteria?.trashFiles(fileIds);
-    setPendingFileIds([]);
-    setLastPendingFileId(null);
-    await loadBrowserFiles();
+
+    const confirmed = await window.asteria.confirmDialog({
+      title: t("confirm.deleteTitle"),
+      message: t("confirm.trashFiles", { count: fileIds.length }),
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await window.asteria.trashFiles(fileIds);
+      setPendingFileIds([]);
+      setLastPendingFileId(null);
+      await loadBrowserFiles();
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : t("common.operationFailed"),
+      );
+    }
   }
 
   async function commitQueueFiles(fileIds: number[]): Promise<void> {
@@ -716,35 +806,27 @@ export function FileBrowserView({
       (file): file is ImportQueueFileRecord =>
         isImportQueueFile(file) && fileIds.includes(file.id),
     );
-    const confirmedDuplicateIds: number[] = [];
 
-    for (const file of queueFiles) {
-      if (!file.duplicate) {
-        continue;
+    try {
+      const confirmedDuplicateIds = await confirmDuplicateImports(
+        queueFiles,
+        t,
+      );
+      const result = await window.asteria.commitImportQueue(
+        fileIds,
+        confirmedDuplicateIds,
+      );
+      setPendingFileIds([]);
+      setLastPendingFileId(null);
+      setFiles(result.remainingQueue);
+
+      if (result.remainingQueue.length === 0) {
+        onImportQueueEmpty();
       }
-
-      const confirmed = await window.asteria.confirmDialog({
-        title: t("app.status.duplicateConfirmTitle"),
-        message: t("app.status.duplicateConfirmMessage", {
-          domainName: getFileDomainDisplayName(file.duplicate.domain, t),
-        }),
-      });
-
-      if (confirmed) {
-        confirmedDuplicateIds.push(file.id);
-      }
-    }
-
-    const result = await window.asteria.commitImportQueue(
-      fileIds,
-      confirmedDuplicateIds,
-    );
-    setPendingFileIds([]);
-    setLastPendingFileId(null);
-    setFiles(result.remainingQueue);
-
-    if (result.remainingQueue.length === 0) {
-      onImportQueueEmpty();
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : t("common.operationFailed"),
+      );
     }
   }
 
@@ -754,10 +836,26 @@ export function FileBrowserView({
     }
 
     setContextMenu(null);
-    await window.asteria.removeImportQueueFiles(fileIds);
-    setPendingFileIds([]);
-    setLastPendingFileId(null);
-    await loadBrowserFiles();
+
+    const confirmed = await window.asteria.confirmDialog({
+      title: t("confirm.deleteTitle"),
+      message: t("confirm.removeQueueFiles", { count: fileIds.length }),
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await window.asteria.removeImportQueueFiles(fileIds);
+      setPendingFileIds([]);
+      setLastPendingFileId(null);
+      await loadBrowserFiles();
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : t("common.operationFailed"),
+      );
+    }
   }
 
   async function openRatingDialog(
@@ -776,63 +874,116 @@ export function FileBrowserView({
     setCurrentPage((page) => Math.min(totalPages, Math.max(1, page + offset)));
   }
 
+  function commitPageInput(): void {
+    const parsed = Number(pageInputValue);
+    const nextPage =
+      pageInputValue.trim() !== "" && Number.isInteger(parsed)
+        ? Math.min(totalPages, Math.max(1, parsed))
+        : clampedPage;
+
+    setCurrentPage(nextPage);
+    setPageInputValue(String(nextPage));
+  }
+
+  function handlePreviewImageLoad(
+    fileId: number,
+    event: SyntheticEvent<HTMLImageElement>,
+  ): void {
+    const image = event.currentTarget;
+    const width = image.naturalWidth;
+    const height = image.naturalHeight;
+
+    if (!width || !height || width <= 0 || height <= 0) {
+      return;
+    }
+
+    setRuntimeDimensions((current) => {
+      const existing = current[fileId];
+
+      if (existing?.width === width && existing.height === height) {
+        return current;
+      }
+
+      return {
+        ...current,
+        [fileId]: { width, height },
+      };
+    });
+  }
+
   return (
     <section className={browserRootClass}>
       <div
         className={browserGridClass}
         ref={gridRef}
-        style={{
-          gridAutoRows: `${previewSize}px`,
-          gridTemplateColumns: `repeat(auto-fill, ${previewSize}px)`,
-        }}
+        style={
+          {
+            "--browser-preview-size": `${previewSize}px`,
+          } as CSSProperties
+        }
         onContextMenu={handleBrowserGridContextMenu}
         onMouseDownCapture={handleBrowserGridMouseDownCapture}
         onMouseDown={handleBrowserGridMouseDown}
       >
         {pageFiles.length > 0 ? (
-          pageFiles.map((file, index) => (
-            <article
-              className={`${browserCellClass} ${pendingFileIds.includes(file.id) ? browserCellPendingClass : ""}`}
-              data-box-select-id={file.id}
-              key={file.id}
-              style={{
-                height: `${previewSize}px`,
-                width: `${previewSize}px`,
-              }}
-              onMouseDown={(event) =>
-                handleBrowserFileMouseDown(event, file, index)
-              }
-              onContextMenu={(event) =>
-                void handleBrowserFileContextMenu(event, file)
-              }
-            >
-              {isImportQueueFile(file) ? (
-                <div
-                  className={`${importBadgeClass} ${file.duplicate ? importBadgeDuplicateClass : ""}`}
+          galleryRows.map((row, rowIndex) => (
+            <div className={browserGalleryRowClass} key={rowIndex}>
+              {row.map(({ file, height, index, width }) => (
+                <article
+                  className={`${browserCellClass} ${pendingFileIds.includes(file.id) ? browserCellPendingClass : ""}`}
+                  data-box-select-id={file.id}
+                  draggable={!importQueueMode && !isImportQueueFile(file)}
+                  key={file.id}
+                  style={{
+                    height: `${height}px`,
+                    width: `${width}px`,
+                  }}
+                  onClick={() => handleBrowserFileClick(file)}
+                  onDragStart={(event) =>
+                    handleBrowserFileDragStart(event, file)
+                  }
+                  onMouseDown={(event) =>
+                    handleBrowserFilePress(event, file, index)
+                  }
+                  onContextMenu={(event) =>
+                    handleBrowserFileContextMenu(event, file)
+                  }
                 >
-                  {file.duplicate
-                    ? t("window.import.duplicate")
-                    : file.status === "failed"
-                      ? t("window.import.failed")
-                      : t("window.browser.pending")}
-                </div>
-              ) : (
-                <>
-                  <FileRatingStack ratings={file.ratings} />
-                  <FavoriteButton
-                    active={Boolean(file.isFavorite)}
-                    onToggle={() => void toggleFavorite(file)}
-                  />
-                </>
-              )}
-              <div className={browserMediaClass}>
-                {renderBrowserMedia(
-                  file,
-                  visiblePreviewIds.includes(file.id) ||
-                    isPreviewCached(file, cachedPreviewUrls),
-                )}
-              </div>
-            </article>
+                  {isImportQueueFile(file) ? (
+                    <div
+                      className={`${importBadgeClass} ${file.duplicate ? importBadgeDuplicateClass : ""}`}
+                      title={
+                        file.status === "failed"
+                          ? (file.errorMessage ?? undefined)
+                          : undefined
+                      }
+                    >
+                      {file.duplicate
+                        ? t("window.import.duplicate")
+                        : file.status === "failed"
+                          ? t("window.import.failed")
+                          : t("window.browser.pending")}
+                    </div>
+                  ) : (
+                    <>
+                      <FileRatingStack ratings={file.ratings} />
+                      <FavoriteButton
+                        active={Boolean(file.isFavorite)}
+                        onToggle={() => void toggleFavorite(file)}
+                      />
+                    </>
+                  )}
+                  <div className={browserMediaClass}>
+                    {renderBrowserMedia(
+                      file,
+                      visiblePreviewIds.includes(file.id) ||
+                        isPreviewCached(file, cachedPreviewUrls),
+                      handlePreviewImageLoad,
+                    )}
+                  </div>
+                </article>
+              ))}
+            </div>
           ))
         ) : (
           <div className="text-(--muted)">{t("window.browser.noRecords")}</div>
@@ -881,20 +1032,24 @@ export function FileBrowserView({
         </select>
         <div className={browserPagerClass}>
           <button
+            aria-label={t("window.browser.firstPage")}
             className={browserPagerButtonClass}
             disabled={clampedPage <= 1}
+            title={t("window.browser.firstPage")}
             type="button"
             onClick={() => setCurrentPage(1)}
           >
-            {t("window.browser.firstPage")}
+            <Icon name="chevrons-left" />
           </button>
           <button
+            aria-label={t("window.browser.previousPage")}
             className={browserPagerButtonClass}
             disabled={clampedPage <= 1}
+            title={t("window.browser.previousPage")}
             type="button"
             onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
           >
-            {t("window.browser.previousPage")}
+            <Icon name="chevron-left" />
           </button>
           <input
             className={browserPagerInputClass}
@@ -902,29 +1057,37 @@ export function FileBrowserView({
             max={totalPages}
             min={1}
             type="number"
-            value={clampedPage}
-            onChange={(event) =>
-              setCurrentPage(normalizePageInput(event.target.value, totalPages))
-            }
+            value={pageInputValue}
+            onBlur={commitPageInput}
+            onChange={(event) => setPageInputValue(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                commitPageInput();
+              }
+            }}
           />
           <span>/ {totalPages}</span>
           <button
+            aria-label={t("window.browser.nextPage")}
             className={browserPagerButtonClass}
             disabled={clampedPage >= totalPages}
+            title={t("window.browser.nextPage")}
             type="button"
             onClick={() =>
               setCurrentPage((page) => Math.min(totalPages, page + 1))
             }
           >
-            {t("window.browser.nextPage")}
+            <Icon name="chevron-right" />
           </button>
           <button
+            aria-label={t("window.browser.lastPage")}
             className={browserPagerButtonClass}
             disabled={clampedPage >= totalPages}
+            title={t("window.browser.lastPage")}
             type="button"
             onClick={() => setCurrentPage(totalPages)}
           >
-            {t("window.browser.lastPage")}
+            <Icon name="chevrons-right" />
           </button>
         </div>
         <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
@@ -1006,9 +1169,106 @@ export function FileBrowserView({
   );
 }
 
+function createJustifiedGalleryRows(
+  files: BrowserDisplayFile[],
+  availableWidth: number,
+  targetRowHeight: number,
+  runtimeDimensions: Record<number, BrowserRuntimeDimensions>,
+): BrowserGalleryItem[][] {
+  if (files.length === 0) {
+    return [];
+  }
+
+  const rowWidth = Math.max(targetRowHeight, availableWidth);
+  const rows: BrowserGalleryItem[][] = [];
+  let currentRow: BrowserGalleryDraftItem[] = [];
+  let currentRatio = 0;
+
+  files.forEach((file, index) => {
+    const ratio = getBrowserFileAspectRatio(file, runtimeDimensions[file.id]);
+    currentRow.push({ file, index, ratio });
+    currentRatio += ratio;
+
+    const gapWidth = Math.max(0, currentRow.length - 1) * BROWSER_GALLERY_GAP;
+    const naturalRowWidth = currentRatio * targetRowHeight + gapWidth;
+
+    if (naturalRowWidth >= rowWidth) {
+      rows.push(
+        createGalleryRow(currentRow, rowWidth, targetRowHeight, true),
+      );
+      currentRow = [];
+      currentRatio = 0;
+    }
+  });
+
+  if (currentRow.length > 0) {
+    rows.push(createGalleryRow(currentRow, rowWidth, targetRowHeight, false));
+  }
+
+  return rows;
+}
+
+function createGalleryRow(
+  files: BrowserGalleryDraftItem[],
+  availableWidth: number,
+  targetRowHeight: number,
+  justify: boolean,
+): BrowserGalleryItem[] {
+  const gapWidth = Math.max(0, files.length - 1) * BROWSER_GALLERY_GAP;
+  const ratioSum = files.reduce((total, item) => total + item.ratio, 0);
+  const rowHeight =
+    justify && ratioSum > 0
+      ? Math.max(64, Math.round((availableWidth - gapWidth) / ratioSum))
+      : targetRowHeight;
+
+  return files.map(({ file, index, ratio }) => ({
+    file,
+    index,
+    height: rowHeight,
+    width: Math.max(40, Math.round(rowHeight * ratio)),
+  }));
+}
+
+function getBrowserFileAspectRatio(
+  file: BrowserDisplayFile,
+  runtimeDimensions?: BrowserRuntimeDimensions,
+): number {
+  if (
+    runtimeDimensions &&
+    runtimeDimensions.width > 0 &&
+    runtimeDimensions.height > 0
+  ) {
+    return clampAspectRatio(runtimeDimensions.width / runtimeDimensions.height);
+  }
+
+  if (file.width && file.height && file.width > 0 && file.height > 0) {
+    return clampAspectRatio(file.width / file.height);
+  }
+
+  const extension = file.extension?.toLowerCase() ?? "";
+
+  if (isVideoExtension(extension)) {
+    return 16 / 9;
+  }
+
+  return 1;
+}
+
+function clampAspectRatio(ratio: number): number {
+  if (!Number.isFinite(ratio) || ratio <= 0) {
+    return 1;
+  }
+
+  return Math.min(4, Math.max(0.25, ratio));
+}
+
 function renderBrowserMedia(
   file: BrowserDisplayFile,
   shouldLoadPreview: boolean,
+  onImageLoad: (
+    fileId: number,
+    event: SyntheticEvent<HTMLImageElement>,
+  ) => void,
 ): JSX.Element {
   const extension = file.extension?.toLowerCase() ?? "";
 
@@ -1017,7 +1277,12 @@ function renderBrowserMedia(
       "thumbnailUrl" in file ? file.thumbnailUrl : file.mediaUrl;
 
     return shouldLoadPreview ? (
-      <img alt={file.fileName} loading="lazy" src={previewUrl} />
+      <img
+        alt={file.fileName}
+        loading="lazy"
+        src={previewUrl}
+        onLoad={(event) => onImageLoad(file.id, event)}
+      />
     ) : (
       <span />
     );
@@ -1028,53 +1293,18 @@ function renderBrowserMedia(
       "thumbnailUrl" in file ? file.thumbnailUrl : file.mediaUrl;
 
     return shouldLoadPreview ? (
-      <img alt={file.fileName} loading="lazy" src={previewUrl} />
+      <img
+        alt={file.fileName}
+        loading="lazy"
+        src={previewUrl}
+        onLoad={(event) => onImageLoad(file.id, event)}
+      />
     ) : (
       <span />
     );
   }
 
   return <span>{extension || "file"}</span>;
-}
-
-function calculateVisiblePreviewIds(
-  grid: HTMLDivElement,
-  files: BrowserDisplayFile[],
-  cellSize: number,
-): number[] {
-  if (files.length === 0 || grid.clientWidth <= 0 || grid.clientHeight <= 0) {
-    return [];
-  }
-
-  const columnStride = cellSize + BROWSER_GRID_GAP;
-  const rowStride = cellSize + BROWSER_GRID_GAP;
-  const usableWidth = Math.max(0, grid.clientWidth - BROWSER_GRID_PADDING * 2);
-  const columnCount = Math.max(
-    1,
-    Math.floor((usableWidth + BROWSER_GRID_GAP) / columnStride),
-  );
-  const overscan = BROWSER_PREVIEW_OVERSCAN_ROWS * rowStride;
-  const viewportStart = Math.max(
-    0,
-    grid.scrollTop - BROWSER_GRID_PADDING - overscan,
-  );
-  const viewportEnd =
-    grid.scrollTop + grid.clientHeight - BROWSER_GRID_PADDING + overscan;
-  const firstRow = Math.max(0, Math.floor(viewportStart / rowStride));
-  const lastRow = Math.max(firstRow, Math.floor(viewportEnd / rowStride));
-  const firstIndex = firstRow * columnCount;
-  const lastIndex = Math.min(files.length - 1, (lastRow + 1) * columnCount - 1);
-  const visibleIds: number[] = [];
-
-  for (let index = firstIndex; index <= lastIndex; index += 1) {
-    const file = files[index];
-
-    if (file) {
-      visibleIds.push(file.id);
-    }
-  }
-
-  return visibleIds;
 }
 
 function sortBrowserFiles(
@@ -1226,16 +1456,6 @@ function getDecodedPreviewCacheUrls(): Set<string> {
 
 function compareText(left: string, right: string): number {
   return left.localeCompare(right);
-}
-
-function normalizePageInput(value: string, totalPages: number): number {
-  const page = Number(value);
-
-  if (!Number.isInteger(page)) {
-    return 1;
-  }
-
-  return Math.min(totalPages, Math.max(1, page));
 }
 
 function isImportQueueFile(

@@ -7,6 +7,7 @@ import type {
   ConfirmDialogOptions,
   FilesChangedPayload,
   OperationProgress,
+  SettingsChangedPayload,
 } from "../../shared/ipc.js";
 import { IpcChannel } from "../../shared/ipcChannels.js";
 import type { AiDownloadProgress } from "../aiService.js";
@@ -17,6 +18,7 @@ type NormalizeIpcFileIds = (value: unknown) => number[];
 export interface AiHandlersContext {
   getAiSettings: () => AiSettings;
   setAiSettings: (settings: AiSettings) => AiSettings;
+  broadcastSettingsChanged: (kind: SettingsChangedPayload["kind"]) => void;
   chooseAiModelDirectory: (sender: WebContents) => Promise<string | null>;
   detectAiModel: (modelPath: string) => Promise<AiModelInfo>;
   detectAiModels: (
@@ -97,9 +99,11 @@ export function registerAiHandlers(
   context: AiHandlersContext,
 ): void {
   ipcMain.handle(IpcChannel.AI_GET_SETTINGS, () => context.getAiSettings());
-  ipcMain.handle(IpcChannel.AI_UPDATE_SETTINGS, (_event, settings: unknown) =>
-    context.setAiSettings(normalizeAiSettings(settings)),
-  );
+  ipcMain.handle(IpcChannel.AI_UPDATE_SETTINGS, (_event, settings: unknown) => {
+    const nextSettings = context.setAiSettings(normalizeAiSettings(settings));
+    context.broadcastSettingsChanged("ai");
+    return nextSettings;
+  });
   ipcMain.handle(IpcChannel.AI_SELECT_MODEL_DIRECTORY, (event) =>
     context.chooseAiModelDirectory(event.sender),
   );

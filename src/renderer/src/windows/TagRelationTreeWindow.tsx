@@ -150,7 +150,7 @@ export function TagRelationTreeWindow({
   }
 
   return (
-    <section className="grid h-full min-h-0 min-w-0 grid-rows-[32px_minmax(0,1fr)_24px] bg-(--panel) text-[11px] text-(--ink)">
+    <section className="grid h-full min-h-0 min-w-0 grid-rows-[32px_minmax(0,1fr)_24px] bg-(--panel) text-[12px] text-(--ink)">
       <header className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-1.5 border-b border-(--line) bg-(--panel-strong) px-2">
         <div className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap font-semibold">
           {t(titleKey)}
@@ -163,14 +163,14 @@ export function TagRelationTreeWindow({
           </span>
         </div>
         <button
-          className="ui-button min-w-[64px]"
+          className="ui-button ui-button-md"
           type="button"
           onClick={fitGraph}
         >
           {t("window.tagRelationTree.fit")}
         </button>
         <button
-          className="ui-button min-w-[64px]"
+          className="ui-button ui-button-md"
           type="button"
           onClick={() => void loadTree()}
         >

@@ -97,7 +97,7 @@ export function ResizableRows({
       <div
         aria-label={t("common.adjustHeight")}
         aria-orientation="horizontal"
-        className="min-h-[5px] w-full cursor-row-resize border-y border-(--line) bg-(--statusbar-bg) hover:bg-(--splitter-hover-bg)"
+        className="resizable-row-splitter min-h-[5px] w-full cursor-row-resize"
         role="separator"
         onPointerDown={startResize}
       />

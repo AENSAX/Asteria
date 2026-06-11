@@ -14,21 +14,21 @@ const apiShellClass =
 const apiSidebarClass =
   "flex min-h-0 min-w-0 flex-col border-r border-(--line) bg-(--surface-bg)";
 const apiSidebarHeaderClass =
-  "h-7 border-b border-(--line) bg-(--panel-strong) px-2 leading-7 text-[11px] font-semibold";
+  "h-7 border-b border-(--line) bg-(--panel-strong) px-2 leading-7 text-[12px] font-semibold";
 const apiSidebarListClass = "min-h-0 overflow-auto";
 const apiSidebarItemClass =
-  "grid min-h-[26px] w-full grid-cols-[18px_minmax(0,1fr)_48px] items-center border-0 border-b border-(--line) bg-transparent px-2 text-left text-[11px] text-(--ink)";
+  "grid min-h-[26px] w-full grid-cols-[18px_minmax(0,1fr)_48px] items-center border-0 border-b border-(--line) bg-transparent px-2 text-left text-[12px] text-(--ink)";
 const apiSidebarActiveClass = "bg-(--surface-raised-bg)";
 const apiSidebarCreateClass =
   "grid grid-cols-[minmax(0,1fr)_auto] gap-1.5 border-t border-(--line) p-2";
 const apiInputClass =
-  "h-6 min-w-0 border border-(--line-strong) bg-(--surface-inset-bg) px-1.5 text-(--ink)";
+  "ui-input";
 const apiButtonClass =
   "ui-button";
 const apiContentClass =
   "grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] bg-(--panel)";
 const apiToolbarClass =
-  "flex min-h-0 items-center gap-1.5 border-b border-(--line) bg-(--panel) p-2 text-[11px]";
+  "flex min-h-0 items-center gap-1.5 border-b border-(--line) bg-(--panel) p-2 text-[12px]";
 const apiInlineCheckClass = "flex min-w-0 items-center gap-1.5 text-(--ink)";
 const apiAvailabilityClass =
   "min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-(--muted)";
@@ -39,11 +39,11 @@ const apiFieldClass =
 const apiPermissionPanelClass =
   "grid min-h-0 grid-rows-[24px_minmax(0,1fr)] border border-(--line) bg-(--panel)";
 const apiPermissionHeaderClass =
-  "flex items-center justify-between border-b border-(--line) bg-(--surface-raised-bg) px-2 text-[11px]";
+  "flex items-center justify-between border-b border-(--line) bg-(--surface-raised-bg) px-2 text-[12px]";
 const apiPermissionListClass = "min-h-0 overflow-auto";
 const apiPermissionItemClass =
-  "grid min-h-6 grid-cols-[18px_minmax(0,1fr)] items-center gap-1.5 border-b border-(--line) px-2 text-[11px]";
-const apiEmptyClass = "p-2 text-(--muted)";
+  "grid min-h-6 grid-cols-[18px_minmax(0,1fr)] items-center gap-1.5 border-b border-(--line) px-2 text-[12px]";
+const apiEmptyClass = "ui-empty";
 
 export function ApiManagerWindow(): JSX.Element {
   const { t } = useLanguage();
@@ -139,6 +139,17 @@ export function ApiManagerWindow(): JSX.Element {
       return;
     }
 
+    const serviceName =
+      services.find((service) => service.id === selectedServiceId)?.name ?? "";
+    const confirmed = await window.asteria.confirmDialog({
+      title: t("confirm.deleteTitle"),
+      message: t("confirm.deleteApiService", { name: serviceName }),
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
     const nextServices =
       await window.asteria.deleteApiService(selectedServiceId);
 
@@ -215,7 +226,7 @@ export function ApiManagerWindow(): JSX.Element {
               }}
             />
             <button className="ui-button" type="button" onClick={() => void createService()}>
-              {t("window.api.create")}
+              {t("common.create")}
             </button>
           </div>
         </aside>
@@ -241,7 +252,7 @@ export function ApiManagerWindow(): JSX.Element {
                   type="button"
                   onClick={() => void deleteService()}
                 >
-                  {t("window.api.delete")}
+                  {t("common.delete")}
                 </button>
                 <button
                   className={apiButtonClass}

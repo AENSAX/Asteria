@@ -51,6 +51,7 @@ interface ThemePalette {
     accent: string;
     accentWeak: string;
     accentOverlay: string;
+    pendingBorder: string;
     buttonHover: string;
     buttonActive: string;
     success: string;
@@ -58,6 +59,9 @@ interface ThemePalette {
     danger: string;
     warning: string;
     favorite: string;
+  };
+  effects: {
+    overlayShadow: string;
   };
 }
 
@@ -100,7 +104,7 @@ export const themeDefinitions: ThemeDefinition[] = [
         tag: "#26323a",
         tagHover: "#2b3942",
         groupHeader: "#30363b",
-        selection: "#202b34",
+        selection: "#1b3050",
         danger: "#3a2525",
       },
       text: {
@@ -125,16 +129,20 @@ export const themeDefinitions: ThemeDefinition[] = [
         hover: "#5d6872",
       },
       action: {
-        accent: "#2d7dd2",
-        accentWeak: "#183a5a",
-        accentOverlay: "rgb(45 125 210 / 18%)",
+        accent: "#3b82f6",
+        accentWeak: "#16314f",
+        accentOverlay: "rgb(59 130 246 / 22%)",
+        pendingBorder: "#7fb5f5",
         buttonHover: "#323941",
-        buttonActive: "#263849",
+        buttonActive: "#1f3a5c",
         success: "#5fa36f",
         successWeak: "#243f2d",
         danger: "#d06b58",
         warning: "#b08d57",
         favorite: "#ff6fae",
+      },
+      effects: {
+        overlayShadow: "0 6px 20px rgb(0 0 0 / 45%)",
       },
     },
   },
@@ -162,7 +170,7 @@ export const themeDefinitions: ThemeDefinition[] = [
         tag: "#e7f0f7",
         tagHover: "#d8e7f2",
         groupHeader: "#d8dee6",
-        selection: "#d8eafa",
+        selection: "#dbeafe",
         danger: "#f8ddd8",
       },
       text: {
@@ -187,9 +195,10 @@ export const themeDefinitions: ThemeDefinition[] = [
         hover: "#7e8b97",
       },
       action: {
-        accent: "#2268a8",
-        accentWeak: "#d7e9f8",
-        accentOverlay: "rgb(34 104 168 / 18%)",
+        accent: "#2563eb",
+        accentWeak: "#dbeafe",
+        accentOverlay: "rgb(37 99 235 / 16%)",
+        pendingBorder: "#2563eb",
         buttonHover: "#e7edf3",
         buttonActive: "#d8e8f6",
         success: "#3f8f5a",
@@ -197,6 +206,9 @@ export const themeDefinitions: ThemeDefinition[] = [
         danger: "#b85043",
         warning: "#b27622",
         favorite: "#d83d86",
+      },
+      effects: {
+        overlayShadow: "0 6px 20px rgb(15 23 42 / 15%)",
       },
     },
   },
@@ -337,6 +349,8 @@ function createThemeVariables(palette: ThemePalette): Record<string, string> {
     "--accent": palette.action.accent,
     "--accent-weak": palette.action.accentWeak,
     "--accent-overlay": palette.action.accentOverlay,
+    "--pending-border": palette.action.pendingBorder,
+    "--shadow-overlay": palette.effects.overlayShadow,
     "--danger": palette.action.danger,
     "--button-hover": palette.action.buttonHover,
     "--button-active": palette.action.buttonActive,

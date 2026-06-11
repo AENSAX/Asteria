@@ -37,10 +37,10 @@ interface WorkbenchMenuBarProps {
 }
 
 const menuButtonClass =
-  "h-full min-w-12 cursor-default border-0 bg-transparent px-3 text-[11px] hover:bg-(--panel-strong)";
+  "h-full min-w-12 cursor-default border-0 bg-transparent px-3 text-[12px] hover:bg-(--panel-strong)";
 const activeMenuButtonClass = `${menuButtonClass} bg-(--panel-strong)`;
 const menuDropdownClass =
-  "absolute left-0 top-full z-10 min-w-[132px] border border-(--line-strong) bg-(--panel) p-1 [&>button]:h-[26px] [&>button]:w-full [&>button]:cursor-default [&>button]:border-0 [&>button]:bg-transparent [&>button]:px-2.5 [&>button]:text-left [&>button]:text-[11px] [&>button:disabled]:text-(--disabled-ink) [&>button:hover:not(:disabled)]:bg-(--accent-weak)";
+  "ui-popover absolute left-0 top-full z-10 min-w-[132px] p-1 [&>button]:h-[26px] [&>button]:w-full [&>button]:cursor-default [&>button]:rounded-(--radius) [&>button]:border-0 [&>button]:bg-transparent [&>button]:px-2.5 [&>button]:text-left [&>button]:text-[12px] [&>button:disabled]:text-(--disabled-ink) [&>button:hover:not(:disabled)]:bg-(--accent-weak)";
 
 export function WorkbenchMenuBar({
   activePageAvailable,

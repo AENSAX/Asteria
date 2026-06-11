@@ -207,6 +207,8 @@ export interface ApiUploadedFileRecordInput {
   fileName: string;
   extension: string | null;
   sizeBytes: number;
+  width: number | null;
+  height: number | null;
   tags: TagDraft[];
   tagStyleName: string | null;
   urls: string[];
@@ -222,8 +224,8 @@ export function createApiUploadedFileRecord(
     const result = db
       .prepare(
         `INSERT INTO files
-          (api_identifier, sha256, original_path, storage_path, file_name, extension, mime_type, size_bytes, domain)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          (api_identifier, sha256, original_path, storage_path, file_name, extension, mime_type, size_bytes, width, height, domain)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         apiIdentifier,
@@ -234,6 +236,8 @@ export function createApiUploadedFileRecord(
         input.extension,
         null,
         input.sizeBytes,
+        input.width,
+        input.height,
         FILE_DOMAIN_PENDING,
       );
     const fileId = Number(result.lastInsertRowid);

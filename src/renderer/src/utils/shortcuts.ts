@@ -3,6 +3,7 @@ import type { TranslationKey } from "./language";
 export type ShortcutAction =
   | "close-window"
   | "select-all"
+  | "remove-selected"
   | "detail-previous-file"
   | "detail-next-file"
   | "browser-previous-page"
@@ -43,6 +44,12 @@ export const shortcutActionConfigs: ShortcutActionConfig[] = [
     labelKey: "settings.shortcut.selectAll",
     descriptionKey: "settings.shortcut.selectAllDesc",
     defaults: [{ action: "select-all", key: "a", ctrl: true }],
+  },
+  {
+    action: "remove-selected",
+    labelKey: "settings.shortcut.removeSelected",
+    descriptionKey: "settings.shortcut.removeSelectedDesc",
+    defaults: [{ action: "remove-selected", key: "Delete" }],
   },
   {
     action: "detail-previous-file",

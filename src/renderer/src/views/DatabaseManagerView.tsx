@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { DatabaseFilePage } from "../../../shared/ipc";
-import { formatBytes } from "../utils/format";
+import { formatBytes, formatDate } from "../utils/format";
 import { useLanguage } from "../utils/language";
 
 export function DatabaseManagerView(): JSX.Element {
@@ -49,7 +49,7 @@ export function DatabaseManagerView(): JSX.Element {
   return (
     <section className="grid h-full min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_32px] bg-(--panel)">
       <div className="min-h-0 min-w-0 overflow-auto">
-        <table className="w-full table-fixed border-collapse text-[11px]">
+        <table className="w-full table-fixed border-collapse text-[12px]">
           <thead>
             <tr>
               <th className="h-[26px] border-b border-r border-(--line) bg-(--surface-bg) px-2 text-left font-medium text-(--muted)">
@@ -82,8 +82,11 @@ export function DatabaseManagerView(): JSX.Element {
                   <td className="h-[26px] overflow-hidden border-b border-r border-(--line) px-2 text-left text-(--ink)">
                     {formatBytes(file.sizeBytes)}
                   </td>
-                  <td className="h-[26px] overflow-hidden border-b border-r border-(--line) px-2 text-left text-(--ink)">
-                    {file.importedAt}
+                  <td
+                    className="h-[26px] overflow-hidden border-b border-r border-(--line) px-2 text-left text-(--ink)"
+                    title={file.importedAt}
+                  >
+                    {formatDate(file.importedAt)}
                   </td>
                   <td
                     className="h-[26px] overflow-hidden border-b border-r border-(--line) px-2 text-left text-(--ink)"
@@ -115,7 +118,7 @@ export function DatabaseManagerView(): JSX.Element {
         </span>
         <div className="flex gap-1.5">
           <button
-            className="ui-button min-w-[58px]"
+            className="ui-button ui-button-md"
             disabled={!databasePage || databasePage.page <= 1}
             type="button"
             onClick={goToPreviousDatabasePage}
@@ -123,7 +126,7 @@ export function DatabaseManagerView(): JSX.Element {
             {t("window.database.previous")}
           </button>
           <button
-            className="ui-button min-w-[58px]"
+            className="ui-button ui-button-md"
             disabled={!databasePage || databasePage.page >= databaseTotalPages}
             type="button"
             onClick={goToNextDatabasePage}

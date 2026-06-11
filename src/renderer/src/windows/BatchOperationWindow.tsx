@@ -199,6 +199,15 @@ export function BatchOperationWindow({
       return;
     }
 
+    const confirmed = await window.asteria.confirmDialog({
+      title: t("confirm.runBatchScriptTitle"),
+      message: t("confirm.runBatchScript", { count: imageFiles.length }),
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
     setRunning(true);
     resetRunState();
 
@@ -280,10 +289,10 @@ export function BatchOperationWindow({
           <div ref={editorContainerRef} className="h-full min-h-0 min-w-0" />
         </div>
         <aside className="grid min-h-0 grid-rows-[28px_minmax(0,1fr)] bg-(--surface-bg)">
-          <header className="border-b border-(--line) bg-(--panel-strong) px-2 text-[11px] font-semibold leading-7">
+          <header className="border-b border-(--line) bg-(--panel-strong) px-2 text-[12px] font-semibold leading-7">
             {t("window.batchOperation.logs")}
           </header>
-          <div className="min-h-0 overflow-auto text-[11px]">
+          <div className="min-h-0 overflow-auto text-[12px]">
             {logs.length > 0 ? (
               logs.map((log) => (
                 <div
@@ -305,13 +314,13 @@ export function BatchOperationWindow({
                 </div>
               ))
             ) : (
-              <div className="p-2 text-(--muted)">{t("window.batchOperation.noLogs")}</div>
+              <div className="ui-empty">{t("window.batchOperation.noLogs")}</div>
             )}
           </div>
         </aside>
       </div>
 
-      <div className="grid grid-cols-[minmax(0,1fr)_96px_96px] gap-2 border-t border-(--line) bg-(--surface-bg) p-2 text-[11px]">
+      <div className="grid grid-cols-[minmax(0,1fr)_96px_96px] gap-2 border-t border-(--line) bg-(--surface-bg) p-2 text-[12px]">
         <div className="min-w-0 text-(--muted)">
           {t("window.batchOperation.description")}
         </div>
@@ -332,7 +341,7 @@ export function BatchOperationWindow({
           {running ? t("window.batchOperation.running") : t("window.batchOperation.run")}
         </button>
       </div>
-      <footer className="flex h-6 items-center gap-2 border-t border-(--line) px-2 text-[11px] text-(--muted)">
+      <footer className="flex h-6 items-center gap-2 border-t border-(--line) px-2 text-[12px] text-(--muted)">
         <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
           {formatBatchMessage(message, t)}
         </span>

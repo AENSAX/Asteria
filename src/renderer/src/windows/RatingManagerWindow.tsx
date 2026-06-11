@@ -1,26 +1,19 @@
 import { useEffect, useState } from "react";
 import type { RatingEntryRecord, RatingGroupRecord } from "../../../shared/ipc";
 import { ActionFeedbackButton } from "../components/ActionFeedbackButton";
+import { Icon } from "../components/Icon";
+import {
+  ManagerSidebar,
+  managerShellClass,
+} from "../components/ManagerSidebar";
 import { ResizableColumns } from "../components/ResizableColumns";
 import { useLanguage } from "../utils/language";
 
 const defaultEntryColor = "#d9dde1";
-const managerShellClass =
-  "grid h-full min-h-0 min-w-0 grid-cols-[180px_minmax(0,1fr)] bg-(--panel)";
-const sidebarClass =
-  "flex min-h-0 min-w-0 flex-col border-r border-(--line) bg-(--surface-bg)";
-const sidebarHeaderClass =
-  "h-7 border-b border-(--line) bg-(--panel-strong) px-2 leading-7 text-[11px] font-semibold";
-const listClass = "min-h-0 overflow-auto";
-const sidebarItemClass =
-  "grid min-h-[26px] w-full grid-cols-[18px_minmax(0,1fr)_42px] items-center border-0 border-b border-(--line) bg-transparent px-2 text-left text-[11px] text-(--ink)";
-const sidebarItemActiveClass = "bg-(--surface-raised-bg)";
-const createRowClass =
-  "ui-button-scope grid grid-cols-[minmax(0,1fr)_auto] gap-1.5 border-t border-(--line) p-2";
 const inputClass =
-  "h-6 min-w-0 border border-(--line-strong) bg-(--surface-inset-bg) px-1.5 text-(--ink)";
+  "ui-input";
 const buttonClass =
-  "ui-button min-w-[72px]";
+  "ui-button ui-button-md";
 const panelClass =
   "grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_minmax(0,1fr)] bg-(--panel)";
 const toolbarClass = "grid gap-1 border-b border-(--line) bg-(--panel) p-2";
@@ -31,21 +24,20 @@ const entryCreateRowClass =
 const entryCountClass =
   "min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-(--muted)";
 const entryListClass = "min-h-0 overflow-auto bg-(--surface-bg) p-2";
-const emptyClass = "p-2 text-(--muted)";
+const emptyClass = "ui-empty";
 const entryRowClass =
-  "grid grid-cols-[18px_18px_minmax(0,1fr)_24px_auto_auto] items-center gap-1.5 border-b border-(--line) px-2 py-1 text-[11px]";
+  "grid grid-cols-[18px_18px_minmax(0,1fr)_24px_auto_auto] items-center gap-1.5 border-b border-(--line) px-2 py-1 text-[12px]";
 const entryRowDraggingClass = "bg-(--selection-bg)";
 const dragHandleClass = "cursor-grab text-center text-(--muted)";
 const swatchClass = "h-4 w-4 border border-(--line-strong)";
 const entryActionClass =
-  "ui-button min-w-[56px]";
+  "ui-button ui-button-md";
 
 export function RatingManagerWindow(): JSX.Element {
   const { t } = useLanguage();
   const [groups, setGroups] = useState<RatingGroupRecord[]>([]);
   const [entries, setEntries] = useState<RatingEntryRecord[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
-  const [groupInput, setGroupInput] = useState("");
   const [selectedGroupName, setSelectedGroupName] = useState("");
   const [entryInput, setEntryInput] = useState("");
   const [entryColor, setEntryColor] = useState(defaultEntryColor);
@@ -88,18 +80,17 @@ export function RatingManagerWindow(): JSX.Element {
     setEntries(await window.asteria.listRatingEntries(selectedGroupId));
   }
 
-  async function createGroup(): Promise<void> {
-    if (!window.asteria || !groupInput.trim()) {
-      return;
+  async function createGroup(name: string): Promise<boolean> {
+    if (!window.asteria) {
+      return false;
     }
 
-    const nextGroups = await window.asteria.createRatingGroup(groupInput);
+    const nextGroups = await window.asteria.createRatingGroup(name);
     const createdGroup =
-      nextGroups.find((group) => group.name === groupInput.trim()) ??
-      nextGroups[0];
+      nextGroups.find((group) => group.name === name.trim()) ?? nextGroups[0];
     setGroups(nextGroups);
     setSelectedGroupId(createdGroup?.id ?? null);
-    setGroupInput("");
+    return true;
   }
 
   async function renameGroup(): Promise<void> {
@@ -132,6 +123,17 @@ export function RatingManagerWindow(): JSX.Element {
 
   async function deleteGroup(): Promise<void> {
     if (!window.asteria || selectedGroupId === null) {
+      return;
+    }
+
+    const groupName =
+      groups.find((group) => group.id === selectedGroupId)?.name ?? "";
+    const confirmed = await window.asteria.confirmDialog({
+      title: t("confirm.deleteTitle"),
+      message: t("confirm.deleteRatingGroup", { name: groupName }),
+    });
+
+    if (!confirmed) {
       return;
     }
 
@@ -170,6 +172,17 @@ export function RatingManagerWindow(): JSX.Element {
 
   async function deleteEntry(entryId: number): Promise<void> {
     if (!window.asteria) {
+      return;
+    }
+
+    const entryLabel =
+      entries.find((entry) => entry.id === entryId)?.label ?? "";
+    const confirmed = await window.asteria.confirmDialog({
+      title: t("confirm.deleteTitle"),
+      message: t("confirm.deleteRatingEntry", { label: entryLabel }),
+    });
+
+    if (!confirmed) {
       return;
     }
 
@@ -231,46 +244,20 @@ export function RatingManagerWindow(): JSX.Element {
       minRightWidth={380}
       storageKey="asteria:rating-manager-sidebar-width"
       left={
-        <aside className={sidebarClass}>
-          <header className={sidebarHeaderClass}>{t("window.rating.group")}</header>
-          <div className={listClass}>
-            {groups.map((group) => (
-              <button
-                className={`${sidebarItemClass} ${group.id === selectedGroupId ? sidebarItemActiveClass : ""}`}
-                key={group.id}
-                type="button"
-                onClick={() => setSelectedGroupId(group.id)}
-              >
-                <span className="text-center text-(--success-ink)">
-                  {group.isActive ? "√" : ""}
-                </span>
-                <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
-                  {group.name}
-                </span>
-                <span className="text-right text-(--muted)">
-                  {group.entryCount}
-                </span>
-              </button>
-            ))}
-          </div>
-          <div className={createRowClass}>
-            <input
-              className={inputClass}
-              aria-label={t("window.rating.createInput")}
-              placeholder={t("window.rating.createPlaceholder")}
-              value={groupInput}
-              onChange={(event) => setGroupInput(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  void createGroup();
-                }
-              }}
-            />
-            <button type="button" onClick={() => void createGroup()}>
-              {t("window.rating.create")}
-            </button>
-          </div>
-        </aside>
+        <ManagerSidebar
+          activeId={selectedGroupId}
+          createButtonLabel={t("common.create")}
+          createInputLabel={t("window.rating.createInput")}
+          createPlaceholder={t("window.rating.createPlaceholder")}
+          getCount={(group) => group.entryCount}
+          getId={(group) => group.id}
+          getLabel={(group) => group.name}
+          headerLabel={t("window.rating.group")}
+          isMarked={(group) => group.isActive}
+          items={groups}
+          onCreate={createGroup}
+          onSelect={setSelectedGroupId}
+        />
       }
       right={
         <main className={panelClass}>
@@ -288,7 +275,7 @@ export function RatingManagerWindow(): JSX.Element {
                 type="button"
                 onClick={() => void renameGroup()}
               >
-                {t("window.rating.rename")}
+                {t("common.rename")}
               </button>
               <button
                 disabled={!selectedGroup}
@@ -304,7 +291,7 @@ export function RatingManagerWindow(): JSX.Element {
                 type="button"
                 onClick={() => void deleteGroup()}
               >
-                {t("window.rating.delete")}
+                {t("common.delete")}
               </button>
             </div>
 
@@ -440,11 +427,13 @@ function RatingEntryRow({
         onAction={() => onUpdate(entry, label, color)}
       />
       <button
-        className={entryActionClass}
+        aria-label={t("common.delete")}
+        className="ui-button ui-icon-button"
+        title={t("common.delete")}
         type="button"
         onClick={() => void onDelete(entry.id)}
       >
-        {t("window.rating.delete")}
+        <Icon name="trash" />
       </button>
     </div>
   );

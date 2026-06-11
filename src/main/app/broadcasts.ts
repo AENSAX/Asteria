@@ -2,6 +2,7 @@ import { BrowserWindow } from "electron";
 import type {
   FilesChangedKind,
   FilesChangedPayload,
+  SettingsChangedPayload,
 } from "../../shared/ipc.js";
 import { IpcEvent } from "../../shared/ipcChannels.js";
 
@@ -96,6 +97,12 @@ export function broadcastPageLayoutChanged(): void {
 
 export function broadcastImportQueueChanged(): void {
   broadcastCoalesced(IpcEvent.IMPORT_QUEUE_CHANGED);
+}
+
+export function broadcastSettingsChanged(
+  kind: SettingsChangedPayload["kind"],
+): void {
+  broadcastToAllWindows(IpcEvent.SETTINGS_CHANGED, { kind });
 }
 
 function broadcastToAllWindows(channel: string, ...args: unknown[]): void {

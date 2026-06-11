@@ -204,13 +204,21 @@ export function getFileOriginalPath(id: number): string | null {
 
 export function getFileThumbnailSource(
   id: number,
-): { sourcePath: string; sha256: string; extension: string | null } | null {
+): {
+  sourcePath: string;
+  sha256: string;
+  extension: string | null;
+  width: number | null;
+  height: number | null;
+} | null {
   const db = getDatabaseConnection();
   const row = db
     .prepare(
       `SELECT
         sha256,
         extension,
+        width,
+        height,
         storage_path AS storagePath,
         original_path AS originalPath
        FROM files
@@ -220,6 +228,8 @@ export function getFileThumbnailSource(
     | {
         sha256: string;
         extension: string | null;
+        width: number | null;
+        height: number | null;
         storagePath: string | null;
         originalPath: string;
       }
@@ -233,7 +243,27 @@ export function getFileThumbnailSource(
     sourcePath: row.storagePath ?? row.originalPath,
     sha256: row.sha256,
     extension: row.extension,
+    width: row.width,
+    height: row.height,
   };
+}
+
+export function updateFileDimensions(
+  id: number,
+  width: number,
+  height: number,
+): void {
+  if (!Number.isInteger(id) || id <= 0 || width <= 0 || height <= 0) {
+    return;
+  }
+
+  const db = getDatabaseConnection();
+  db.prepare(
+    `UPDATE files
+     SET width = ?, height = ?
+     WHERE id = ?
+       AND (width IS NULL OR height IS NULL OR width <= 0 OR height <= 0)`,
+  ).run(Math.round(width), Math.round(height), id);
 }
 
 export function hasStoredFileReference(sha256: string): boolean {

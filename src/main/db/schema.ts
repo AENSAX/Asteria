@@ -205,10 +205,6 @@ export function runMigrations(
   if (currentVersion < 11) {
     migrateToTagSiblings(db);
   }
-
-  ensureApiFileIdentifiersSchema(db);
-  ensureTagParentsSchema(db);
-  ensureTagSiblingsSchema(db);
 }
 
 export function readSchemaVersion(db: Database.Database): number {

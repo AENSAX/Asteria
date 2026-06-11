@@ -11,6 +11,7 @@ export type ViewComponent =
   | "tag-list";
 
 export type OpenableViewComponent = Exclude<ViewComponent, "empty-page">;
+const WORKBENCH_SPLITTER_SIZE = 1;
 
 export function getPageTitle(
   pageNumber: number,
@@ -89,10 +90,27 @@ export function syncViewTabTitles<T extends { model: Model }>(
 
 export function createPageModel(templateText = defaultPageTemplateText): Model {
   try {
-    return Model.fromJson(parse(templateText) as IJsonModel);
+    return Model.fromJson(normalizePageModelJson(parse(templateText)));
   } catch {
-    return Model.fromJson(parse(defaultPageTemplateText) as IJsonModel);
+    return Model.fromJson(normalizePageModelJson(parse(defaultPageTemplateText)));
   }
+}
+
+export function createPageModelFromJson(modelJson: IJsonModel): Model {
+  return Model.fromJson(normalizePageModelJson(modelJson));
+}
+
+function normalizePageModelJson(modelJson: unknown): IJsonModel {
+  const json = structuredClone(modelJson) as IJsonModel & {
+    global?: Record<string, unknown>;
+  };
+
+  json.global = {
+    ...(json.global ?? {}),
+    splitterSize: WORKBENCH_SPLITTER_SIZE,
+  };
+
+  return json;
 }
 
 export function createViewTab(

@@ -77,7 +77,7 @@ export function DialogWindow({ dialogId }: DialogWindowProps): JSX.Element {
   if (!state) {
     return (
       <section
-        className="grid w-fit min-w-[280px] overflow-hidden bg-(--bg) text-[11px] text-(--ink)"
+        className="grid w-fit min-w-[280px] overflow-hidden bg-(--bg) text-[12px] text-(--ink)"
         ref={rootRef}
       >
         {t("window.dialog.loading")}
@@ -92,7 +92,7 @@ export function DialogWindow({ dialogId }: DialogWindowProps): JSX.Element {
 
   return (
     <section
-      className="grid w-fit min-w-[280px] max-w-[900px] overflow-hidden bg-(--bg) text-[11px] text-(--ink)"
+      className="grid w-fit min-w-[280px] max-w-[900px] overflow-hidden bg-(--bg) text-[12px] text-(--ink)"
       ref={rootRef}
     >
       <main className="min-w-0 min-h-0 p-3">
@@ -115,7 +115,7 @@ export function DialogWindow({ dialogId }: DialogWindowProps): JSX.Element {
         <footer className="flex justify-end gap-1 border-t border-(--line) bg-(--surface-bg) p-2">
           {state.kind === "confirm" ? (
             <button
-              className="ui-button min-w-14.5"
+              className="ui-button ui-button-md"
               type="button"
               onClick={() => void resolve(false)}
             >
@@ -123,7 +123,7 @@ export function DialogWindow({ dialogId }: DialogWindowProps): JSX.Element {
             </button>
           ) : null}
           <button
-            className="ui-button min-w-[58px]"
+            className="ui-button ui-button-md"
             type="button"
             onClick={() => void resolve(true)}
           >

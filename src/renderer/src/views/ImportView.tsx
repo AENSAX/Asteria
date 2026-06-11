@@ -62,7 +62,7 @@ export function ImportView({
     <section className="grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_auto_minmax(0,1fr)] bg-(--panel)">
       <header className="flex h-[30px] items-center gap-1.5 border-b border-(--line) bg-(--panel-strong) px-1.5">
         <button
-          className="ui-button ui-button-compact min-w-[66px]"
+          className="ui-button ui-button-compact ui-button-md"
           disabled={readyCount === 0}
           type="button"
           onClick={() => onCommitQueue(queueFiles)}
@@ -70,12 +70,12 @@ export function ImportView({
           {t("window.import.now")}
         </button>
         <button
-          className="ui-button ui-button-compact min-w-[66px]"
+          className="ui-button ui-button-compact ui-button-md"
           disabled={queueFiles.length === 0}
           type="button"
           onClick={onCancelQueue}
         >
-          {t("window.import.cancel")}
+          {t("common.cancel")}
         </button>
       </header>
 
@@ -163,7 +163,7 @@ export function ImportView({
         </div>
       </dl>
 
-      <div className="min-h-0 overflow-auto border-t border-(--line) bg-(--surface-inset-bg) text-[11px] text-(--ink)">
+      <div className="min-h-0 overflow-auto border-t border-(--line) bg-(--surface-inset-bg) text-[12px] text-(--ink)">
         <div className="sticky top-0 grid min-h-6 grid-cols-[96px_78px_62px_minmax(0,1fr)] border-b border-(--line) bg-(--panel-strong) text-(--muted)">
           <span>{t("window.import.status")}</span>
           <span>{t("window.import.size")}</span>
@@ -176,14 +176,22 @@ export function ImportView({
               className="grid min-h-6 grid-cols-[96px_78px_62px_minmax(0,1fr)] border-b border-(--line) bg-(--panel)"
               key={file.id}
             >
-              <span>
+              <span
+                title={
+                  file.status === "failed"
+                    ? (file.errorMessage ?? undefined)
+                    : undefined
+                }
+              >
                 {file.duplicate
                   ? `${t("window.import.duplicate")}:${getFileDomainDisplayName(
                       file.duplicate.domain,
                       t,
                     )}`
                   : file.status === "failed"
-                    ? t("window.import.failed")
+                    ? file.errorMessage
+                      ? `${t("window.import.failed")}: ${file.errorMessage}`
+                      : t("window.import.failed")
                     : t("window.import.added")}
               </span>
               <span>{formatBytes(file.sizeBytes)}</span>
@@ -192,7 +200,7 @@ export function ImportView({
             </div>
           ))
         ) : (
-          <div className="h-6 px-2 leading-6 text-(--muted)">
+          <div className="ui-empty">
             {t("window.import.noFiles")}
           </div>
         )}

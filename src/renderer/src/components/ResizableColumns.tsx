@@ -97,7 +97,7 @@ export function ResizableColumns({
       <div
         aria-label={t("common.adjustWidth")}
         aria-orientation="vertical"
-        className="h-full min-w-[5px] cursor-col-resize border-x border-(--line) bg-(--statusbar-bg) hover:bg-(--splitter-hover-bg)"
+        className="resizable-column-splitter h-full min-w-[5px] cursor-col-resize"
         role="separator"
         onPointerDown={startResize}
       />

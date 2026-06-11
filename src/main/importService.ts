@@ -2,6 +2,7 @@ import { app, BrowserWindow, dialog, type WebContents } from "electron";
 import { readdir, stat } from "node:fs/promises";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, extname, join } from "node:path";
+import sharp from "sharp";
 import {
   addFileUrl,
   createApiFileIdentifier,
@@ -14,7 +15,7 @@ import {
   downloadWebMedia,
   normalizeImportUrls,
 } from "./webImport.js";
-import { MEDIA_EXTENSIONS } from "../shared/media.js";
+import { IMAGE_EXTENSIONS, MEDIA_EXTENSIONS } from "../shared/media.js";
 import type {
   FileDomain,
   ImportCommitResult,
@@ -44,6 +45,8 @@ interface ImportQueueItem {
   fileName: string;
   extension: string | null;
   sizeBytes: number;
+  width: number | null;
+  height: number | null;
   sha256: string;
   sourceKind: "local" | "web";
   sourceUrl: string | null;
@@ -638,14 +641,18 @@ async function analyzePreparedFile(
       );
     }
 
+    const extension = normalizeExtension(filePath);
     const sha256 = await hashFile(filePath);
+    const dimensions = await readImageDimensions(filePath, extension);
 
     return {
       id,
       filePath,
       fileName: basename(filePath),
-      extension: normalizeExtension(filePath),
+      extension,
       sizeBytes: fileStat.size,
+      width: dimensions?.width ?? null,
+      height: dimensions?.height ?? null,
       sha256,
       sourceKind,
       sourceUrl,
@@ -677,6 +684,8 @@ function createFailedQueueItem(
     fileName: basename(filePath),
     extension: normalizeExtension(filePath),
     sizeBytes: 0,
+    width: null,
+    height: null,
     sha256: "",
     sourceKind,
     sourceUrl,
@@ -684,6 +693,32 @@ function createFailedQueueItem(
     status: "failed",
     errorMessage,
   };
+}
+
+async function readImageDimensions(
+  filePath: string,
+  extension: string | null,
+): Promise<{ width: number; height: number } | null> {
+  if (!extension || !IMAGE_EXTENSIONS.has(extension)) {
+    return null;
+  }
+
+  try {
+    const metadata = await sharp(filePath).metadata();
+    const width = metadata.width;
+    const height = metadata.height;
+
+    if (!width || !height || width <= 0 || height <= 0) {
+      return null;
+    }
+
+    return {
+      width: Math.round(width),
+      height: Math.round(height),
+    };
+  } catch {
+    return null;
+  }
 }
 
 async function importOneQueuedFile(
@@ -709,6 +744,8 @@ async function importOneQueuedFile(
         fileName: existing.fileName,
         extension: existing.extension,
         sizeBytes: item.sizeBytes,
+        width: item.width,
+        height: item.height,
       });
       attachQueuedFileMetadata(fileId, item);
 
@@ -733,6 +770,8 @@ async function importOneQueuedFile(
       fileName: storedFile.fileName,
       extension: storedFile.extension,
       sizeBytes: storedFile.sizeBytes,
+      width: item.width,
+      height: item.height,
     });
     attachQueuedFileMetadata(fileId, item);
 
@@ -763,13 +802,15 @@ function insertFileRecord(file: {
   fileName: string;
   extension: string | null;
   sizeBytes: number;
+  width: number | null;
+  height: number | null;
 }): number {
   const db = getDatabaseConnection();
   const result = db
     .prepare(
       `INSERT INTO files
-        (api_identifier, sha256, original_path, storage_path, file_name, extension, mime_type, size_bytes, domain)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (api_identifier, sha256, original_path, storage_path, file_name, extension, mime_type, size_bytes, width, height, domain)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       createApiFileIdentifier(),
@@ -780,6 +821,8 @@ function insertFileRecord(file: {
       file.extension,
       null,
       file.sizeBytes,
+      file.width,
+      file.height,
       "pending",
     );
 
@@ -967,6 +1010,8 @@ function normalizeStoredQueueItem(
     fileName: value.fileName,
     extension: typeof value.extension === "string" ? value.extension : null,
     sizeBytes: value.sizeBytes,
+    width: normalizeStoredDimension(value.width),
+    height: normalizeStoredDimension(value.height),
     sha256: value.sha256,
     sourceKind: value.sourceKind === "web" ? "web" : "local",
     sourceUrl: typeof value.sourceUrl === "string" ? value.sourceUrl : null,
@@ -975,6 +1020,12 @@ function normalizeStoredQueueItem(
     errorMessage:
       typeof value.errorMessage === "string" ? value.errorMessage : null,
   };
+}
+
+function normalizeStoredDimension(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) && value > 0
+    ? Math.round(value)
+    : null;
 }
 
 function normalizeQueueIds(ids: number[]): number[] {
@@ -989,6 +1040,8 @@ function toQueueRecord(item: ImportQueueItem): ImportQueueFileRecord {
     fileName: item.fileName,
     extension: item.extension,
     sizeBytes: item.sizeBytes,
+    width: item.width,
+    height: item.height,
     originalPath: getQueueOriginalPath(item),
     sourceUrl: item.sourceUrl,
     sha256: item.sha256,

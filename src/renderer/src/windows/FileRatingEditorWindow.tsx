@@ -92,7 +92,7 @@ export function FileRatingEditorWindow({
   }
 
   return (
-    <section className="grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_32px] bg-(--panel) text-[11px] text-(--ink)">
+    <section className="grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_32px] bg-(--panel) text-[12px] text-(--ink)">
       <div className="flex items-center justify-between border-b border-(--line) bg-(--surface-bg) px-2 py-1 text-(--muted)">
         <span>
           {group
@@ -118,7 +118,7 @@ export function FileRatingEditorWindow({
             </label>
           ))
         ) : (
-          <div className="p-2 text-(--muted)">{message || t("common.noEntries")}</div>
+          <div className="ui-empty">{message || t("common.noEntries")}</div>
         )}
       </div>
 
@@ -128,13 +128,13 @@ export function FileRatingEditorWindow({
           type="button"
           onClick={() => window.close()}
         >
-          {t("window.fileRating.cancel")}
+          {t("common.cancel")}
         </button>
         <ActionFeedbackButton
           className="ui-button"
           afterFeedback={() => window.close()}
           disabled={!group || normalizedFileIds.length === 0}
-          label={t("window.fileRating.save")}
+          label={t("common.save")}
           onAction={save}
         />
       </footer>

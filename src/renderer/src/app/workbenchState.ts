@@ -132,9 +132,7 @@ export function normalizeSearchInputTokens(
 }
 
 function normalizeSavedPage(value: unknown): SavedPageItem | null {
-  const page = value as
-    | (Partial<SavedPageItem> & { searchQuery?: unknown })
-    | null;
+  const page = value as Partial<SavedPageItem> | null;
 
   if (
     !page ||
@@ -155,7 +153,7 @@ function normalizeSavedPage(value: unknown): SavedPageItem | null {
         ? page.titleMode
         : inferPageTitleMode(page.title, page.id),
     modelJson: page.modelJson,
-    searchFilters: normalizeSearchFilters(page.searchFilters, page.searchQuery),
+    searchFilters: normalizeSearchFilters(page.searchFilters),
     searchInputState:
       searchInputState &&
       Array.isArray(searchInputState.tokens) &&
@@ -168,17 +166,14 @@ function normalizeSavedPage(value: unknown): SavedPageItem | null {
   };
 }
 
-function normalizeSearchFilters(
-  filters: unknown,
-  legacyQuery: unknown,
-): SearchFilter[] {
-  if (Array.isArray(filters)) {
-    return filters
-      .map(normalizeSearchFilter)
-      .filter((filter): filter is SearchFilter => filter !== null);
+function normalizeSearchFilters(filters: unknown): SearchFilter[] {
+  if (!Array.isArray(filters)) {
+    return [];
   }
 
-  return typeof legacyQuery === "string" && legacyQuery.trim() ? [] : [];
+  return filters
+    .map(normalizeSearchFilter)
+    .filter((filter): filter is SearchFilter => filter !== null);
 }
 
 function normalizeSearchFilter(value: unknown): SearchFilter | null {

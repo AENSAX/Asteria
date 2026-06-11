@@ -5,7 +5,7 @@
     "tabEnableClose": true,
     "tabEnableRename": false,
     "tabSetEnableMaximize": false,
-    "splitterSize": 4,
+    "splitterSize": 1,
     "tabSetTabStripHeight": 26,
     "tabSetHeaderHeight": 0,
   },

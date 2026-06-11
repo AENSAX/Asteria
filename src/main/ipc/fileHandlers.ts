@@ -1,4 +1,5 @@
 import type { IpcMain } from "electron";
+import type { WebContents } from "electron";
 import type {
   BrowserFilePage,
   BrowserFilePageRequest,
@@ -29,6 +30,7 @@ export interface FileHandlersContext {
   getFileDetail: (id: number) => FileDetailRecord | null;
   getFileDetailSequence: (webContentsId: number) => number[];
   openStoredFileExternally: (fileId: number) => Promise<void>;
+  startFileDrag: (sender: WebContents, fileIds: number[]) => void;
   listTrashedFiles: (page: number) => DatabaseFilePage;
   trashFiles: (fileIds: number[]) => void;
   restoreFiles: (fileIds: number[]) => void;
@@ -140,6 +142,9 @@ export function registerFileHandlers(
       return context.openStoredFileExternally(fileId);
     },
   );
+  ipcMain.on(IpcChannel.FILE_START_DRAG, (event, fileIds: unknown) => {
+    context.startFileDrag(event.sender, context.normalizeIpcFileIds(fileIds));
+  });
   ipcMain.handle(IpcChannel.TRASH_LIST_FILES, (_event, page: unknown) =>
     context.listTrashedFiles(normalizePage(page)),
   );

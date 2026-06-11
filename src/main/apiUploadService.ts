@@ -10,6 +10,7 @@ import {
 } from "node:fs/promises";
 import { basename, extname, join } from "node:path";
 import type { IncomingMessage } from "node:http";
+import sharp from "sharp";
 import {
   createApiUploadedFileRecord,
   findStoredFileForApiUpload,
@@ -20,6 +21,7 @@ import {
 import { hashFile } from "./fileHash.js";
 import { tagUntaggedImagesWithAi } from "./aiService.js";
 import { storeNewMediaFile } from "./mediaStorage.js";
+import { IMAGE_EXTENSIONS } from "../shared/media.js";
 import type { ApiFileRecord, TagDraft } from "../shared/ipc.js";
 
 export interface ApiUploadResult {
@@ -407,6 +409,8 @@ async function commitUploadedFile(
   const fileStat = await stat(tempPath);
   const sha256 = await hashFile(tempPath);
   const existing = findStoredFileForApiUpload(sha256);
+  const extension = normalizeExtension(originalFileName);
+  const dimensions = await readImageDimensions(tempPath, extension);
 
   if (existing && !metadata.forceDuplicate) {
     return {
@@ -417,7 +421,6 @@ async function commitUploadedFile(
     };
   }
 
-  const extension = normalizeExtension(originalFileName);
   const storedFile = existing
     ? {
         storagePath: existing.storagePath,
@@ -439,6 +442,8 @@ async function commitUploadedFile(
     fileName: storedFile.fileName,
     extension: storedFile.extension,
     sizeBytes: storedFile.sizeBytes,
+    width: dimensions?.width ?? null,
+    height: dimensions?.height ?? null,
     tags: metadata.tags,
     tagStyleName: metadata.tagStyleName,
     urls: metadata.urls,
@@ -752,6 +757,32 @@ function readBoolean(value: string | null): boolean {
 function normalizeExtension(fileName: string): string | null {
   const extension = extname(fileName).toLowerCase();
   return extension ? extension.slice(1) : null;
+}
+
+async function readImageDimensions(
+  filePath: string,
+  extension: string | null,
+): Promise<{ width: number; height: number } | null> {
+  if (!extension || !IMAGE_EXTENSIONS.has(extension)) {
+    return null;
+  }
+
+  try {
+    const metadata = await sharp(filePath).metadata();
+    const width = metadata.width;
+    const height = metadata.height;
+
+    if (!width || !height || width <= 0 || height <= 0) {
+      return null;
+    }
+
+    return {
+      width: Math.round(width),
+      height: Math.round(height),
+    };
+  } catch {
+    return null;
+  }
 }
 
 export async function clearStaleApiUploadBatches(): Promise<void> {
