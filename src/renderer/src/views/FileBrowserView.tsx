@@ -15,6 +15,7 @@ import {
   listenInterfaceSettingsChanged,
   loadInterfaceSettings,
 } from "../utils/interfaceSettings";
+import { filesChangedAffectsBrowserPage } from "../utils/filesChanged";
 import { isImageExtension, isVideoExtension } from "../utils/media";
 import { getFileDomainDisplayName, useLanguage } from "../utils/language";
 
@@ -37,7 +38,6 @@ export interface BrowserViewState {
   sortDirection: BrowserSortDirection;
 }
 
-const BROWSER_CELL_SIZE = 128;
 const BROWSER_GRID_GAP = 8;
 const BROWSER_GRID_PADDING = 8;
 const BROWSER_PREVIEW_OVERSCAN_ROWS = 1;
@@ -61,15 +61,15 @@ const decodedPreviewCache = new Map<
 const browserRootClass =
   "grid h-full min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_24px] bg-(--panel)";
 const browserGridClass =
-  "relative grid min-h-0 auto-rows-[128px] grid-cols-[repeat(auto-fill,128px)] content-start justify-start gap-2 overflow-auto p-2";
+  "relative grid min-h-0 content-start justify-start gap-2 overflow-auto p-2";
 const browserCellClass =
-  "browser-file-cell relative grid h-32 w-32 overflow-hidden border border-(--line) bg-(--surface-bg) cursor-default";
+  "browser-file-cell relative grid overflow-hidden border border-(--line) bg-(--surface-bg) cursor-default";
 const browserCellPendingClass = "pending";
 const importBadgeClass =
   "absolute right-1 bottom-1 z-[2] border border-(--line-strong) bg-(--surface-bg) px-1.5 leading-5 text-[10px] text-(--muted)";
 const importBadgeDuplicateClass = "border-(--warning) text-(--warning-ink)";
 const browserMediaClass =
-  "grid h-full w-full place-items-center overflow-hidden [&>img]:block [&>img]:max-h-full [&>img]:max-w-full [&>img]:object-contain [&>span]:text-(--muted)";
+  "grid h-full w-full place-items-center overflow-hidden [&>img]:block [&>img]:h-full [&>img]:w-full [&>img]:object-contain [&>span]:text-(--muted)";
 const browserStatusClass =
   "flex h-6 min-w-0 items-center justify-end gap-1.5 border-t border-(--line) bg-(--surface-bg) px-2 text-(--muted)";
 const browserSelectClass =
@@ -108,7 +108,11 @@ export function FileBrowserView({
   const [pageSize, setPageSize] = useState(
     () => loadInterfaceSettings().browserPageSize,
   );
+  const [previewSize, setPreviewSize] = useState(
+    () => loadInterfaceSettings().browserPreviewSize,
+  );
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalFileCount, setTotalFileCount] = useState(0);
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
@@ -127,15 +131,22 @@ export function FileBrowserView({
   const previewFrameRef = useRef<number | null>(null);
   const onSelectionChangeRef = useRef(onSelectionChange);
   const sortedFiles = useMemo(
-    () => sortBrowserFiles(files, state.sortKey, state.sortDirection),
-    [files, state.sortDirection, state.sortKey],
+    () =>
+      importQueueMode
+        ? sortBrowserFiles(files, state.sortKey, state.sortDirection)
+        : files,
+    [files, importQueueMode, state.sortDirection, state.sortKey],
   );
-  const totalPages = Math.max(1, Math.ceil(sortedFiles.length / pageSize));
+  const effectiveTotalCount = importQueueMode ? sortedFiles.length : totalFileCount;
+  const totalPages = Math.max(1, Math.ceil(effectiveTotalCount / pageSize));
   const clampedPage = Math.min(currentPage, totalPages);
   const pageStartIndex = (clampedPage - 1) * pageSize;
   const pageFiles = useMemo(
-    () => sortedFiles.slice(pageStartIndex, pageStartIndex + pageSize),
-    [pageSize, pageStartIndex, sortedFiles],
+    () =>
+      importQueueMode
+        ? sortedFiles.slice(pageStartIndex, pageStartIndex + pageSize)
+        : sortedFiles,
+    [importQueueMode, pageSize, pageStartIndex, sortedFiles],
   );
   const pageFileIdSignature = useMemo(
     () => pageFiles.map((file) => file.id).join(","),
@@ -152,12 +163,21 @@ export function FileBrowserView({
 
   useEffect(() => {
     void loadBrowserFiles();
-  }, [importQueueMode, searchQuery, refreshSequence]);
+  }, [
+    clampedPage,
+    importQueueMode,
+    pageSize,
+    refreshSequence,
+    searchQuery,
+    state.sortDirection,
+    state.sortKey,
+  ]);
 
   useEffect(
     () =>
       listenInterfaceSettingsChanged((settings) => {
         setPageSize(settings.browserPageSize);
+        setPreviewSize(settings.browserPreviewSize);
       }),
     [],
   );
@@ -223,7 +243,9 @@ export function FileBrowserView({
         return;
       }
 
-      setVisiblePreviewIds(calculateVisiblePreviewIds(currentGrid, pageFiles));
+      setVisiblePreviewIds(
+        calculateVisiblePreviewIds(currentGrid, pageFiles, previewSize),
+      );
     }
 
     function scheduleVisiblePreviewUpdate(): void {
@@ -249,7 +271,7 @@ export function FileBrowserView({
         previewFrameRef.current = null;
       }
     };
-  }, [pageFiles]);
+  }, [pageFiles, previewSize]);
 
   useEffect(() => {
     if (visiblePreviewIds.length === 0) {
@@ -288,8 +310,16 @@ export function FileBrowserView({
       return undefined;
     }
 
-    const unsubscribeFilesChanged = window.asteria.onFilesChanged(() => {
-      void loadBrowserFiles();
+    const unsubscribeFilesChanged = window.asteria.onFilesChanged((payload) => {
+      const pageFileIds = pageFileIdSignature
+        ? pageFileIdSignature.split(",").map((fileId) => Number(fileId))
+        : [];
+
+      if (
+        filesChangedAffectsBrowserPage(payload, pageFileIds, searchQuery !== "")
+      ) {
+        void loadBrowserFiles();
+      }
     });
 
     const unsubscribeFavoriteChanged = window.asteria.onFileFavoriteChanged(
@@ -313,7 +343,7 @@ export function FileBrowserView({
       unsubscribeFavoriteChanged();
       unsubscribeImportQueueChanged();
     };
-  }, [importQueueMode, searchQuery]);
+  }, [importQueueMode, pageFileIdSignature, searchQuery]);
 
   useEffect(() => {
     function closeContextMenu(): void {
@@ -340,30 +370,51 @@ export function FileBrowserView({
       const nextFiles = importQueueMode
         ? await window.asteria.listImportQueueFiles()
         : searchQuery
-          ? await window.asteria.searchBrowserFiles(searchQuery)
-          : await window.asteria.listBrowserFiles();
+          ? await window.asteria.searchBrowserFilePage({
+              query: searchQuery,
+              page: clampedPage,
+              pageSize,
+              sortKey: state.sortKey,
+              sortDirection: state.sortDirection,
+            })
+          : await window.asteria.listBrowserFilePage({
+              page: clampedPage,
+              pageSize,
+              sortKey: state.sortKey,
+              sortDirection: state.sortDirection,
+            });
+      const nextDisplayFiles = Array.isArray(nextFiles)
+        ? nextFiles
+        : nextFiles.files;
+      const nextTotalCount = Array.isArray(nextFiles)
+        ? nextFiles.length
+        : nextFiles.total;
       const [nextRatingGroups, nextAiSettings] = importQueueMode
         ? ([[], defaultAiSettings] as const)
         : await Promise.all([
             window.asteria.listRatingGroups(),
             window.asteria.getAiSettings(),
           ]);
-      setFiles(nextFiles);
+      setFiles(nextDisplayFiles);
+      setTotalFileCount(nextTotalCount);
       setVisiblePreviewIds([]);
       setActiveRatingGroups(nextRatingGroups.filter((group) => group.isActive));
       setAiSettings(nextAiSettings);
       setPendingFileIds((currentIds) =>
-        currentIds.filter((id) => nextFiles.some((file) => file.id === id)),
+        currentIds.filter((id) =>
+          nextDisplayFiles.some((file) => file.id === id),
+        ),
       );
       setMessage(
         importQueueMode
-          ? t("window.browser.pendingCount", { count: nextFiles.length })
+          ? t("window.browser.pendingCount", { count: nextTotalCount })
           : searchQuery
-            ? t("window.browser.resultCount", { count: nextFiles.length })
-            : t("window.browser.fileCount", { count: nextFiles.length }),
+            ? t("window.browser.resultCount", { count: nextTotalCount })
+            : t("window.browser.fileCount", { count: nextTotalCount }),
       );
     } catch (error) {
       setFiles([]);
+      setTotalFileCount(0);
       setVisiblePreviewIds([]);
       setMessage(
         error instanceof Error ? error.message : t("window.browser.loadFailed"),
@@ -482,7 +533,7 @@ export function FileBrowserView({
       return;
     }
 
-    if (isPending && !importQueueMode) {
+    if (isPending && pendingFileIds.length === 1 && !importQueueMode) {
       void openFileDetail(file.id);
       return;
     }
@@ -730,6 +781,10 @@ export function FileBrowserView({
       <div
         className={browserGridClass}
         ref={gridRef}
+        style={{
+          gridAutoRows: `${previewSize}px`,
+          gridTemplateColumns: `repeat(auto-fill, ${previewSize}px)`,
+        }}
         onContextMenu={handleBrowserGridContextMenu}
         onMouseDownCapture={handleBrowserGridMouseDownCapture}
         onMouseDown={handleBrowserGridMouseDown}
@@ -740,6 +795,10 @@ export function FileBrowserView({
               className={`${browserCellClass} ${pendingFileIds.includes(file.id) ? browserCellPendingClass : ""}`}
               data-box-select-id={file.id}
               key={file.id}
+              style={{
+                height: `${previewSize}px`,
+                width: `${previewSize}px`,
+              }}
               onMouseDown={(event) =>
                 handleBrowserFileMouseDown(event, file, index)
               }
@@ -870,8 +929,8 @@ export function FileBrowserView({
         </div>
         <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
           {message}
-          {sortedFiles.length > 0
-            ? ` · ${pageStartIndex + 1}-${pageEndIndex} / ${sortedFiles.length}`
+          {effectiveTotalCount > 0
+            ? ` · ${pageStartIndex + 1}-${pageEndIndex} / ${effectiveTotalCount}`
             : ""}
         </span>
       </footer>
@@ -981,13 +1040,14 @@ function renderBrowserMedia(
 function calculateVisiblePreviewIds(
   grid: HTMLDivElement,
   files: BrowserDisplayFile[],
+  cellSize: number,
 ): number[] {
   if (files.length === 0 || grid.clientWidth <= 0 || grid.clientHeight <= 0) {
     return [];
   }
 
-  const columnStride = BROWSER_CELL_SIZE + BROWSER_GRID_GAP;
-  const rowStride = BROWSER_CELL_SIZE + BROWSER_GRID_GAP;
+  const columnStride = cellSize + BROWSER_GRID_GAP;
+  const rowStride = cellSize + BROWSER_GRID_GAP;
   const usableWidth = Math.max(0, grid.clientWidth - BROWSER_GRID_PADDING * 2);
   const columnCount = Math.max(
     1,

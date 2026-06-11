@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ExportProgress } from "../../../shared/ipc";
-import { useLanguage, type TranslationFunction } from "../utils/language";
+import {
+  useLanguage,
+  type TranslationFunction,
+  type TranslationKey,
+} from "../utils/language";
 
 interface ExportWindowProps {
   fileIds: number[];
@@ -13,16 +17,20 @@ interface FormatSegment {
 }
 
 const defaultFilenameFormat = "{index}-{hash}";
+const defaultTagTextFilenameFormat = "{index}-{hash}";
 const exportRootClass =
   "grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_32px] bg-(--panel) text-[11px] text-(--ink)";
 const exportConfigClass =
   "grid gap-1.5 border-b border-(--line) bg-(--surface-bg) p-2";
 const exportRowClass =
   "grid grid-cols-[72px_minmax(0,1fr)_32px] items-center gap-1.5";
+const exportCheckRowClass =
+  "grid min-h-6 grid-cols-[16px_minmax(0,1fr)] items-center gap-1.5";
 const exportInputClass =
   "h-6 min-w-0 border border-(--line-strong) bg-(--surface-inset-bg) px-1.5 text-(--ink)";
-const exportButtonClass =
-  "ui-button min-w-[58px]";
+const exportButtonClass = "ui-button min-w-[58px]";
+const exportPathButtonClass =
+  "ui-button h-6 w-8 min-w-0 px-0 text-center text-[13px] leading-none";
 const exportPreviewClass =
   "flex min-h-6 flex-wrap items-center gap-1 border border-(--line) bg-(--surface-inset-bg) p-1";
 const exportTokenClass =
@@ -46,6 +54,7 @@ function createIdleProgress(
     failed: 0,
     currentFile: null,
     message: t("window.export.waiting"),
+    messageKey: "window.export.waiting",
   };
 }
 
@@ -57,6 +66,11 @@ export function ExportWindow({ fileIds }: ExportWindowProps): JSX.Element {
   );
   const [directory, setDirectory] = useState("");
   const [filenameFormat, setFilenameFormat] = useState(defaultFilenameFormat);
+  const [exportTagText, setExportTagText] = useState(false);
+  const [tagTextDirectory, setTagTextDirectory] = useState("");
+  const [tagTextFilenameFormat, setTagTextFilenameFormat] = useState(
+    defaultTagTextFilenameFormat,
+  );
   const [jobId, setJobId] = useState(() => createExportJobId());
   const jobIdRef = useRef(jobId);
   const [progress, setProgress] = useState(() =>
@@ -66,10 +80,23 @@ export function ExportWindow({ fileIds }: ExportWindowProps): JSX.Element {
     () => parseFormatSegments(filenameFormat),
     [filenameFormat],
   );
+  const tagTextFormatSegments = useMemo(
+    () => parseFormatSegments(tagTextFilenameFormat),
+    [tagTextFilenameFormat],
+  );
   const formatValid = formatSegments.every(
     (segment) => segment.kind === "text" || segment.valid,
   );
+  const tagTextFormatValid = tagTextFormatSegments.every(
+    (segment) => segment.kind === "text" || segment.valid,
+  );
   const exporting = progress.phase === "exporting";
+  const exportReady = Boolean(
+    normalizedFileIds.length > 0 &&
+    directory.trim() &&
+    formatValid &&
+    (!exportTagText || (tagTextDirectory.trim() && tagTextFormatValid)),
+  );
   const percent =
     progress.total > 0
       ? Math.floor((progress.processed / progress.total) * 100)
@@ -107,8 +134,16 @@ export function ExportWindow({ fileIds }: ExportWindowProps): JSX.Element {
     }
   }
 
+  async function browseTagTextDirectory(): Promise<void> {
+    const nextDirectory = await window.asteria?.selectExportDirectory();
+
+    if (nextDirectory) {
+      setTagTextDirectory(nextDirectory);
+    }
+  }
+
   async function startExport(): Promise<void> {
-    if (!window.asteria || exporting || !directory.trim() || !formatValid) {
+    if (!window.asteria || exporting || !exportReady) {
       return;
     }
 
@@ -123,6 +158,9 @@ export function ExportWindow({ fileIds }: ExportWindowProps): JSX.Element {
         fileIds: normalizedFileIds,
         directory,
         filenameFormat,
+        exportTagText,
+        tagTextDirectory,
+        tagTextFilenameFormat,
       });
       setProgress(result);
     } catch (error) {
@@ -134,7 +172,8 @@ export function ExportWindow({ fileIds }: ExportWindowProps): JSX.Element {
         exported: 0,
         failed: 0,
         currentFile: null,
-        message: error instanceof Error ? error.message : t("window.export.failed"),
+        message:
+          error instanceof Error ? error.message : t("window.export.failed"),
       });
     }
   }
@@ -166,7 +205,8 @@ export function ExportWindow({ fileIds }: ExportWindowProps): JSX.Element {
             onChange={(event) => setDirectory(event.target.value)}
           />
           <button
-            className={exportButtonClass}
+            aria-label={t("window.export.selectPath")}
+            className={exportPathButtonClass}
             disabled={exporting}
             type="button"
             onClick={() => void browseDirectory()}
@@ -210,9 +250,90 @@ export function ExportWindow({ fileIds }: ExportWindowProps): JSX.Element {
               ),
             )
           ) : (
-            <span className="text-(--muted)">{t("window.export.noFormat")}</span>
+            <span className="text-(--muted)">
+              {t("window.export.noFormat")}
+            </span>
           )}
         </div>
+
+        <label className={exportCheckRowClass}>
+          <input
+            checked={exportTagText}
+            disabled={exporting}
+            type="checkbox"
+            onChange={(event) => setExportTagText(event.target.checked)}
+          />
+          <span>{t("window.export.tagText")}</span>
+        </label>
+
+        {exportTagText ? (
+          <>
+            <label className={exportRowClass}>
+              <span>{t("window.export.tagTextPath")}</span>
+              <input
+                className={exportInputClass}
+                disabled={exporting}
+                placeholder={t("window.export.inputTagTextPath")}
+                value={tagTextDirectory}
+                onChange={(event) => setTagTextDirectory(event.target.value)}
+              />
+              <button
+                aria-label={t("window.export.selectTagTextPath")}
+                className={exportPathButtonClass}
+                disabled={exporting}
+                type="button"
+                onClick={() => void browseTagTextDirectory()}
+              >
+                ...
+              </button>
+            </label>
+
+            <label
+              className={`${exportRowClass} grid-cols-[72px_minmax(0,1fr)]`}
+            >
+              <span>{t("window.export.tagTextFilename")}</span>
+              <input
+                className={exportInputClass}
+                disabled={exporting}
+                placeholder={t("window.export.inputTagTextFormat")}
+                value={tagTextFilenameFormat}
+                onChange={(event) =>
+                  setTagTextFilenameFormat(event.target.value)
+                }
+              />
+            </label>
+
+            <div className={exportPreviewClass}>
+              {tagTextFormatSegments.length > 0 ? (
+                tagTextFormatSegments.map((segment, index) =>
+                  segment.kind === "variable" ? (
+                    <span
+                      className={
+                        segment.valid
+                          ? exportTokenClass
+                          : `${exportTokenClass} ${exportTokenInvalidClass}`
+                      }
+                      key={`${segment.value}-${index}`}
+                    >
+                      {segment.value}
+                    </span>
+                  ) : (
+                    <span
+                      className="text-(--muted)"
+                      key={`${segment.value}-${index}`}
+                    >
+                      {segment.value}
+                    </span>
+                  ),
+                )
+              ) : (
+                <span className="text-(--muted)">
+                  {t("window.export.noFormat")}
+                </span>
+              )}
+            </div>
+          </>
+        ) : null}
       </div>
 
       <div className={exportProgressClass}>
@@ -225,7 +346,7 @@ export function ExportWindow({ fileIds }: ExportWindowProps): JSX.Element {
             {progress.processed} / {progress.total}
           </span>
           <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
-            {progress.message}
+            {formatExportProgressMessage(progress, t)}
           </span>
           <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
             {progress.currentFile ?? ""}
@@ -243,12 +364,7 @@ export function ExportWindow({ fileIds }: ExportWindowProps): JSX.Element {
         </button>
         <button
           className={exportButtonClass}
-          disabled={
-            exporting ||
-            normalizedFileIds.length === 0 ||
-            !directory.trim() ||
-            !formatValid
-          }
+          disabled={exporting || !exportReady}
           type="button"
           onClick={() => void startExport()}
         >
@@ -257,6 +373,17 @@ export function ExportWindow({ fileIds }: ExportWindowProps): JSX.Element {
       </footer>
     </section>
   );
+}
+
+function formatExportProgressMessage(
+  progress: ExportProgress,
+  t: TranslationFunction,
+): string {
+  if (progress.messageKey) {
+    return t(progress.messageKey as TranslationKey, progress.messageValues);
+  }
+
+  return progress.message;
 }
 
 function createExportJobId(): string {

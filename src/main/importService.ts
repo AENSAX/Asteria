@@ -1,4 +1,4 @@
-import { app, dialog, type WebContents } from "electron";
+import { app, BrowserWindow, dialog, type WebContents } from "electron";
 import { readdir, stat } from "node:fs/promises";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, extname, join } from "node:path";
@@ -22,14 +22,10 @@ import type {
   ImportProgress,
   ImportQueueFileRecord,
 } from "../shared/ipc.js";
+import { IpcEvent } from "../shared/ipcChannels.js";
+import { mainT, readWindowLanguageId } from "./i18n.js";
 
 const CHUNK_SIZE = 25;
-const MEDIA_DIALOG_FILTERS = [
-  {
-    name: "媒体文件",
-    extensions: Array.from(MEDIA_EXTENSIONS),
-  },
-];
 
 type ImportCounters = Pick<
   ImportProgress,
@@ -69,14 +65,28 @@ export async function importFiles(
 ): Promise<ImportProgress> {
   sendProgress(
     sender,
-    createProgress({ phase: "selecting", message: "选择媒体文件" }),
+    createProgress({
+      phase: "selecting",
+      message: "选择媒体文件",
+      messageKey: "window.import.selectMediaFiles",
+    }),
   );
 
-  const selection = await dialog.showOpenDialog({
-    title: "导入文件",
+  const parentWindow = BrowserWindow.fromWebContents(sender);
+  const languageId = await readWindowLanguageId(parentWindow);
+  const options = {
+    title: mainT(languageId, "nativeDialog.importFiles"),
     properties: ["openFile", "multiSelections"],
-    filters: MEDIA_DIALOG_FILTERS,
-  });
+    filters: [
+      {
+        name: mainT(languageId, "nativeDialog.mediaFiles"),
+        extensions: Array.from(MEDIA_EXTENSIONS),
+      },
+    ],
+  } as Electron.OpenDialogOptions;
+  const selection = parentWindow
+    ? await dialog.showOpenDialog(parentWindow, options)
+    : await dialog.showOpenDialog(options);
 
   if (selection.canceled || selection.filePaths.length === 0) {
     return finishCanceled(sender);
@@ -90,13 +100,22 @@ export async function importFolder(
 ): Promise<ImportProgress> {
   sendProgress(
     sender,
-    createProgress({ phase: "selecting", message: "选择文件夹" }),
+    createProgress({
+      phase: "selecting",
+      message: "选择文件夹",
+      messageKey: "window.import.selectFolder",
+    }),
   );
 
-  const selection = await dialog.showOpenDialog({
-    title: "导入文件夹",
+  const parentWindow = BrowserWindow.fromWebContents(sender);
+  const languageId = await readWindowLanguageId(parentWindow);
+  const options = {
+    title: mainT(languageId, "nativeDialog.importFolder"),
     properties: ["openDirectory"],
-  });
+  } as Electron.OpenDialogOptions;
+  const selection = parentWindow
+    ? await dialog.showOpenDialog(parentWindow, options)
+    : await dialog.showOpenDialog(options);
 
   if (selection.canceled || selection.filePaths.length === 0) {
     return finishCanceled(sender);
@@ -169,6 +188,7 @@ export async function commitImportQueue(
     const empty = createProgress({
       phase: "completed",
       message: "没有可导入文件",
+      messageKey: "window.import.noFilesToImport",
     });
     sendProgress(sender, empty);
     return {
@@ -182,6 +202,7 @@ export async function commitImportQueue(
     const busy = createProgress({
       phase: "failed",
       message: "已有导入任务正在执行",
+      messageKey: "window.import.queueBusy",
     });
     sendProgress(sender, busy);
     return {
@@ -239,6 +260,7 @@ export async function commitImportQueue(
             chunkTotal,
             currentFile: item.filePath,
             message: "正在导入",
+            messageKey: "window.import.importing",
             ...counters,
           }),
         );
@@ -305,6 +327,9 @@ export async function commitImportQueue(
       chunkTotal,
       currentFile: null,
       message: canceled ? "已取消导入，当前文件已完整收尾" : "导入完成",
+      messageKey: canceled
+        ? "window.import.canceledAfterCurrent"
+        : "window.import.completed",
       ...counters,
     });
     sendProgress(sender, completed);
@@ -329,6 +354,11 @@ export function removeImportQueueFiles(queueIds: number[]): ImportProgress {
     total: importQueue.length,
     message:
       removedCount > 0 ? `已删除 ${removedCount} 个待导入文件` : "没有删除文件",
+    messageKey:
+      removedCount > 0
+        ? "window.import.removedFiles"
+        : "window.import.noFilesRemoved",
+    ...(removedCount > 0 ? { messageValues: { count: removedCount } } : {}),
   });
 }
 
@@ -356,6 +386,9 @@ export function clearImportQueue(): ImportProgress {
       message: activeQueueId
         ? "正在取消导入，当前文件完成后停止"
         : "正在取消导入",
+      messageKey: activeQueueId
+        ? "window.import.cancelingAfterCurrent"
+        : "window.import.canceling",
     });
   }
 
@@ -368,6 +401,7 @@ export function clearImportQueue(): ImportProgress {
   return createProgress({
     phase: "canceled",
     message: "已取消导入",
+    messageKey: "window.import.canceled",
   });
 }
 
@@ -378,7 +412,11 @@ async function prepareSelectedPaths(
   ensureImportQueueLoaded();
   sendProgress(
     sender,
-    createProgress({ phase: "preparing", message: "扫描媒体文件" }),
+    createProgress({
+      phase: "preparing",
+      message: "扫描媒体文件",
+      messageKey: "window.import.scanMediaFiles",
+    }),
   );
 
   const mediaFiles = await collectMediaFiles(selectedPaths);
@@ -387,6 +425,7 @@ async function prepareSelectedPaths(
     const empty = createProgress({
       phase: "completed",
       message: "未找到支持的媒体文件",
+      messageKey: "window.import.noSupportedFiles",
     });
     sendProgress(sender, empty);
     return empty;
@@ -397,6 +436,7 @@ async function prepareSelectedPaths(
     total: mediaFiles.length,
     chunkTotal: Math.ceil(mediaFiles.length / CHUNK_SIZE),
     message: "分析文件",
+    messageKey: "window.import.analyzingFiles",
   });
   const counters: ImportCounters = {
     processed: 0,
@@ -443,6 +483,7 @@ async function prepareSelectedPaths(
     chunkTotal: progressBase.chunkTotal,
     currentFile: null,
     message: "等待导入",
+    messageKey: "app.status.waitingImport",
   });
   sendProgress(sender, ready);
   saveImportQueue();
@@ -457,7 +498,11 @@ async function prepareWebUrls(
   ensureImportQueueLoaded();
   sendProgress(
     sender,
-    createProgress({ phase: "preparing", message: "下载网页媒体" }),
+    createProgress({
+      phase: "preparing",
+      message: "下载网页媒体",
+      messageKey: "window.import.downloadWebMedia",
+    }),
   );
 
   const progressBase = createProgress({
@@ -465,6 +510,7 @@ async function prepareWebUrls(
     total: urls.length,
     chunkTotal: Math.ceil(urls.length / CHUNK_SIZE),
     message: "分析网页媒体",
+    messageKey: "window.import.analyzingWebMedia",
   });
   const counters: ImportCounters = {
     processed: 0,
@@ -511,6 +557,7 @@ async function prepareWebUrls(
     chunkTotal: progressBase.chunkTotal,
     currentFile: null,
     message: "等待导入",
+    messageKey: "app.status.waitingImport",
   });
   sendProgress(sender, ready);
   saveImportQueue();
@@ -812,7 +859,11 @@ function findExistingStoredFile(sha256: string): {
 }
 
 function finishCanceled(sender: WebContents): ImportProgress {
-  const canceled = createProgress({ phase: "canceled", message: "已取消导入" });
+  const canceled = createProgress({
+    phase: "canceled",
+    message: "已取消导入",
+    messageKey: "window.import.canceled",
+  });
   sendProgress(sender, canceled);
   return canceled;
 }
@@ -841,7 +892,7 @@ function createProgress(overrides: Partial<ImportProgress>): ImportProgress {
 }
 
 function sendProgress(sender: WebContents, progress: ImportProgress): void {
-  sender.send("import:progress", progress);
+  sender.send(IpcEvent.IMPORT_PROGRESS, progress);
 }
 
 function removeQueueItems(ids: number[]): number {

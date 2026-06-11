@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from "electron";
-import type { AsteriaApi } from "../shared/ipc.js";
+import type { AsteriaApi, FilesChangedPayload } from "../shared/ipc.js";
+import { IpcChannel, IpcEvent } from "../shared/ipcChannels.js";
 
 contextBridge.exposeInMainWorld("asteriaPreloadDebug", {
   loadedAt: new Date().toISOString(),
@@ -8,245 +9,289 @@ contextBridge.exposeInMainWorld("asteriaPreloadDebug", {
 });
 
 const api: AsteriaApi = {
-  getVersion: () => ipcRenderer.invoke("app:get-version"),
-  getDatabaseStatus: () => ipcRenderer.invoke("database:get-status"),
-  listDatabaseFiles: (page) => ipcRenderer.invoke("database:list-files", page),
-  listBrowserFiles: () => ipcRenderer.invoke("browser:list-files"),
-  searchBrowserFiles: (query) =>
-    ipcRenderer.invoke("browser:search-files", query),
-  listFavoriteFiles: () => ipcRenderer.invoke("browser:list-favorites"),
+  getVersion: () => ipcRenderer.invoke(IpcChannel.APP_GET_VERSION),
+  getDatabaseStatus: () => ipcRenderer.invoke(IpcChannel.DATABASE_GET_STATUS),
+  listDatabaseFiles: (page) =>
+    ipcRenderer.invoke(IpcChannel.DATABASE_LIST_FILES, page),
+  listBrowserFilePage: (request) =>
+    ipcRenderer.invoke(IpcChannel.BROWSER_LIST_FILE_PAGE, request),
+  listBrowserFiles: () => ipcRenderer.invoke(IpcChannel.BROWSER_LIST_FILES),
+  searchBrowserFilePage: (request) =>
+    ipcRenderer.invoke(IpcChannel.BROWSER_SEARCH_FILE_PAGE, request),
+  listFavoriteFilePage: (request) =>
+    ipcRenderer.invoke(IpcChannel.BROWSER_LIST_FAVORITE_PAGE, request),
+  listFavoriteFiles: () =>
+    ipcRenderer.invoke(IpcChannel.BROWSER_LIST_FAVORITES),
   setFileFavorite: (fileId, favorite) =>
-    ipcRenderer.invoke("file:set-favorite", fileId, favorite),
+    ipcRenderer.invoke(IpcChannel.FILE_SET_FAVORITE, fileId, favorite),
   openDatabaseManagerWindow: () =>
-    ipcRenderer.invoke("window:open-database-manager"),
-  openTagManagerWindow: () => ipcRenderer.invoke("window:open-tag-manager"),
-  openRecycleBinWindow: () => ipcRenderer.invoke("window:open-recycle-bin"),
+    ipcRenderer.invoke(IpcChannel.WINDOW_OPEN_DATABASE_MANAGER),
+  openTagManagerWindow: () =>
+    ipcRenderer.invoke(IpcChannel.WINDOW_OPEN_TAG_MANAGER),
+  openRecycleBinWindow: () =>
+    ipcRenderer.invoke(IpcChannel.WINDOW_OPEN_RECYCLE_BIN),
   openUrlManagerWindow: (fileIds) =>
-    ipcRenderer.invoke("window:open-url-manager", fileIds),
+    ipcRenderer.invoke(IpcChannel.WINDOW_OPEN_URL_MANAGER, fileIds),
   openBatchTagManagerWindow: (fileIds) =>
-    ipcRenderer.invoke("window:open-batch-tag-manager", fileIds),
+    ipcRenderer.invoke(IpcChannel.WINDOW_OPEN_BATCH_TAG_MANAGER, fileIds),
   openBatchOperationWindow: (fileIds) =>
-    ipcRenderer.invoke("window:open-batch-operation", fileIds),
+    ipcRenderer.invoke(IpcChannel.WINDOW_OPEN_BATCH_OPERATION, fileIds),
   openExportWindow: (fileIds) =>
-    ipcRenderer.invoke("window:open-export", fileIds),
+    ipcRenderer.invoke(IpcChannel.WINDOW_OPEN_EXPORT, fileIds),
   openScreeningWindow: (fileIds) =>
-    ipcRenderer.invoke("window:open-screening", fileIds),
+    ipcRenderer.invoke(IpcChannel.WINDOW_OPEN_SCREENING, fileIds),
   openFileDetailWindow: (id, sequenceIds) =>
-    ipcRenderer.invoke("window:open-file-detail", id, sequenceIds),
-  openSettingsWindow: () => ipcRenderer.invoke("window:open-settings"),
+    ipcRenderer.invoke(IpcChannel.WINDOW_OPEN_FILE_DETAIL, id, sequenceIds),
+  openSettingsWindow: () => ipcRenderer.invoke(IpcChannel.WINDOW_OPEN_SETTINGS),
   openRatingManagerWindow: () =>
-    ipcRenderer.invoke("window:open-rating-manager"),
-  openApiManagerWindow: () => ipcRenderer.invoke("window:open-api-manager"),
-  openHydrusImportWindow: () => ipcRenderer.invoke("window:open-hydrus-import"),
-  openEHentaiImportWindow: () =>
-    ipcRenderer.invoke("window:open-ehentai-import"),
-  openAiManagerWindow: () => ipcRenderer.invoke("window:open-ai-manager"),
+    ipcRenderer.invoke(IpcChannel.WINDOW_OPEN_RATING_MANAGER),
+  openApiManagerWindow: () =>
+    ipcRenderer.invoke(IpcChannel.WINDOW_OPEN_API_MANAGER),
+  openHydrusImportWindow: () =>
+    ipcRenderer.invoke(IpcChannel.WINDOW_OPEN_HYDRUS_IMPORT),
+  openAiManagerWindow: () =>
+    ipcRenderer.invoke(IpcChannel.WINDOW_OPEN_AI_MANAGER),
   openTagTranslationWindow: () =>
-    ipcRenderer.invoke("window:open-tag-translation"),
+    ipcRenderer.invoke(IpcChannel.WINDOW_OPEN_TAG_TRANSLATION),
   openTagRelationTreeWindow: (tagIds, kind) =>
-    ipcRenderer.invoke("window:open-tag-relation-tree", tagIds, kind),
+    ipcRenderer.invoke(IpcChannel.WINDOW_OPEN_TAG_RELATION_TREE, tagIds, kind),
   openFileRatingEditorWindow: (fileIds, groupId) =>
-    ipcRenderer.invoke("window:open-file-rating-editor", fileIds, groupId),
-  openFavoritesWindow: () => ipcRenderer.invoke("window:open-favorites"),
+    ipcRenderer.invoke(
+      IpcChannel.WINDOW_OPEN_FILE_RATING_EDITOR,
+      fileIds,
+      groupId,
+    ),
+  openFavoritesWindow: () =>
+    ipcRenderer.invoke(IpcChannel.WINDOW_OPEN_FAVORITES),
   openFileExternally: (fileId) =>
-    ipcRenderer.invoke("file:open-externally", fileId),
-  setWindowTitle: (title) => ipcRenderer.invoke("window:set-title", title),
-  getFileDetail: (id) => ipcRenderer.invoke("file:get-detail", id),
-  getFileDetailSequence: () => ipcRenderer.invoke("file-detail:get-sequence"),
-  getStorageSettings: () => ipcRenderer.invoke("settings:get-storage"),
-  getNetworkSettings: () => ipcRenderer.invoke("settings:get-network"),
+    ipcRenderer.invoke(IpcChannel.FILE_OPEN_EXTERNALLY, fileId),
+  setWindowTitle: (title) =>
+    ipcRenderer.invoke(IpcChannel.WINDOW_SET_TITLE, title),
+  getFileDetail: (id) => ipcRenderer.invoke(IpcChannel.FILE_GET_DETAIL, id),
+  getFileDetailSequence: () =>
+    ipcRenderer.invoke(IpcChannel.FILE_DETAIL_GET_SEQUENCE),
+  getStorageSettings: () => ipcRenderer.invoke(IpcChannel.SETTINGS_GET_STORAGE),
+  getNetworkSettings: () => ipcRenderer.invoke(IpcChannel.SETTINGS_GET_NETWORK),
   updateNetworkSettings: (settings) =>
-    ipcRenderer.invoke("settings:update-network", settings),
+    ipcRenderer.invoke(IpcChannel.SETTINGS_UPDATE_NETWORK, settings),
   selectStorageDirectory: () =>
-    ipcRenderer.invoke("settings:select-storage-directory"),
+    ipcRenderer.invoke(IpcChannel.SETTINGS_SELECT_STORAGE_DIRECTORY),
   updateFileStoragePath: (path) =>
-    ipcRenderer.invoke("settings:update-file-storage-path", path),
+    ipcRenderer.invoke(IpcChannel.SETTINGS_UPDATE_FILE_STORAGE_PATH, path),
   updateThumbnailStoragePath: (path) =>
-    ipcRenderer.invoke("settings:update-thumbnail-storage-path", path),
+    ipcRenderer.invoke(IpcChannel.SETTINGS_UPDATE_THUMBNAIL_STORAGE_PATH, path),
   updateConvertImportedImagesToPng: (enabled) =>
     ipcRenderer.invoke(
-      "settings:update-convert-imported-images-to-png",
+      IpcChannel.SETTINGS_UPDATE_CONVERT_IMPORTED_IMAGES_TO_PNG,
       enabled,
     ),
   preloadThumbnails: (fileIds) =>
-    ipcRenderer.invoke("thumbnail:preload", fileIds),
-  getWorkStatus: () => ipcRenderer.invoke("work-status:get"),
-  listPageLayoutConfigs: () => ipcRenderer.invoke("page-layout:list-configs"),
-  getPageLayoutSettings: () => ipcRenderer.invoke("page-layout:get-settings"),
+    ipcRenderer.invoke(IpcChannel.THUMBNAIL_PRELOAD, fileIds),
+  getWorkStatus: () => ipcRenderer.invoke(IpcChannel.WORK_STATUS_GET),
+  listPageLayoutConfigs: () =>
+    ipcRenderer.invoke(IpcChannel.PAGE_LAYOUT_LIST_CONFIGS),
+  getPageLayoutSettings: () =>
+    ipcRenderer.invoke(IpcChannel.PAGE_LAYOUT_GET_SETTINGS),
   getPageLayoutTemplate: (kind) =>
-    ipcRenderer.invoke("page-layout:get-template", kind),
+    ipcRenderer.invoke(IpcChannel.PAGE_LAYOUT_GET_TEMPLATE, kind),
   savePageLayoutConfig: (name, layoutJson) =>
-    ipcRenderer.invoke("page-layout:save-config", name, layoutJson),
-  createPageLayoutConfig: () => ipcRenderer.invoke("page-layout:create-config"),
+    ipcRenderer.invoke(IpcChannel.PAGE_LAYOUT_SAVE_CONFIG, name, layoutJson),
+  createPageLayoutConfig: () =>
+    ipcRenderer.invoke(IpcChannel.PAGE_LAYOUT_CREATE_CONFIG),
   renamePageLayoutConfig: (id, name) =>
-    ipcRenderer.invoke("page-layout:rename-config", id, name),
+    ipcRenderer.invoke(IpcChannel.PAGE_LAYOUT_RENAME_CONFIG, id, name),
   deletePageLayoutConfig: (id) =>
-    ipcRenderer.invoke("page-layout:delete-config", id),
+    ipcRenderer.invoke(IpcChannel.PAGE_LAYOUT_DELETE_CONFIG, id),
   openPageLayoutConfig: (id) =>
-    ipcRenderer.invoke("page-layout:open-config", id),
+    ipcRenderer.invoke(IpcChannel.PAGE_LAYOUT_OPEN_CONFIG, id),
   setDefaultPageLayoutConfig: (id) =>
-    ipcRenderer.invoke("page-layout:set-default-config", id),
+    ipcRenderer.invoke(IpcChannel.PAGE_LAYOUT_SET_DEFAULT_CONFIG, id),
   setNewPageLayoutConfig: (id) =>
-    ipcRenderer.invoke("page-layout:set-new-page-config", id),
-  listTrashedFiles: (page) => ipcRenderer.invoke("trash:list-files", page),
-  trashFiles: (fileIds) => ipcRenderer.invoke("trash:put-files", fileIds),
-  restoreFiles: (fileIds) => ipcRenderer.invoke("trash:restore-files", fileIds),
+    ipcRenderer.invoke(IpcChannel.PAGE_LAYOUT_SET_NEW_PAGE_CONFIG, id),
+  listTrashedFiles: (page) =>
+    ipcRenderer.invoke(IpcChannel.TRASH_LIST_FILES, page),
+  trashFiles: (fileIds) =>
+    ipcRenderer.invoke(IpcChannel.TRASH_PUT_FILES, fileIds),
+  restoreFiles: (fileIds) =>
+    ipcRenderer.invoke(IpcChannel.TRASH_RESTORE_FILES, fileIds),
   deleteFilesPermanently: (fileIds) =>
-    ipcRenderer.invoke("trash:delete-files-permanently", fileIds),
+    ipcRenderer.invoke(IpcChannel.TRASH_DELETE_FILES_PERMANENTLY, fileIds),
   setFilesDomain: (fileIds, domain) =>
-    ipcRenderer.invoke("file:set-domain", fileIds, domain),
-  listDomains: () => ipcRenderer.invoke("domain:list"),
-  listFileUrls: (fileIds) => ipcRenderer.invoke("url:list-file-urls", fileIds),
+    ipcRenderer.invoke(IpcChannel.FILE_SET_DOMAIN, fileIds, domain),
+  listDomains: () => ipcRenderer.invoke(IpcChannel.DOMAIN_LIST),
+  listFileUrls: (fileIds) =>
+    ipcRenderer.invoke(IpcChannel.URL_LIST_FILE_URLS, fileIds),
   addFileUrl: (fileIds, url) =>
-    ipcRenderer.invoke("url:add-file-url", fileIds, url),
+    ipcRenderer.invoke(IpcChannel.URL_ADD_FILE_URL, fileIds, url),
   updateFileUrl: (fileIds, urlId, previousUrl, nextUrl) =>
     ipcRenderer.invoke(
-      "url:update-file-url",
+      IpcChannel.URL_UPDATE_FILE_URL,
       fileIds,
       urlId,
       previousUrl,
       nextUrl,
     ),
   removeFileUrl: (fileIds, urlId, url) =>
-    ipcRenderer.invoke("url:remove-file-url", fileIds, urlId, url),
-  listRatingGroups: () => ipcRenderer.invoke("rating:list-groups"),
-  createRatingGroup: (name) => ipcRenderer.invoke("rating:create-group", name),
+    ipcRenderer.invoke(IpcChannel.URL_REMOVE_FILE_URL, fileIds, urlId, url),
+  listRatingGroups: () => ipcRenderer.invoke(IpcChannel.RATING_LIST_GROUPS),
+  createRatingGroup: (name) =>
+    ipcRenderer.invoke(IpcChannel.RATING_CREATE_GROUP, name),
   renameRatingGroup: (groupId, name) =>
-    ipcRenderer.invoke("rating:rename-group", groupId, name),
+    ipcRenderer.invoke(IpcChannel.RATING_RENAME_GROUP, groupId, name),
   setRatingGroupActive: (groupId, active) =>
-    ipcRenderer.invoke("rating:set-group-active", groupId, active),
+    ipcRenderer.invoke(IpcChannel.RATING_SET_GROUP_ACTIVE, groupId, active),
   deleteRatingGroup: (groupId) =>
-    ipcRenderer.invoke("rating:delete-group", groupId),
+    ipcRenderer.invoke(IpcChannel.RATING_DELETE_GROUP, groupId),
   listRatingEntries: (groupId) =>
-    ipcRenderer.invoke("rating:list-entries", groupId),
+    ipcRenderer.invoke(IpcChannel.RATING_LIST_ENTRIES, groupId),
   createRatingEntry: (groupId, label, color) =>
-    ipcRenderer.invoke("rating:create-entry", groupId, label, color),
+    ipcRenderer.invoke(IpcChannel.RATING_CREATE_ENTRY, groupId, label, color),
   updateRatingEntry: (entryId, label, color) =>
-    ipcRenderer.invoke("rating:update-entry", entryId, label, color),
+    ipcRenderer.invoke(IpcChannel.RATING_UPDATE_ENTRY, entryId, label, color),
   deleteRatingEntry: (entryId) =>
-    ipcRenderer.invoke("rating:delete-entry", entryId),
+    ipcRenderer.invoke(IpcChannel.RATING_DELETE_ENTRY, entryId),
   reorderRatingEntries: (groupId, entryIds) =>
-    ipcRenderer.invoke("rating:reorder-entries", groupId, entryIds),
+    ipcRenderer.invoke(IpcChannel.RATING_REORDER_ENTRIES, groupId, entryIds),
   setFileRatingEntries: (fileIds, groupId, entryIds) =>
-    ipcRenderer.invoke("rating:set-file-entries", fileIds, groupId, entryIds),
-  listFileTags: (fileId) => ipcRenderer.invoke("tag:list-file-tags", fileId),
+    ipcRenderer.invoke(
+      IpcChannel.RATING_SET_FILE_ENTRIES,
+      fileIds,
+      groupId,
+      entryIds,
+    ),
+  listFileTags: (fileId) =>
+    ipcRenderer.invoke(IpcChannel.TAG_LIST_FILE_TAGS, fileId),
   listFileParentTags: (fileId) =>
-    ipcRenderer.invoke("tag:list-file-parent-tags", fileId),
+    ipcRenderer.invoke(IpcChannel.TAG_LIST_FILE_PARENT_TAGS, fileId),
   listBatchFileTags: (fileIds) =>
-    ipcRenderer.invoke("tag:list-batch-file-tags", fileIds),
+    ipcRenderer.invoke(IpcChannel.TAG_LIST_BATCH_FILE_TAGS, fileIds),
   listBatchEffectiveFileTags: (fileIds) =>
-    ipcRenderer.invoke("tag:list-batch-effective-file-tags", fileIds),
-  searchTags: (query) => ipcRenderer.invoke("tag:search", query),
-  searchHints: (query) => ipcRenderer.invoke("search:hints", query),
-  listTagStyles: () => ipcRenderer.invoke("tag:list-styles"),
-  createTagStyle: (name) => ipcRenderer.invoke("tag:create-style", name),
+    ipcRenderer.invoke(IpcChannel.TAG_LIST_BATCH_EFFECTIVE_FILE_TAGS, fileIds),
+  searchTags: (query) => ipcRenderer.invoke(IpcChannel.TAG_SEARCH, query),
+  searchHints: (query) => ipcRenderer.invoke(IpcChannel.SEARCH_HINTS, query),
+  listTagStyles: () => ipcRenderer.invoke(IpcChannel.TAG_LIST_STYLES),
+  createTagStyle: (name) =>
+    ipcRenderer.invoke(IpcChannel.TAG_CREATE_STYLE, name),
   renameTagStyle: (styleId, name) =>
-    ipcRenderer.invoke("tag:rename-style", styleId, name),
+    ipcRenderer.invoke(IpcChannel.TAG_RENAME_STYLE, styleId, name),
   setActiveTagStyle: (styleId) =>
-    ipcRenderer.invoke("tag:set-active-style", styleId),
-  deleteTagStyle: (styleId) => ipcRenderer.invoke("tag:delete-style", styleId),
+    ipcRenderer.invoke(IpcChannel.TAG_SET_ACTIVE_STYLE, styleId),
+  deleteTagStyle: (styleId) =>
+    ipcRenderer.invoke(IpcChannel.TAG_DELETE_STYLE, styleId),
   listManagedTags: (styleId, sortKey, direction) =>
-    ipcRenderer.invoke("tag:list-managed-tags", styleId, sortKey, direction),
-  listTagParents: () => ipcRenderer.invoke("tag:list-parents"),
-  listTagSiblings: () => ipcRenderer.invoke("tag:list-siblings"),
+    ipcRenderer.invoke(
+      IpcChannel.TAG_LIST_MANAGED_TAGS,
+      styleId,
+      sortKey,
+      direction,
+    ),
+  listTagParents: () => ipcRenderer.invoke(IpcChannel.TAG_LIST_PARENTS),
+  listTagSiblings: () => ipcRenderer.invoke(IpcChannel.TAG_LIST_SIBLINGS),
   getTagRelationTree: (tagIds, kind) =>
-    ipcRenderer.invoke("tag:get-relation-tree", tagIds, kind),
+    ipcRenderer.invoke(IpcChannel.TAG_GET_RELATION_TREE, tagIds, kind),
   addTagParent: (childTagId, parentTagId) =>
-    ipcRenderer.invoke("tag:add-parent", childTagId, parentTagId),
+    ipcRenderer.invoke(IpcChannel.TAG_ADD_PARENT, childTagId, parentTagId),
   removeTagParent: (childTagId, parentTagId) =>
-    ipcRenderer.invoke("tag:remove-parent", childTagId, parentTagId),
+    ipcRenderer.invoke(IpcChannel.TAG_REMOVE_PARENT, childTagId, parentTagId),
   addTagSibling: (aliasTagId, canonicalTagId) =>
-    ipcRenderer.invoke("tag:add-sibling", aliasTagId, canonicalTagId),
+    ipcRenderer.invoke(IpcChannel.TAG_ADD_SIBLING, aliasTagId, canonicalTagId),
   removeTagSibling: (aliasTagId) =>
-    ipcRenderer.invoke("tag:remove-sibling", aliasTagId),
+    ipcRenderer.invoke(IpcChannel.TAG_REMOVE_SIBLING, aliasTagId),
   createManagedTag: (styleId, tag) =>
-    ipcRenderer.invoke("tag:create-managed-tag", styleId, tag),
+    ipcRenderer.invoke(IpcChannel.TAG_CREATE_MANAGED_TAG, styleId, tag),
   renameManagedTag: (tagId, tag) =>
-    ipcRenderer.invoke("tag:rename-managed-tag", tagId, tag),
+    ipcRenderer.invoke(IpcChannel.TAG_RENAME_MANAGED_TAG, tagId, tag),
   previewManagedTagRename: (tagId, tag) =>
-    ipcRenderer.invoke("tag:preview-managed-rename", tagId, tag),
+    ipcRenderer.invoke(IpcChannel.TAG_PREVIEW_MANAGED_RENAME, tagId, tag),
   deleteManagedTag: (tagId) =>
-    ipcRenderer.invoke("tag:delete-managed-tag", tagId),
+    ipcRenderer.invoke(IpcChannel.TAG_DELETE_MANAGED_TAG, tagId),
   deleteManagedTags: (tagIds) =>
-    ipcRenderer.invoke("tag:delete-managed-tags", tagIds),
+    ipcRenderer.invoke(IpcChannel.TAG_DELETE_MANAGED_TAGS, tagIds),
   addFileTags: (fileId, tags) =>
-    ipcRenderer.invoke("tag:add-file-tags", fileId, tags),
+    ipcRenderer.invoke(IpcChannel.TAG_ADD_FILE_TAGS, fileId, tags),
   removeFileTags: (fileId, tagIds) =>
-    ipcRenderer.invoke("tag:remove-file-tags", fileId, tagIds),
+    ipcRenderer.invoke(IpcChannel.TAG_REMOVE_FILE_TAGS, fileId, tagIds),
   addTagsToFiles: (fileIds, tags) =>
-    ipcRenderer.invoke("tag:add-tags-to-files", fileIds, tags),
+    ipcRenderer.invoke(IpcChannel.TAG_ADD_TAGS_TO_FILES, fileIds, tags),
   removeTagsFromFiles: (fileIds, tagIds) =>
-    ipcRenderer.invoke("tag:remove-tags-from-files", fileIds, tagIds),
-  importFiles: () => ipcRenderer.invoke("import:files"),
-  importFolder: () => ipcRenderer.invoke("import:folder"),
-  importPaths: (paths) => ipcRenderer.invoke("import:paths", paths),
-  importUrls: (urls) => ipcRenderer.invoke("import:urls", urls),
-  listImportQueueFiles: () => ipcRenderer.invoke("import:list-queue-files"),
+    ipcRenderer.invoke(IpcChannel.TAG_REMOVE_TAGS_FROM_FILES, fileIds, tagIds),
+  importFiles: () => ipcRenderer.invoke(IpcChannel.IMPORT_FILES),
+  importFolder: () => ipcRenderer.invoke(IpcChannel.IMPORT_FOLDER),
+  importPaths: (paths) => ipcRenderer.invoke(IpcChannel.IMPORT_PATHS, paths),
+  importUrls: (urls) => ipcRenderer.invoke(IpcChannel.IMPORT_URLS, urls),
+  listImportQueueFiles: () =>
+    ipcRenderer.invoke(IpcChannel.IMPORT_LIST_QUEUE_FILES),
   commitImportQueue: (queueIds, confirmedDuplicateQueueIds) =>
     ipcRenderer.invoke(
-      "import:commit-queue",
+      IpcChannel.IMPORT_COMMIT_QUEUE,
       queueIds,
       confirmedDuplicateQueueIds,
     ),
   removeImportQueueFiles: (queueIds) =>
-    ipcRenderer.invoke("import:remove-queue-files", queueIds),
-  clearImportQueue: () => ipcRenderer.invoke("import:clear-queue"),
+    ipcRenderer.invoke(IpcChannel.IMPORT_REMOVE_QUEUE_FILES, queueIds),
+  clearImportQueue: () => ipcRenderer.invoke(IpcChannel.IMPORT_CLEAR_QUEUE),
   testHydrusConnection: (options) =>
-    ipcRenderer.invoke("hydrus:test-connection", options),
-  importFromHydrus: (options) => ipcRenderer.invoke("hydrus:import", options),
-  cancelHydrusImport: () => ipcRenderer.invoke("hydrus:cancel-import"),
-  getHydrusImportSettings: () => ipcRenderer.invoke("hydrus:get-settings"),
+    ipcRenderer.invoke(IpcChannel.HYDRUS_TEST_CONNECTION, options),
+  importFromHydrus: (options) =>
+    ipcRenderer.invoke(IpcChannel.HYDRUS_IMPORT, options),
+  cancelHydrusImport: () => ipcRenderer.invoke(IpcChannel.HYDRUS_CANCEL_IMPORT),
+  getHydrusImportSettings: () =>
+    ipcRenderer.invoke(IpcChannel.HYDRUS_GET_SETTINGS),
   updateHydrusImportSettings: (settings) =>
-    ipcRenderer.invoke("hydrus:update-settings", settings),
-  testEHentaiGallery: (options) =>
-    ipcRenderer.invoke("ehentai:test-gallery", options),
-  importFromEHentai: (options) => ipcRenderer.invoke("ehentai:import", options),
-  cancelEHentaiImport: () => ipcRenderer.invoke("ehentai:cancel-import"),
-  getEHentaiImportSettings: () => ipcRenderer.invoke("ehentai:get-settings"),
-  updateEHentaiImportSettings: (settings) =>
-    ipcRenderer.invoke("ehentai:update-settings", settings),
+    ipcRenderer.invoke(IpcChannel.HYDRUS_UPDATE_SETTINGS, settings),
   getTagTranslationSettings: () =>
-    ipcRenderer.invoke("tag-translation:get-settings"),
+    ipcRenderer.invoke(IpcChannel.TAG_TRANSLATION_GET_SETTINGS),
   updateTagTranslationSettings: (settings) =>
-    ipcRenderer.invoke("tag-translation:update-settings", settings),
+    ipcRenderer.invoke(IpcChannel.TAG_TRANSLATION_UPDATE_SETTINGS, settings),
   selectTagTranslationCsv: () =>
-    ipcRenderer.invoke("tag-translation:select-csv"),
+    ipcRenderer.invoke(IpcChannel.TAG_TRANSLATION_SELECT_CSV),
   translateFileTags: (fileIds) =>
-    ipcRenderer.invoke("tag-translation:translate-files", fileIds),
-  getAiSettings: () => ipcRenderer.invoke("ai:get-settings"),
+    ipcRenderer.invoke(IpcChannel.TAG_TRANSLATION_TRANSLATE_FILES, fileIds),
+  getAiSettings: () => ipcRenderer.invoke(IpcChannel.AI_GET_SETTINGS),
   updateAiSettings: (settings) =>
-    ipcRenderer.invoke("ai:update-settings", settings),
-  selectAiModelDirectory: () => ipcRenderer.invoke("ai:select-model-directory"),
+    ipcRenderer.invoke(IpcChannel.AI_UPDATE_SETTINGS, settings),
+  selectAiModelDirectory: () =>
+    ipcRenderer.invoke(IpcChannel.AI_SELECT_MODEL_DIRECTORY),
   detectAiModel: (modelPath) =>
-    ipcRenderer.invoke("ai:detect-model", modelPath),
+    ipcRenderer.invoke(IpcChannel.AI_DETECT_MODEL, modelPath),
   detectAiModels: (modelPath, selectedModelName) =>
-    ipcRenderer.invoke("ai:detect-models", modelPath, selectedModelName),
+    ipcRenderer.invoke(
+      IpcChannel.AI_DETECT_MODELS,
+      modelPath,
+      selectedModelName,
+    ),
   downloadDefaultAiModel: (modelPath) =>
-    ipcRenderer.invoke("ai:download-default-model", modelPath),
+    ipcRenderer.invoke(IpcChannel.AI_DOWNLOAD_DEFAULT_MODEL, modelPath),
   tagFilesWithAi: (fileIds, overwrite) =>
-    ipcRenderer.invoke("ai:tag-files", fileIds, overwrite),
-  selectExportDirectory: () => ipcRenderer.invoke("export:select-directory"),
-  exportFiles: (options) => ipcRenderer.invoke("export:files", options),
-  cancelExport: (jobId) => ipcRenderer.invoke("export:cancel", jobId),
-  listApiPermissions: () => ipcRenderer.invoke("api:list-permissions"),
-  listApiServices: () => ipcRenderer.invoke("api:list-services"),
-  createApiService: (name) => ipcRenderer.invoke("api:create-service", name),
+    ipcRenderer.invoke(IpcChannel.AI_TAG_FILES, fileIds, overwrite),
+  selectExportDirectory: () =>
+    ipcRenderer.invoke(IpcChannel.EXPORT_SELECT_DIRECTORY),
+  exportFiles: (options) =>
+    ipcRenderer.invoke(IpcChannel.EXPORT_FILES, options),
+  cancelExport: (jobId) => ipcRenderer.invoke(IpcChannel.EXPORT_CANCEL, jobId),
+  listApiPermissions: () => ipcRenderer.invoke(IpcChannel.API_LIST_PERMISSIONS),
+  listApiServices: () => ipcRenderer.invoke(IpcChannel.API_LIST_SERVICES),
+  createApiService: (name) =>
+    ipcRenderer.invoke(IpcChannel.API_CREATE_SERVICE, name),
   updateApiService: (serviceId, draft) =>
-    ipcRenderer.invoke("api:update-service", serviceId, draft),
+    ipcRenderer.invoke(IpcChannel.API_UPDATE_SERVICE, serviceId, draft),
   deleteApiService: (serviceId) =>
-    ipcRenderer.invoke("api:delete-service", serviceId),
+    ipcRenderer.invoke(IpcChannel.API_DELETE_SERVICE, serviceId),
   getApiServiceAvailability: (serviceId) =>
-    ipcRenderer.invoke("api:get-service-availability", serviceId),
-  confirmDialog: (options) => ipcRenderer.invoke("dialog:confirm", options),
-  alertDialog: (options) => ipcRenderer.invoke("dialog:alert", options),
+    ipcRenderer.invoke(IpcChannel.API_GET_SERVICE_AVAILABILITY, serviceId),
+  confirmDialog: (options) =>
+    ipcRenderer.invoke(IpcChannel.DIALOG_CONFIRM, options),
+  alertDialog: (options) =>
+    ipcRenderer.invoke(IpcChannel.DIALOG_ALERT, options),
   getDialogState: (dialogId) =>
-    ipcRenderer.invoke("dialog:get-state", dialogId),
+    ipcRenderer.invoke(IpcChannel.DIALOG_GET_STATE, dialogId),
   resizeDialog: (dialogId, width, height) =>
-    ipcRenderer.invoke("dialog:resize", dialogId, width, height),
+    ipcRenderer.invoke(IpcChannel.DIALOG_RESIZE, dialogId, width, height),
   resolveDialog: (dialogId, confirmed) =>
-    ipcRenderer.invoke("dialog:resolve", dialogId, confirmed),
+    ipcRenderer.invoke(IpcChannel.DIALOG_RESOLVE, dialogId, confirmed),
   getPathForFile: (file) => webUtils.getPathForFile(file as File),
-  setNativeTheme: (theme) => ipcRenderer.invoke("theme:set-native", theme),
+  setNativeTheme: (theme) =>
+    ipcRenderer.invoke(IpcChannel.THEME_SET_NATIVE, theme),
   onImportProgress: (listener) => {
     const wrappedListener = (
       _event: Electron.IpcRendererEvent,
@@ -255,10 +300,10 @@ const api: AsteriaApi = {
       listener(progress as Parameters<typeof listener>[0]);
     };
 
-    ipcRenderer.on("import:progress", wrappedListener);
+    ipcRenderer.on(IpcEvent.IMPORT_PROGRESS, wrappedListener);
 
     return () => {
-      ipcRenderer.removeListener("import:progress", wrappedListener);
+      ipcRenderer.removeListener(IpcEvent.IMPORT_PROGRESS, wrappedListener);
     };
   },
   onDialogStateChanged: (listener) => {
@@ -269,10 +314,13 @@ const api: AsteriaApi = {
       listener(state as Parameters<typeof listener>[0]);
     };
 
-    ipcRenderer.on("dialog:state-changed", wrappedListener);
+    ipcRenderer.on(IpcEvent.DIALOG_STATE_CHANGED, wrappedListener);
 
     return () => {
-      ipcRenderer.removeListener("dialog:state-changed", wrappedListener);
+      ipcRenderer.removeListener(
+        IpcEvent.DIALOG_STATE_CHANGED,
+        wrappedListener,
+      );
     };
   },
   onExportProgress: (listener) => {
@@ -283,10 +331,10 @@ const api: AsteriaApi = {
       listener(progress as Parameters<typeof listener>[0]);
     };
 
-    ipcRenderer.on("export:progress", wrappedListener);
+    ipcRenderer.on(IpcEvent.EXPORT_PROGRESS, wrappedListener);
 
     return () => {
-      ipcRenderer.removeListener("export:progress", wrappedListener);
+      ipcRenderer.removeListener(IpcEvent.EXPORT_PROGRESS, wrappedListener);
     };
   },
   onImportQueueChanged: (listener) => {
@@ -294,10 +342,13 @@ const api: AsteriaApi = {
       listener();
     };
 
-    ipcRenderer.on("import-queue:changed", wrappedListener);
+    ipcRenderer.on(IpcEvent.IMPORT_QUEUE_CHANGED, wrappedListener);
 
     return () => {
-      ipcRenderer.removeListener("import-queue:changed", wrappedListener);
+      ipcRenderer.removeListener(
+        IpcEvent.IMPORT_QUEUE_CHANGED,
+        wrappedListener,
+      );
     };
   },
   onHydrusImportProgress: (listener) => {
@@ -308,24 +359,13 @@ const api: AsteriaApi = {
       listener(progress as Parameters<typeof listener>[0]);
     };
 
-    ipcRenderer.on("hydrus-import:progress", wrappedListener);
+    ipcRenderer.on(IpcEvent.HYDRUS_IMPORT_PROGRESS, wrappedListener);
 
     return () => {
-      ipcRenderer.removeListener("hydrus-import:progress", wrappedListener);
-    };
-  },
-  onEHentaiImportProgress: (listener) => {
-    const wrappedListener = (
-      _event: Electron.IpcRendererEvent,
-      progress: unknown,
-    ): void => {
-      listener(progress as Parameters<typeof listener>[0]);
-    };
-
-    ipcRenderer.on("ehentai-import:progress", wrappedListener);
-
-    return () => {
-      ipcRenderer.removeListener("ehentai-import:progress", wrappedListener);
+      ipcRenderer.removeListener(
+        IpcEvent.HYDRUS_IMPORT_PROGRESS,
+        wrappedListener,
+      );
     };
   },
   onFileDetailReset: (listener) => {
@@ -338,21 +378,24 @@ const api: AsteriaApi = {
       }
     };
 
-    ipcRenderer.on("file-detail:reset", wrappedListener);
+    ipcRenderer.on(IpcEvent.FILE_DETAIL_RESET, wrappedListener);
 
     return () => {
-      ipcRenderer.removeListener("file-detail:reset", wrappedListener);
+      ipcRenderer.removeListener(IpcEvent.FILE_DETAIL_RESET, wrappedListener);
     };
   },
   onFilesChanged: (listener) => {
-    const wrappedListener = (): void => {
-      listener();
+    const wrappedListener = (
+      _event: Electron.IpcRendererEvent,
+      payload: unknown,
+    ): void => {
+      listener(normalizeFilesChangedPayload(payload));
     };
 
-    ipcRenderer.on("files:changed", wrappedListener);
+    ipcRenderer.on(IpcEvent.FILES_CHANGED, wrappedListener);
 
     return () => {
-      ipcRenderer.removeListener("files:changed", wrappedListener);
+      ipcRenderer.removeListener(IpcEvent.FILES_CHANGED, wrappedListener);
     };
   },
   onFileFavoriteChanged: (listener) => {
@@ -366,10 +409,13 @@ const api: AsteriaApi = {
       }
     };
 
-    ipcRenderer.on("file:favorite-changed", wrappedListener);
+    ipcRenderer.on(IpcEvent.FILE_FAVORITE_CHANGED, wrappedListener);
 
     return () => {
-      ipcRenderer.removeListener("file:favorite-changed", wrappedListener);
+      ipcRenderer.removeListener(
+        IpcEvent.FILE_FAVORITE_CHANGED,
+        wrappedListener,
+      );
     };
   },
   onPageLayoutChanged: (listener) => {
@@ -377,10 +423,10 @@ const api: AsteriaApi = {
       listener();
     };
 
-    ipcRenderer.on("page-layout:changed", wrappedListener);
+    ipcRenderer.on(IpcEvent.PAGE_LAYOUT_CHANGED, wrappedListener);
 
     return () => {
-      ipcRenderer.removeListener("page-layout:changed", wrappedListener);
+      ipcRenderer.removeListener(IpcEvent.PAGE_LAYOUT_CHANGED, wrappedListener);
     };
   },
   onWorkStatusChanged: (listener) => {
@@ -391,12 +437,36 @@ const api: AsteriaApi = {
       listener(status as Parameters<typeof listener>[0]);
     };
 
-    ipcRenderer.on("work-status:changed", wrappedListener);
+    ipcRenderer.on(IpcEvent.WORK_STATUS_CHANGED, wrappedListener);
 
     return () => {
-      ipcRenderer.removeListener("work-status:changed", wrappedListener);
+      ipcRenderer.removeListener(IpcEvent.WORK_STATUS_CHANGED, wrappedListener);
     };
   },
 };
 
 contextBridge.exposeInMainWorld("asteria", api);
+
+function normalizeFilesChangedPayload(payload: unknown): FilesChangedPayload {
+  if (!payload || typeof payload !== "object") {
+    return {
+      kind: "unknown",
+      fullRefresh: true,
+    };
+  }
+
+  const candidate = payload as Partial<FilesChangedPayload>;
+  const fileIds = Array.isArray(candidate.fileIds)
+    ? candidate.fileIds.filter(
+        (fileId): fileId is number =>
+          Number.isInteger(fileId) && fileId > 0,
+      )
+    : undefined;
+
+  return {
+    kind: typeof candidate.kind === "string" ? candidate.kind : "unknown",
+    ...(candidate.fullRefresh === true || !fileIds?.length
+      ? { fullRefresh: true }
+      : { fileIds }),
+  };
+}

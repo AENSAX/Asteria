@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type {
+  FileDomain,
   FileDetailRecord,
   FileTagRecord,
   RatingGroupRecord,
@@ -24,6 +25,7 @@ import {
   getTagNamespaceClassName,
   getTagNamespaceStyle,
 } from "../utils/tags";
+import { filesChangedIncludes } from "../utils/filesChanged";
 import { type TranslationFunction, useLanguage } from "../utils/language";
 
 interface FileDetailWindowProps {
@@ -41,6 +43,8 @@ const fileTagHeaderClass =
 const fileTagGroupBodyClass = "flex flex-wrap content-start gap-1";
 const fileTagItemClass =
   "file-tag-item inline-flex max-w-full min-h-[18px] cursor-default overflow-hidden border border-(--line-strong) bg-(--tag-bg) px-1.5 text-[11px] text-(--ink)";
+const domainFileTagItemClass =
+  "inline-flex max-w-full min-h-[18px] cursor-default overflow-hidden border border-(--line-strong) bg-(--tag-bg) px-1.5 text-[11px] text-(--ink)";
 const inferredFileTagItemClass =
   "inline-flex max-w-full min-h-[18px] cursor-default overflow-hidden border border-(--line) bg-(--surface-bg) px-1.5 text-[11px] text-(--muted)";
 const fileTagPendingClass = "pending";
@@ -114,8 +118,10 @@ export function FileDetailWindow({
       }
     });
 
-    const unsubscribeFilesChanged = window.asteria.onFilesChanged(() => {
-      void loadFileDetail();
+    const unsubscribeFilesChanged = window.asteria.onFilesChanged((payload) => {
+      if (filesChangedIncludes(payload, currentFileId)) {
+        void loadFileDetail();
+      }
     });
 
     const unsubscribeFavoriteChanged = window.asteria.onFileFavoriteChanged(
@@ -432,7 +438,12 @@ export function FileDetailWindow({
       minLeftWidth={110}
       minRightWidth={260}
       storageKey="asteria:file-detail-tags-width"
-      left={<FileDetailTagColumn fileId={currentFileId} />}
+      left={
+        <FileDetailTagColumn
+          domain={file?.domain ?? null}
+          fileId={currentFileId}
+        />
+      }
       right={
         <main className={detailContentClass} onContextMenu={openContextMenu}>
           {file ? (
@@ -556,7 +567,10 @@ export function ScreeningDetailWindow({
       storageKey="asteria:file-detail-tags-width"
       left={
         currentFileId ? (
-          <FileDetailTagColumn fileId={currentFileId} />
+          <FileDetailTagColumn
+            domain={file?.domain ?? null}
+            fileId={currentFileId}
+          />
         ) : (
           <aside className={detailTagsClass} />
         )
@@ -596,7 +610,7 @@ function ScreeningMedia({ file }: { file: FileDetailRecord }): JSX.Element {
   const extension = file.extension?.toLowerCase() ?? "";
 
   if (isImageExtension(extension)) {
-    return <img alt="" className={detailMediaClass} src={file.mediaUrl} />;
+    return <ScreeningImage file={file} />;
   }
 
   if (isVideoExtension(extension)) {
@@ -614,11 +628,93 @@ function ScreeningMedia({ file }: { file: FileDetailRecord }): JSX.Element {
   );
 }
 
+function ScreeningImage({ file }: { file: FileDetailRecord }): JSX.Element {
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const imageRef = useRef<HTMLImageElement | null>(null);
+  const [fitSize, setFitSize] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
+
+  useLayoutEffect(() => {
+    setFitSize(null);
+  }, [file.id]);
+
+  useEffect(() => {
+    const stage = stageRef.current;
+
+    if (!stage) {
+      return undefined;
+    }
+
+    const observer = new ResizeObserver(() => {
+      updateImageFitSize();
+    });
+
+    observer.observe(stage);
+    updateImageFitSize();
+
+    const image = imageRef.current;
+
+    if (image?.complete) {
+      updateImageFitSize();
+    }
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [file.id]);
+
+  function updateImageFitSize(): void {
+    const stage = stageRef.current;
+    const image = imageRef.current;
+
+    if (
+      !stage ||
+      !image ||
+      image.naturalWidth <= 0 ||
+      image.naturalHeight <= 0
+    ) {
+      setFitSize(null);
+      return;
+    }
+
+    const stageRect = stage.getBoundingClientRect();
+    setFitSize(
+      getContainedMediaSize(
+        stageRect.width,
+        stageRect.height,
+        image.naturalWidth,
+        image.naturalHeight,
+      ),
+    );
+  }
+
+  return (
+    <div className={detailImageStageClass} ref={stageRef}>
+      <img
+        alt=""
+        className={detailMediaClass}
+        ref={imageRef}
+        src={file.mediaUrl}
+        style={{
+          width: fitSize ? `${fitSize.width}px` : "1px",
+          height: fitSize ? `${fitSize.height}px` : "1px",
+          visibility: fitSize ? "visible" : "hidden",
+        }}
+        onLoad={updateImageFitSize}
+      />
+    </div>
+  );
+}
+
 interface FileDetailTagColumnProps {
+  domain: FileDomain | null;
   fileId: number;
 }
 
 function FileDetailTagColumn({
+  domain,
   fileId,
 }: FileDetailTagColumnProps): JSX.Element {
   const { t } = useLanguage();
@@ -649,6 +745,10 @@ function FileDetailTagColumn({
   const groupedFileParentTags = useMemo(
     () => groupFileTagsByStyle(fileParentTags, tagStyles),
     [fileParentTags, tagStyles],
+  );
+  const domainTag = useMemo(
+    () => (domain ? createDomainFileTag(domain) : null),
+    [domain],
   );
   const boxSelection = useBoxSelection({
     containerRef: tagListRef,
@@ -776,6 +876,28 @@ function FileDetailTagColumn({
         ref={tagListRef}
         onMouseDownCapture={boxSelection.handleMouseDownCapture}
       >
+        {domainTag ? (
+          <section className={fileTagGroupClass}>
+            <header className={fileTagHeaderClass}>
+              <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
+                domain
+              </span>
+              <span className="pl-1.5 text-right">1</span>
+            </header>
+            <div className={fileTagGroupBodyClass}>
+              <span
+                className={getTagNamespaceClassName(
+                  domainTag,
+                  domainFileTagItemClass,
+                )}
+                style={getTagNamespaceStyle(domainTag)}
+                title={formatTagLabel(domainTag)}
+              >
+                {formatTagLabel(domainTag)}
+              </span>
+            </div>
+          </section>
+        ) : null}
         {groupedFileTags.map((group) => (
           <section className={fileTagGroupClass} key={group.styleName}>
             <header className={fileTagHeaderClass}>
@@ -918,6 +1040,29 @@ function groupFileTagsByStyle(
     });
 }
 
+function createDomainFileTag(domain: FileDomain): FileTagRecord {
+  return {
+    id: createDomainPseudoTagId(domain),
+    styleName: "domain",
+    namespace: "domain",
+    name: domain,
+    displayName: null,
+    createdAt: "",
+  };
+}
+
+function createDomainPseudoTagId(domain: FileDomain): number {
+  if (domain === "pending") {
+    return -1;
+  }
+
+  if (domain === "library") {
+    return -2;
+  }
+
+  return -3;
+}
+
 function getInferredTagTitle(
   tag: FileTagRecord,
   t: TranslationFunction,
@@ -1002,6 +1147,24 @@ interface DetailVideoProps {
   onMediaPointerMove: (event: React.PointerEvent<HTMLElement>) => void;
   onMediaPointerUp: (event: React.PointerEvent<HTMLElement>) => void;
   onMediaWheel: (deltaY: number) => void;
+}
+
+function getContainedMediaSize(
+  containerWidth: number,
+  containerHeight: number,
+  mediaWidth: number,
+  mediaHeight: number,
+): { width: number; height: number } {
+  const scale = Math.min(
+    containerWidth / mediaWidth,
+    containerHeight / mediaHeight,
+    1,
+  );
+
+  return {
+    width: Math.max(1, Math.floor(mediaWidth * scale)),
+    height: Math.max(1, Math.floor(mediaHeight * scale)),
+  };
 }
 
 function DetailVideo({
@@ -1089,16 +1252,14 @@ function DetailVideo({
     }
 
     const stageRect = stage.getBoundingClientRect();
-    const scale = Math.min(
-      stageRect.width / video.videoWidth,
-      stageRect.height / video.videoHeight,
-      1,
+    setFitSize(
+      getContainedMediaSize(
+        stageRect.width,
+        stageRect.height,
+        video.videoWidth,
+        video.videoHeight,
+      ),
     );
-
-    setFitSize({
-      width: Math.max(1, Math.floor(video.videoWidth * scale)),
-      height: Math.max(1, Math.floor(video.videoHeight * scale)),
-    });
   }
 
   function isVideoControlArea(
@@ -1266,16 +1427,14 @@ function DetailImage({
     }
 
     const stageRect = stage.getBoundingClientRect();
-    const scale = Math.min(
-      stageRect.width / image.naturalWidth,
-      stageRect.height / image.naturalHeight,
-      1,
+    setFitSize(
+      getContainedMediaSize(
+        stageRect.width,
+        stageRect.height,
+        image.naturalWidth,
+        image.naturalHeight,
+      ),
     );
-
-    setFitSize({
-      width: Math.max(1, Math.floor(image.naturalWidth * scale)),
-      height: Math.max(1, Math.floor(image.naturalHeight * scale)),
-    });
   }
 
   return (

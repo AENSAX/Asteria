@@ -1,12 +1,16 @@
 export interface InterfaceSettings {
   browserPageSize: number;
+  browserPreviewSize: number;
 }
 
 const INTERFACE_SETTINGS_KEY = "asteria.interface-settings.v1";
 const INTERFACE_SETTINGS_EVENT = "asteria:interface-settings-changed";
 const INTERFACE_SETTINGS_CHANNEL = "asteria-interface-settings";
 export const DEFAULT_BROWSER_PAGE_SIZE = 100;
+export const DEFAULT_BROWSER_PREVIEW_SIZE = 128;
 export const MIN_BROWSER_PAGE_SIZE = 20;
+export const MIN_BROWSER_PREVIEW_SIZE = 64;
+export const MAX_BROWSER_PREVIEW_SIZE = 320;
 
 export function loadInterfaceSettings(): InterfaceSettings {
   const rawSettings = window.localStorage.getItem(INTERFACE_SETTINGS_KEY);
@@ -79,6 +83,7 @@ export function listenInterfaceSettingsChanged(
 function createDefaultInterfaceSettings(): InterfaceSettings {
   return {
     browserPageSize: DEFAULT_BROWSER_PAGE_SIZE,
+    browserPreviewSize: DEFAULT_BROWSER_PREVIEW_SIZE,
   };
 }
 
@@ -87,6 +92,9 @@ function normalizeInterfaceSettings(value: unknown): InterfaceSettings {
 
   return {
     browserPageSize: normalizeBrowserPageSize(settings?.browserPageSize),
+    browserPreviewSize: normalizeBrowserPreviewSize(
+      settings?.browserPreviewSize,
+    ),
   };
 }
 
@@ -98,4 +106,17 @@ export function normalizeBrowserPageSize(value: unknown): number {
   }
 
   return Math.max(MIN_BROWSER_PAGE_SIZE, Math.round(size));
+}
+
+export function normalizeBrowserPreviewSize(value: unknown): number {
+  const size = Number(value);
+
+  if (!Number.isFinite(size)) {
+    return DEFAULT_BROWSER_PREVIEW_SIZE;
+  }
+
+  return Math.min(
+    MAX_BROWSER_PREVIEW_SIZE,
+    Math.max(MIN_BROWSER_PREVIEW_SIZE, Math.round(size)),
+  );
 }

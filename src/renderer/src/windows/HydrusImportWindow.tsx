@@ -6,7 +6,11 @@ import type {
 } from "../../../shared/ipc";
 import { ActionFeedbackButton } from "../components/ActionFeedbackButton";
 import { ResizableColumns } from "../components/ResizableColumns";
-import { useLanguage } from "../utils/language";
+import {
+  useLanguage,
+  type TranslationFunction,
+  type TranslationKey,
+} from "../utils/language";
 
 const hydrusShellClass =
   "grid h-full min-h-0 min-w-0 grid-cols-[260px_minmax(0,1fr)] overflow-hidden bg-(--bg) text-(--ink)";
@@ -19,8 +23,7 @@ const hydrusCheckClass =
 const hydrusContentClass =
   "grid min-h-0 min-w-0 grid-rows-[auto_auto_auto_auto_auto_minmax(0,1fr)] gap-2 overflow-hidden p-2";
 const hydrusToolbarClass = "flex h-6 items-center gap-1.5";
-const hydrusButtonClass =
-  "ui-button";
+const hydrusButtonClass = "ui-button";
 const hydrusProgressClass =
   "grid h-5 grid-cols-[minmax(0,1fr)_42px] items-center gap-1.5";
 const hydrusStatsClass =
@@ -248,7 +251,9 @@ export function HydrusImportWindow(): JSX.Element {
         ...idleProgress,
         phase: "failed",
         message:
-          error instanceof Error ? error.message : t("window.hydrus.importFailed"),
+          error instanceof Error
+            ? error.message
+            : t("window.hydrus.importFailed"),
       });
     }
   }
@@ -396,7 +401,10 @@ export function HydrusImportWindow(): JSX.Element {
       right={
         <main className={hydrusContentClass}>
           <div className={hydrusToolbarClass}>
-            <ActionFeedbackButton label={t("common.save")} onAction={saveSettings} />
+            <ActionFeedbackButton
+              label={t("common.save")}
+              onAction={saveSettings}
+            />
             <button
               className={hydrusButtonClass}
               disabled={importing}
@@ -422,7 +430,7 @@ export function HydrusImportWindow(): JSX.Element {
               {t("window.hydrus.cancelImport")}
             </button>
             <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-(--muted)">
-              {progress.message}
+              {formatHydrusProgressMessage(progress, t)}
             </span>
           </div>
 
@@ -443,31 +451,45 @@ export function HydrusImportWindow(): JSX.Element {
 
           <dl className={hydrusStatsClass}>
             <div className={hydrusStatClass}>
-              <dt className={hydrusStatLabelClass}>{t("window.hydrus.total")}</dt>
+              <dt className={hydrusStatLabelClass}>
+                {t("window.hydrus.total")}
+              </dt>
               <dd className={hydrusStatValueClass}>{progress.total}</dd>
             </div>
             <div className={hydrusStatClass}>
-              <dt className={hydrusStatLabelClass}>{t("window.hydrus.processed")}</dt>
+              <dt className={hydrusStatLabelClass}>
+                {t("window.hydrus.processed")}
+              </dt>
               <dd className={hydrusStatValueClass}>{progress.processed}</dd>
             </div>
             <div className={hydrusStatClass}>
-              <dt className={hydrusStatLabelClass}>{t("window.hydrus.added")}</dt>
+              <dt className={hydrusStatLabelClass}>
+                {t("window.hydrus.added")}
+              </dt>
               <dd className={hydrusStatValueClass}>{progress.imported}</dd>
             </div>
             <div className={hydrusStatClass}>
-              <dt className={hydrusStatLabelClass}>{t("window.hydrus.duplicated")}</dt>
+              <dt className={hydrusStatLabelClass}>
+                {t("window.hydrus.duplicated")}
+              </dt>
               <dd className={hydrusStatValueClass}>{progress.duplicated}</dd>
             </div>
             <div className={hydrusStatClass}>
-              <dt className={hydrusStatLabelClass}>{t("window.hydrus.skipped")}</dt>
+              <dt className={hydrusStatLabelClass}>
+                {t("window.hydrus.skipped")}
+              </dt>
               <dd className={hydrusStatValueClass}>{progress.skipped}</dd>
             </div>
             <div className={hydrusStatClass}>
-              <dt className={hydrusStatLabelClass}>{t("window.hydrus.failed")}</dt>
+              <dt className={hydrusStatLabelClass}>
+                {t("window.hydrus.failed")}
+              </dt>
               <dd className={hydrusStatValueClass}>{progress.failed}</dd>
             </div>
             <div className={`${hydrusStatClass} ${hydrusWideStatClass}`}>
-              <dt className={hydrusStatLabelClass}>{t("window.hydrus.current")}</dt>
+              <dt className={hydrusStatLabelClass}>
+                {t("window.hydrus.current")}
+              </dt>
               <dd className={hydrusStatValueClass}>
                 {progress.currentFile ?? "-"}
               </dd>
@@ -542,6 +564,17 @@ function createIdleProgress(message: string): HydrusImportProgress {
     currentFile: null,
     message,
   };
+}
+
+function formatHydrusProgressMessage(
+  progress: HydrusImportProgress,
+  t: TranslationFunction,
+): string {
+  if (progress.messageKey) {
+    return t(progress.messageKey as TranslationKey, progress.messageValues);
+  }
+
+  return progress.message;
 }
 
 function createConnectionStatus(

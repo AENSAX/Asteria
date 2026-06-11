@@ -1,139 +1,175 @@
-import type { WebContents } from "electron";
-import { copyFile, mkdir, stat } from "node:fs/promises";
+import { BrowserWindow, type WebContents } from "electron";
+import { copyFile, mkdir, stat, writeFile } from "node:fs/promises";
 import { basename, extname, join } from "node:path";
 import type {
   ExportFileRecord,
   ExportOptions,
   ExportProgress,
 } from "../shared/ipc.js";
+import { IpcEvent } from "../shared/ipcChannels.js";
+import { createExportJobRegistry } from "./app/exportJobRegistry.js";
 import { listFilesForExport } from "./database.js";
+import { mainT, readWindowLanguageId, type MainLanguageId } from "./i18n.js";
 
-interface ExportJob {
-  canceled: boolean;
-}
-
-const exportJobs = new Map<string, ExportJob>();
+const exportJobRegistry = createExportJobRegistry();
 
 export async function exportFiles(
   sender: WebContents,
   options: ExportOptions,
 ): Promise<ExportProgress> {
-  const normalizedOptions = normalizeExportOptions(options);
-  const job: ExportJob = { canceled: false };
-  exportJobs.set(normalizedOptions.jobId, job);
-
-  const files = listFilesForExport(normalizedOptions.fileIds);
-  const usedNames = new Set<string>();
-  let exported = 0;
-  let failed = 0;
-
-  await mkdir(normalizedOptions.directory, { recursive: true });
-  emitExportProgress(sender, {
-    jobId: normalizedOptions.jobId,
-    phase: "exporting",
-    total: files.length,
-    processed: 0,
-    exported: 0,
-    failed: 0,
-    currentFile: null,
-    message: "开始导出",
-  });
-
-  for (let index = 0; index < files.length; index += 1) {
-    const file = files[index];
-
-    if (!file) {
-      continue;
-    }
-
-    if (job.canceled) {
-      const progress = createExportProgress(
-        normalizedOptions.jobId,
-        "canceled",
-        files.length,
-        index,
-        exported,
-        failed,
-        null,
-        "已取消",
-      );
-      emitExportProgress(sender, progress);
-      exportJobs.delete(normalizedOptions.jobId);
-      return progress;
-    }
-
-    emitExportProgress(
-      sender,
-      createExportProgress(
-        normalizedOptions.jobId,
-        "exporting",
-        files.length,
-        index,
-        exported,
-        failed,
-        file.fileName,
-        "导出中",
-      ),
-    );
-
-    try {
-      const renderedName = await renderExportFileName(
-        normalizedOptions.filenameFormat,
-        file,
-        index,
-      );
-      const targetName = await ensureUniqueFileName(
-        normalizedOptions.directory,
-        appendOriginalExtension(renderedName, file),
-        usedNames,
-      );
-      const targetPath = join(normalizedOptions.directory, targetName);
-
-      await copyFile(file.sourcePath, targetPath);
-      exported += 1;
-    } catch {
-      failed += 1;
-    }
-
-    emitExportProgress(
-      sender,
-      createExportProgress(
-        normalizedOptions.jobId,
-        "exporting",
-        files.length,
-        index + 1,
-        exported,
-        failed,
-        file.fileName,
-        "导出中",
-      ),
-    );
-  }
-
-  const progress = createExportProgress(
-    normalizedOptions.jobId,
-    "completed",
-    files.length,
-    files.length,
-    exported,
-    failed,
-    null,
-    failed > 0 ? `完成，${failed} 个失败` : "完成",
+  const languageId = await readWindowLanguageId(
+    BrowserWindow.fromWebContents(sender),
   );
-  emitExportProgress(sender, progress);
-  exportJobs.delete(normalizedOptions.jobId);
-  return progress;
+  const normalizedOptions = normalizeExportOptions(options, languageId);
+  const job = exportJobRegistry.start(normalizedOptions.jobId);
+
+  try {
+    const files = listFilesForExport(normalizedOptions.fileIds);
+    const usedNames = new Set<string>();
+    const usedTagTextNames = new Set<string>();
+    let exported = 0;
+    let failed = 0;
+
+    await mkdir(normalizedOptions.directory, { recursive: true });
+    if (normalizedOptions.exportTagText) {
+      await mkdir(normalizedOptions.tagTextDirectory, { recursive: true });
+    }
+    emitExportProgress(sender, {
+      jobId: normalizedOptions.jobId,
+      phase: "exporting",
+      total: files.length,
+      processed: 0,
+      exported: 0,
+      failed: 0,
+      currentFile: null,
+      message: "开始导出",
+      messageKey: "window.export.progressStarting",
+    });
+
+    for (let index = 0; index < files.length; index += 1) {
+      const file = files[index];
+
+      if (!file) {
+        continue;
+      }
+
+      if (job.canceled) {
+        const progress = createExportProgress(
+          normalizedOptions.jobId,
+          "canceled",
+          files.length,
+          index,
+          exported,
+          failed,
+          null,
+          "已取消",
+          "window.export.progressCanceled",
+        );
+        emitExportProgress(sender, progress);
+        return progress;
+      }
+
+      emitExportProgress(
+        sender,
+        createExportProgress(
+          normalizedOptions.jobId,
+          "exporting",
+          files.length,
+          index,
+          exported,
+          failed,
+          file.fileName,
+          "导出中",
+          "window.export.progressExporting",
+        ),
+      );
+
+      try {
+        const renderedName = await renderExportFileName(
+          normalizedOptions.filenameFormat,
+          file,
+          index,
+        );
+        const targetName = await ensureUniqueFileName(
+          normalizedOptions.directory,
+          appendOriginalExtension(renderedName, file),
+          usedNames,
+        );
+        const targetPath = join(normalizedOptions.directory, targetName);
+
+        await copyFile(file.sourcePath, targetPath);
+
+        if (normalizedOptions.exportTagText) {
+          const renderedTagTextName = await renderExportFileName(
+            normalizedOptions.tagTextFilenameFormat,
+            file,
+            index,
+          );
+          const tagTextName = await ensureUniqueFileName(
+            normalizedOptions.tagTextDirectory,
+            appendTextExtension(renderedTagTextName),
+            usedTagTextNames,
+          );
+
+          await writeFile(
+            join(normalizedOptions.tagTextDirectory, tagTextName),
+            renderTagText(file),
+            "utf8",
+          );
+        }
+
+        exported += 1;
+      } catch {
+        failed += 1;
+      }
+
+      emitExportProgress(
+        sender,
+        createExportProgress(
+          normalizedOptions.jobId,
+          "exporting",
+          files.length,
+          index + 1,
+          exported,
+          failed,
+          file.fileName,
+          "导出中",
+          "window.export.progressExporting",
+        ),
+      );
+    }
+
+    const completionMessageKey =
+      failed > 0
+        ? "window.export.progressCompletedWithFailures"
+        : "window.export.progressCompleted";
+    const progress = createExportProgress(
+      normalizedOptions.jobId,
+      "completed",
+      files.length,
+      files.length,
+      exported,
+      failed,
+      null,
+      failed > 0 ? `完成，${failed} 个失败` : "完成",
+      completionMessageKey,
+      failed > 0 ? { failed } : undefined,
+    );
+    emitExportProgress(sender, progress);
+    return progress;
+  } finally {
+    exportJobRegistry.finish(normalizedOptions.jobId);
+  }
 }
 
 export function cancelExport(jobId: string): void {
-  const job = exportJobs.get(jobId);
-
-  if (job) {
-    job.canceled = true;
-  }
+  exportJobRegistry.cancel(jobId);
 }
 
-function normalizeExportOptions(options: ExportOptions): ExportOptions {
+function normalizeExportOptions(
+  options: ExportOptions,
+  languageId: MainLanguageId,
+): ExportOptions {
   const jobId =
     typeof options.jobId === "string" && options.jobId.trim()
       ? options.jobId.trim()
@@ -144,6 +180,16 @@ function normalizeExportOptions(options: ExportOptions): ExportOptions {
     typeof options.filenameFormat === "string" && options.filenameFormat.trim()
       ? options.filenameFormat.trim()
       : "{index}-{hash}";
+  const exportTagText = options.exportTagText === true;
+  const tagTextDirectory =
+    typeof options.tagTextDirectory === "string"
+      ? options.tagTextDirectory.trim()
+      : "";
+  const tagTextFilenameFormat =
+    typeof options.tagTextFilenameFormat === "string" &&
+    options.tagTextFilenameFormat.trim()
+      ? options.tagTextFilenameFormat.trim()
+      : "{index}-{hash}";
   const fileIds = Array.isArray(options.fileIds)
     ? [
         ...new Set(
@@ -153,18 +199,25 @@ function normalizeExportOptions(options: ExportOptions): ExportOptions {
     : [];
 
   if (!directory) {
-    throw new Error("导出路径无效");
+    throw new Error(mainT(languageId, "window.export.invalidPath"));
   }
 
   if (fileIds.length === 0) {
-    throw new Error("导出文件无效");
+    throw new Error(mainT(languageId, "window.export.invalidFiles"));
+  }
+
+  if (exportTagText && !tagTextDirectory) {
+    throw new Error(mainT(languageId, "window.export.invalidTagTextPath"));
   }
 
   return {
     jobId,
     directory,
+    exportTagText,
     filenameFormat,
     fileIds,
+    tagTextDirectory,
+    tagTextFilenameFormat,
   };
 }
 
@@ -237,6 +290,14 @@ function appendOriginalExtension(
   return `${fileName}${extension}`;
 }
 
+function appendTextExtension(fileName: string): string {
+  return fileName.toLowerCase().endsWith(".txt") ? fileName : `${fileName}.txt`;
+}
+
+function renderTagText(file: ExportFileRecord): string {
+  return file.tags.map(formatExportTag).join(",");
+}
+
 function normalizeExtension(extension: string | null): string {
   if (!extension) {
     return "";
@@ -303,6 +364,8 @@ function createExportProgress(
   failed: number,
   currentFile: string | null,
   message: string,
+  messageKey?: string,
+  messageValues?: Record<string, string | number>,
 ): ExportProgress {
   return {
     jobId,
@@ -313,6 +376,8 @@ function createExportProgress(
     failed,
     currentFile,
     message,
+    ...(messageKey ? { messageKey } : {}),
+    ...(messageValues ? { messageValues } : {}),
   };
 }
 
@@ -321,6 +386,6 @@ function emitExportProgress(
   progress: ExportProgress,
 ): void {
   if (!sender.isDestroyed()) {
-    sender.send("export:progress", progress);
+    sender.send(IpcEvent.EXPORT_PROGRESS, progress);
   }
 }

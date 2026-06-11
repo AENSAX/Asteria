@@ -10,6 +10,7 @@ import { ResizableColumns } from "../components/ResizableColumns";
 import {
   loadInterfaceSettings,
   normalizeBrowserPageSize,
+  normalizeBrowserPreviewSize,
   saveInterfaceSettings,
 } from "../utils/interfaceSettings";
 import {
@@ -73,6 +74,7 @@ type SettingsWindowState = {
   };
   interface: {
     browserPageSize: string;
+    browserPreviewSize: string;
   };
   appearance: {
     themeId: ThemeId;
@@ -113,8 +115,6 @@ const pathRowClass =
   "ui-button-scope grid grid-cols-[104px_minmax(0,1fr)_32px_58px] items-center gap-1.5 [&>span]:text-[11px] [&>span]:text-(--text) [&>input]:h-6 [&>input]:min-w-0 [&>input]:border [&>input]:border-(--line-strong) [&>input]:bg-(--surface-inset-bg) [&>input]:px-1.5 [&>input]:text-(--ink) [&>input::placeholder]:text-(--disabled-ink) [&>button]:min-w-0";
 const checkRowClass =
   "ui-button-scope grid min-h-6 grid-cols-[16px_minmax(0,1fr)_70px] items-center gap-1.5 text-[11px] [&>input]:m-0 [&>input]:h-3.5 [&>input]:w-3.5 [&>span]:text-(--text)";
-const configTitleClass =
-  "flex h-6 items-center justify-between border-b border-(--line) bg-(--panel-strong) px-2 text-[11px] font-semibold leading-6 text-(--text)";
 const smallInputButtonClass =
   "ui-button-scope [&>input]:h-6 [&>input]:min-w-0 [&>input]:border [&>input]:border-(--line-strong) [&>input]:bg-(--surface-inset-bg) [&>input]:px-1.5 [&>input]:text-(--ink) [&>input::placeholder]:text-(--disabled-ink) [&>button]:min-w-0 [&>button]:px-1.5";
 const compactSelectRowClass =
@@ -150,6 +150,7 @@ export function SettingsWindow(): JSX.Element {
       },
       interface: {
         browserPageSize: String(loadInterfaceSettings().browserPageSize),
+        browserPreviewSize: String(loadInterfaceSettings().browserPreviewSize),
       },
       appearance: {
         themeId: loadThemeSettings().themeId,
@@ -362,6 +363,7 @@ export function SettingsWindow(): JSX.Element {
     }));
     updateInterfaceState({
       browserPageSize: String(loadInterfaceSettings().browserPageSize),
+      browserPreviewSize: String(loadInterfaceSettings().browserPreviewSize),
     });
     updateAppearanceState({ themeId: loadThemeSettings().themeId });
     updateShortcutsState(loadShortcutSettings());
@@ -528,13 +530,42 @@ export function SettingsWindow(): JSX.Element {
   }
 
   function saveBrowserPageSize(): void {
+    const currentSettings = loadInterfaceSettings();
     const settings = saveInterfaceSettings({
+      ...currentSettings,
       browserPageSize: normalizeBrowserPageSize(
         interfaceSettings.browserPageSize,
       ),
     });
 
     updateInterfaceState({ browserPageSize: String(settings.browserPageSize) });
+  }
+
+  async function saveBrowserPreviewSize(): Promise<void> {
+    const currentSettings = loadInterfaceSettings();
+    const browserPreviewSize = normalizeBrowserPreviewSize(
+      interfaceSettings.browserPreviewSize,
+    );
+    const shouldPromptRestart =
+      browserPreviewSize !== currentSettings.browserPreviewSize;
+    const settings = saveInterfaceSettings({
+      ...currentSettings,
+      browserPreviewSize,
+    });
+
+    updateInterfaceState({
+      browserPreviewSize: String(settings.browserPreviewSize),
+    });
+
+    if (!shouldPromptRestart) {
+      return;
+    }
+
+    await window.asteria.alertDialog({
+      title: t("settings.interface.browserPreviewSizeRestartTitle"),
+      message: t("settings.interface.browserPreviewSizeRestartMessage"),
+      confirmText: t("common.close"),
+    });
   }
 
   function saveTheme(): void {
@@ -735,17 +766,12 @@ export function SettingsWindow(): JSX.Element {
               </div>
             </section>
           ) : category === "interface" ? (
-            <div>
-              <section
-                className={`${panelClass} grid min-h-0 grid-rows-[28px_auto_24px_minmax(0,1fr)]`}
-              >
+            <div className="grid min-h-0 gap-2">
+              <section className={panelClass}>
                 <header className={titleClass}>
-                  {t("settings.category.interface")}
+                  {t("settings.interface.browser")}
                 </header>
-                <div className="grid gap-1.5 border-b border-(--line) bg-(--surface-bg) p-2">
-                  <div className={configTitleClass}>
-                    {t("settings.interface.browser")}
-                  </div>
+                <div className="grid gap-1.5 bg-(--surface-bg) p-2">
                   <label
                     className={`grid grid-cols-[104px_120px_58px_minmax(0,1fr)] items-center gap-1.5 [&>span]:text-[11px] [&>span]:text-(--text) ${smallInputButtonClass}`}
                   >
@@ -769,13 +795,44 @@ export function SettingsWindow(): JSX.Element {
                       onAction={saveBrowserPageSize}
                     />
                   </label>
+                  <label
+                    className={`grid grid-cols-[104px_120px_58px_minmax(0,1fr)] items-center gap-1.5 [&>span]:text-[11px] [&>span]:text-(--text) ${smallInputButtonClass}`}
+                  >
+                    <span>{t("settings.interface.browserPreviewSize")}</span>
+                    <input
+                      aria-label={t("settings.interface.browserPreviewSize")}
+                      max={320}
+                      min={64}
+                      placeholder={t(
+                        "settings.interface.browserPreviewSizePlaceholder",
+                      )}
+                      type="number"
+                      value={interfaceSettings.browserPreviewSize}
+                      onChange={(event) =>
+                        updateInterfaceState({
+                          browserPreviewSize: event.target.value,
+                        })
+                      }
+                    />
+                    <ActionFeedbackButton
+                      label={t("common.save")}
+                      onAction={saveBrowserPreviewSize}
+                    />
+                  </label>
                 </div>
-                <div className={configTitleClass}>
+              </section>
+
+              <section
+                className={`${panelClass} grid min-h-0 grid-rows-[28px_minmax(0,1fr)]`}
+              >
+                <header
+                  className={`${titleClass} flex items-center justify-between`}
+                >
                   <span>{t("settings.interface.pageLayout")}</span>
                   <span className="text-[11px] font-normal text-(--muted)">
                     {layoutMessage}
                   </span>
-                </div>
+                </header>
                 <div className="grid min-h-0 grid-cols-[260px_minmax(0,1fr)]">
                   <div className="flex min-h-0 flex-col border-r border-(--line) bg-(--surface-bg)">
                     <div className="min-h-0 flex-1 overflow-auto">
@@ -897,7 +954,7 @@ export function SettingsWindow(): JSX.Element {
                     </div>
 
                     <div
-                      className={`grid grid-cols-[repeat(3,minmax(82px,1fr))] gap-1.5 ${smallInputButtonClass}`}
+                      className={`grid grid-cols-[repeat(2,minmax(82px,1fr))] gap-1.5 ${smallInputButtonClass}`}
                     >
                       <button
                         disabled={!selectedLayoutConfig}

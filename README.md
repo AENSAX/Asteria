@@ -5,7 +5,7 @@
 ## Features
 
 - Page and view workspace layout
-- File import, folder import, Hydrus import, and E-Hentai import
+- File import, folder import, and Hydrus import
 - Browser, search, tag list, file detail, recycle bin, and database views
 - Tag management, tag styles, ratings, favorites, and URL management
 - Batch tag editing and batch image scripting

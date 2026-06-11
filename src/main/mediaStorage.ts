@@ -116,6 +116,8 @@ function beginImageConversion(sourcePath: string): void {
   imageConversionStatus = {
     active: true,
     message: `正在转换图片为 PNG: ${basename(sourcePath)}`,
+    messageKey: "app.workStatus.imageConverting",
+    messageValues: { name: basename(sourcePath) },
     queued: 1,
     processing: 1,
     completed: imageConversionCompletedCount,
@@ -140,6 +142,7 @@ function createIdleImageConversionWorkStatus(): WorkStatus {
   return {
     active: false,
     message: "图片转换空闲",
+    messageKey: "app.workStatus.imageConversionIdle",
     queued: 0,
     processing: 0,
     completed: imageConversionCompletedCount,

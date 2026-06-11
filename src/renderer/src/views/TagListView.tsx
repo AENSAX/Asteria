@@ -12,10 +12,10 @@ import {
   getTagNamespaceStyle,
 } from "../utils/tags";
 import {
-  getFileDomainDisplayName,
-  useLanguage,
-  type TranslationFunction,
-} from "../utils/language";
+  filesChangedAffectsTagCatalog,
+  filesChangedIncludesAny,
+} from "../utils/filesChanged";
+import { useLanguage } from "../utils/language";
 
 interface TagListViewProps {
   onAppendSearchTag: (tag: ManagedTagRecord) => void;
@@ -45,14 +45,6 @@ type VirtualTagRow =
       height: number;
     }
   | {
-      kind: "domain";
-      key: string;
-      domain: DomainRecord;
-      tag: ManagedTagRecord;
-      top: number;
-      height: number;
-    }
-  | {
       kind: "tag";
       key: string;
       tag: ManagedTagRecord;
@@ -69,7 +61,6 @@ type VirtualTagRow =
 
 type VirtualTagRowDraft =
   | Omit<Extract<VirtualTagRow, { kind: "header" }>, "top">
-  | Omit<Extract<VirtualTagRow, { kind: "domain" }>, "top">
   | Omit<Extract<VirtualTagRow, { kind: "tag" }>, "top">
   | Omit<Extract<VirtualTagRow, { kind: "empty" }>, "top">;
 
@@ -132,36 +123,45 @@ export function TagListView({
       return undefined;
     }
 
-    return window.asteria.onFilesChanged(() => {
-      void loadTags();
-      void loadSelectionTags();
+    return window.asteria.onFilesChanged((payload) => {
+      if (filesChangedAffectsTagCatalog(payload)) {
+        void loadTags();
+      }
+
+      if (
+        state.filterMode === "selection" &&
+        filesChangedIncludesAny(payload, selectedFileIds)
+      ) {
+        void loadSelectionTags();
+      }
     });
   }, [state.filterMode, selectedFileIds]);
 
   const sortedGroups = useMemo(
-    () =>
-      sortStyleGroups(groups).map((group) => ({
+    () => {
+      const tagGroups = sortStyleGroups(groups).map((group) => ({
         ...group,
         tags: sortTags(group.tags, state.direction, state.namespaceFirst),
-      })),
-    [groups, state.direction, state.namespaceFirst],
+      }));
+      const domainGroup = createDomainStyleGroup(domains, state.direction);
+
+      return domainGroup ? [domainGroup, ...tagGroups] : tagGroups;
+    },
+    [domains, groups, state.direction, state.namespaceFirst],
   );
   const displayGroups = useMemo(
     () => filterStyleGroups(sortedGroups, state.filterMode, selectionTags),
     [state.filterMode, selectionTags, sortedGroups],
   );
-  const displayDomains = state.filterMode === "all" ? domains : [];
   const tagListLabels = useMemo(
     () => ({
-      domains: t("window.tagList.domains"),
-      noDomains: t("window.tagList.noDomains"),
       noTags: t("window.tagList.noTags"),
     }),
     [t],
   );
   const virtualRows = useMemo(
-    () => buildVirtualTagRows(displayDomains, displayGroups, tagListLabels, t),
-    [displayDomains, displayGroups, tagListLabels, t],
+    () => buildVirtualTagRows(displayGroups, tagListLabels),
+    [displayGroups, tagListLabels],
   );
   const visibleRows = useMemo(
     () =>
@@ -217,7 +217,9 @@ export function TagListView({
       setGroups(nextGroups);
       setMessage(
         t("window.tagList.loadedTags", {
-          count: nextGroups.reduce((sum, group) => sum + group.tags.length, 0),
+          count:
+            nextDomains.length +
+            nextGroups.reduce((sum, group) => sum + group.tags.length, 0),
         }),
       );
     } catch (error) {
@@ -369,29 +371,6 @@ function renderVirtualTagRow(
     );
   }
 
-  if (row.kind === "domain") {
-    const domainLabel = formatTagLabel(row.tag);
-
-    return (
-      <button
-        className={`absolute left-0 right-0 ${tagListItemClass}`}
-        disabled={locked}
-        key={row.key}
-        style={style}
-        title={domainLabel}
-        type="button"
-        onClick={() => onAppendSearchTag(row.tag)}
-      >
-        <span className="min-w-0 overflow-hidden px-2 leading-6 text-left text-ellipsis whitespace-nowrap">
-          {domainLabel}
-        </span>
-        <span className="min-w-0 overflow-hidden px-2 leading-6 text-right text-ellipsis whitespace-nowrap text-(--muted)">
-          {row.domain.fileCount}
-        </span>
-      </button>
-    );
-  }
-
   return (
     <button
       className={getTagNamespaceClassName(
@@ -416,14 +395,10 @@ function renderVirtualTagRow(
 }
 
 function buildVirtualTagRows(
-  domains: DomainRecord[],
   groups: StyleTagGroup[],
   labels: {
-    domains: string;
-    noDomains: string;
     noTags: string;
   },
-  t: TranslationFunction,
 ): VirtualTagRows {
   const rows: VirtualTagRow[] = [];
   let top = 0;
@@ -431,32 +406,6 @@ function buildVirtualTagRows(
   function push(row: VirtualTagRowDraft): void {
     rows.push({ ...row, top } as VirtualTagRow);
     top += row.height;
-  }
-
-  push({
-    kind: "header",
-    key: "header:domains",
-    label: labels.domains,
-    height: TAG_LIST_HEADER_HEIGHT,
-  });
-
-  if (domains.length > 0) {
-    for (const domain of domains) {
-      push({
-        kind: "domain",
-        key: `domain:${domain.id}`,
-        domain,
-        tag: createDomainPseudoTag(domain, t),
-        height: TAG_LIST_ITEM_HEIGHT,
-      });
-    }
-  } else {
-    push({
-      kind: "empty",
-      key: "empty:domains",
-      label: labels.noDomains,
-      height: TAG_LIST_EMPTY_HEIGHT,
-    });
   }
 
   if (groups.length === 0) {
@@ -606,16 +555,38 @@ function createDomainPseudoTagId(domainId: DomainRecord["id"]): number {
   return -3;
 }
 
-function createDomainPseudoTag(
-  domain: DomainRecord,
-  t: TranslationFunction,
-): ManagedTagRecord {
+function createDomainStyleGroup(
+  domains: DomainRecord[],
+  direction: SortDirection,
+): StyleTagGroup | null {
+  if (domains.length === 0) {
+    return null;
+  }
+
+  return {
+    style: {
+      id: -1,
+      name: "domain",
+      displayName: "domain",
+      tagCount: domains.length,
+      createdAt: "",
+      isDefault: true,
+    },
+    tags: sortTags(
+      domains.map((domain) => createDomainPseudoTag(domain)),
+      direction,
+      true,
+    ),
+  };
+}
+
+function createDomainPseudoTag(domain: DomainRecord): ManagedTagRecord {
   return {
     id: createDomainPseudoTagId(domain.id),
     styleId: -1,
     styleName: "domain",
-    namespace: "",
-    name: getFileDomainDisplayName(domain.id, t),
+    namespace: "domain",
+    name: domain.id,
     displayName: null,
     fileCount: domain.fileCount,
     createdAt: "",

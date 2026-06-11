@@ -82,7 +82,7 @@ export function getTagNamespaceClassName(
   baseClassName: string,
 ): string {
   return tag.namespace
-    ? `${baseClassName} border-(--tag-namespace-border) bg-(--tag-namespace-bg) text-(--tag-namespace-ink)`
+    ? `${baseClassName} namespace-tag-color border-(--tag-namespace-border) bg-(--tag-namespace-bg) text-(--tag-namespace-ink)`
     : baseClassName;
 }
 

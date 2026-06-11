@@ -1,6 +1,14 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { GenericDialogState } from "../../../shared/ipc";
-import { useLanguage } from "../utils/language";
+import type {
+  GenericDialogState,
+  OperationProgress,
+} from "../../../shared/ipc";
+import {
+  useLanguage,
+  type TranslationFunction,
+  type TranslationKey,
+} from "../utils/language";
+import { useWindowTitle } from "../hooks/useWindowTitle";
 
 interface DialogWindowProps {
   dialogId: string;
@@ -10,6 +18,8 @@ export function DialogWindow({ dialogId }: DialogWindowProps): JSX.Element {
   const { t } = useLanguage();
   const [state, setState] = useState<GenericDialogState | null>(null);
   const rootRef = useRef<HTMLElement | null>(null);
+  const title = state ? formatDialogTitle(state, t) : "";
+  useWindowTitle(title);
 
   useEffect(() => {
     void loadState();
@@ -86,7 +96,9 @@ export function DialogWindow({ dialogId }: DialogWindowProps): JSX.Element {
       ref={rootRef}
     >
       <main className="min-w-0 min-h-0 p-3">
-        <div className="max-w-[860px]">{state.message}</div>
+        <div className="max-w-[860px] whitespace-pre-line">
+          {formatDialogMessage(state, t)}
+        </div>
         {state.kind === "progress" && state.progress ? (
           <div className="mt-3 grid gap-2">
             <div className="grid grid-cols-[minmax(0,1fr)_42px] items-center gap-2">
@@ -107,7 +119,7 @@ export function DialogWindow({ dialogId }: DialogWindowProps): JSX.Element {
               type="button"
               onClick={() => void resolve(false)}
             >
-              {state.cancelText}
+              {formatDialogCancelText(state, t)}
             </button>
           ) : null}
           <button
@@ -115,10 +127,76 @@ export function DialogWindow({ dialogId }: DialogWindowProps): JSX.Element {
             type="button"
             onClick={() => void resolve(true)}
           >
-            {state.confirmText}
+            {formatDialogConfirmText(state, t)}
           </button>
         </footer>
       ) : null}
     </section>
   );
+}
+
+function formatDialogTitle(
+  state: GenericDialogState,
+  t: TranslationFunction,
+): string {
+  if (state.kind === "progress" && state.progress?.titleKey) {
+    return t(
+      state.progress.titleKey as TranslationKey,
+      state.progress.titleValues,
+    );
+  }
+
+  if (state.titleKey) {
+    return t(state.titleKey as TranslationKey, state.titleValues);
+  }
+
+  return state.title;
+}
+
+function formatDialogMessage(
+  state: GenericDialogState,
+  t: TranslationFunction,
+): string {
+  if (state.kind === "progress" && state.progress) {
+    return formatProgressMessage(state.progress, t);
+  }
+
+  if (state.messageKey) {
+    return t(state.messageKey as TranslationKey, state.messageValues);
+  }
+
+  return state.message;
+}
+
+function formatDialogConfirmText(
+  state: GenericDialogState,
+  t: TranslationFunction,
+): string {
+  if (state.confirmTextKey) {
+    return t(state.confirmTextKey as TranslationKey);
+  }
+
+  return state.confirmText;
+}
+
+function formatDialogCancelText(
+  state: GenericDialogState,
+  t: TranslationFunction,
+): string {
+  if (state.cancelTextKey) {
+    return t(state.cancelTextKey as TranslationKey);
+  }
+
+  return state.cancelText;
+}
+
+function formatProgressMessage(
+  progress: OperationProgress,
+  t: TranslationFunction,
+): string {
+  if (progress.messageKey) {
+    return t(progress.messageKey as TranslationKey, progress.messageValues);
+  }
+
+  return progress.message;
 }

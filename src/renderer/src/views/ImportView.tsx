@@ -4,7 +4,12 @@ import type {
   ImportQueueFileRecord,
 } from "../../../shared/ipc";
 import { formatBytes } from "../utils/format";
-import { getFileDomainDisplayName, useLanguage } from "../utils/language";
+import {
+  getFileDomainDisplayName,
+  useLanguage,
+  type TranslationFunction,
+  type TranslationKey,
+} from "../utils/language";
 
 interface ImportViewProps {
   dragActive: boolean;
@@ -76,7 +81,9 @@ export function ImportView({
 
       <div className="border-b border-(--line) p-1.5">
         <div className="h-6 leading-6 text-(--muted)">
-          {dragActive ? t("window.import.dropHint") : progress.message}
+          {dragActive
+            ? t("window.import.dropHint")
+            : formatImportProgressMessage(progress, t)}
         </div>
         <div className="grid grid-cols-[minmax(0,1fr)_42px] items-center gap-2">
           <progress max={100} value={percent} />
@@ -192,4 +199,15 @@ export function ImportView({
       </div>
     </section>
   );
+}
+
+function formatImportProgressMessage(
+  progress: ImportProgress,
+  t: TranslationFunction,
+): string {
+  if (progress.messageKey) {
+    return t(progress.messageKey as TranslationKey, progress.messageValues);
+  }
+
+  return progress.message;
 }

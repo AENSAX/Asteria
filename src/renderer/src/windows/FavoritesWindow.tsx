@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { BrowserFileRecord } from "../../../shared/ipc";
 import { FavoriteButton } from "../components/FavoriteButton";
 import { FileRatingStack } from "../components/FileRatingStack";
+import { filesChangedIncludesAny } from "../utils/filesChanged";
 import { isImageExtension, isVideoExtension } from "../utils/media";
 import { useLanguage } from "../utils/language";
 
@@ -19,8 +20,15 @@ export function FavoritesWindow(): JSX.Element {
       return undefined;
     }
 
-    const unsubscribeFilesChanged = window.asteria.onFilesChanged(() => {
-      void loadFavorites();
+    const unsubscribeFilesChanged = window.asteria.onFilesChanged((payload) => {
+      if (
+        filesChangedIncludesAny(
+          payload,
+          files.map((file) => file.id),
+        )
+      ) {
+        void loadFavorites();
+      }
     });
 
     const unsubscribeFavoriteChanged = window.asteria.onFileFavoriteChanged(
@@ -44,7 +52,7 @@ export function FavoritesWindow(): JSX.Element {
       unsubscribeFilesChanged();
       unsubscribeFavoriteChanged();
     };
-  }, []);
+  }, [files]);
 
   async function loadFavorites(): Promise<void> {
     if (!window.asteria) {

@@ -337,6 +337,9 @@ function buildThumbnailStatus(): WorkStatus {
   return {
     active,
     message: active ? "正在生成缩略图" : "缓存就绪",
+    messageKey: active
+      ? "app.workStatus.thumbnailGenerating"
+      : "app.workStatus.thumbnailReady",
     queued,
     processing: activeWorkers,
     completed: completedCount,

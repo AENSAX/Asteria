@@ -34,6 +34,44 @@ export interface BrowserFileRecord extends DatabaseFileRecord {
   ratings: FileRatingRecord[];
 }
 
+export interface BrowserFilePage {
+  page: number;
+  pageSize: number;
+  total: number;
+  files: BrowserFileRecord[];
+}
+
+export interface BrowserFilePageRequest {
+  page: number;
+  pageSize: number;
+  sortKey: "importedAt" | "updatedAt";
+  sortDirection: "asc" | "desc";
+}
+
+export interface BrowserSearchPageRequest extends BrowserFilePageRequest {
+  query: string;
+}
+
+export type FilesChangedKind =
+  | "ai-tags"
+  | "deleted"
+  | "domain"
+  | "imported"
+  | "metadata"
+  | "mixed"
+  | "ratings"
+  | "relations"
+  | "restored"
+  | "tags"
+  | "trashed"
+  | "unknown";
+
+export interface FilesChangedPayload {
+  kind: FilesChangedKind;
+  fileIds?: number[];
+  fullRefresh?: boolean;
+}
+
 export interface FileDetailRecord extends BrowserFileRecord {}
 
 export interface TagRecord {
@@ -219,6 +257,8 @@ export interface TagTranslationSummary {
 export interface WorkStatus {
   active: boolean;
   message: string;
+  messageKey?: string;
+  messageValues?: Record<string, string | number>;
   queued: number;
   processing: number;
   completed: number;
@@ -240,9 +280,13 @@ export interface PageLayoutSettings {
 
 export interface OperationProgress {
   title: string;
+  titleKey?: string;
+  titleValues?: Record<string, string | number>;
   total: number;
   processed: number;
   message: string;
+  messageKey?: string;
+  messageValues?: Record<string, string | number>;
   completed: boolean;
 }
 
@@ -252,17 +296,29 @@ export interface GenericDialogState {
   id: string;
   kind: GenericDialogKind;
   title: string;
+  titleKey?: string;
+  titleValues?: Record<string, string | number>;
   message: string;
+  messageKey?: string;
+  messageValues?: Record<string, string | number>;
   confirmText: string;
+  confirmTextKey?: string;
   cancelText: string;
+  cancelTextKey?: string;
   progress: OperationProgress | null;
 }
 
 export interface ConfirmDialogOptions {
   title?: string;
+  titleKey?: string;
+  titleValues?: Record<string, string | number>;
   message: string;
+  messageKey?: string;
+  messageValues?: Record<string, string | number>;
   confirmText?: string;
+  confirmTextKey?: string;
   cancelText?: string;
+  cancelTextKey?: string;
 }
 
 export type ManagedTagSortKey = "name" | "createdAt" | "fileCount";
@@ -310,6 +366,8 @@ export interface ImportProgress {
   chunkTotal: number;
   currentFile: string | null;
   message: string;
+  messageKey?: string;
+  messageValues?: Record<string, string | number>;
 }
 
 export interface ImportCommitResult extends ImportProgress {
@@ -354,43 +412,8 @@ export interface HydrusImportProgress {
   failed: number;
   currentFile: string | null;
   message: string;
-}
-
-export interface EHentaiImportOptions {
-  galleryUrl: string;
-  cookie: string;
-  importGalleryTags: boolean;
-  forceDuplicate: boolean;
-  requestDelayMs: number;
-  requestTimeoutMs: number;
-  startIndex: number;
-  limit: number;
-}
-
-export interface EHentaiGalleryStatus {
-  ok: boolean;
-  message: string;
-  galleryTitle: string;
-  imageCount: number;
-}
-
-export interface EHentaiImportProgress {
-  phase:
-    | "idle"
-    | "testing"
-    | "collecting"
-    | "importing"
-    | "completed"
-    | "failed"
-    | "canceled";
-  total: number;
-  processed: number;
-  imported: number;
-  duplicated: number;
-  skipped: number;
-  failed: number;
-  currentFile: string | null;
-  message: string;
+  messageKey?: string;
+  messageValues?: Record<string, string | number>;
 }
 
 export interface AiSettings {
@@ -443,6 +466,9 @@ export interface ExportOptions {
   fileIds: number[];
   directory: string;
   filenameFormat: string;
+  exportTagText: boolean;
+  tagTextDirectory: string;
+  tagTextFilenameFormat: string;
 }
 
 export interface ExportProgress {
@@ -454,6 +480,8 @@ export interface ExportProgress {
   failed: number;
   currentFile: string | null;
   message: string;
+  messageKey?: string;
+  messageValues?: Record<string, string | number>;
 }
 
 export interface ApiPermissionRecord {
@@ -526,8 +554,16 @@ export interface AsteriaApi {
   getVersion: () => Promise<string>;
   getDatabaseStatus: () => Promise<DatabaseStatus>;
   listDatabaseFiles: (page: number) => Promise<DatabaseFilePage>;
+  listBrowserFilePage: (
+    request: BrowserFilePageRequest,
+  ) => Promise<BrowserFilePage>;
   listBrowserFiles: () => Promise<BrowserFileRecord[]>;
-  searchBrowserFiles: (query: string) => Promise<BrowserFileRecord[]>;
+  searchBrowserFilePage: (
+    request: BrowserSearchPageRequest,
+  ) => Promise<BrowserFilePage>;
+  listFavoriteFilePage: (
+    request: BrowserFilePageRequest,
+  ) => Promise<BrowserFilePage>;
   listFavoriteFiles: () => Promise<BrowserFileRecord[]>;
   setFileFavorite: (fileId: number, favorite: boolean) => Promise<void>;
   openDatabaseManagerWindow: () => Promise<void>;
@@ -543,7 +579,6 @@ export interface AsteriaApi {
   openRatingManagerWindow: () => Promise<void>;
   openApiManagerWindow: () => Promise<void>;
   openHydrusImportWindow: () => Promise<void>;
-  openEHentaiImportWindow: () => Promise<void>;
   openAiManagerWindow: () => Promise<void>;
   openTagTranslationWindow: () => Promise<void>;
   openTagRelationTreeWindow: (
@@ -721,17 +756,6 @@ export interface AsteriaApi {
   updateHydrusImportSettings: (
     settings: HydrusImportOptions,
   ) => Promise<HydrusImportOptions>;
-  testEHentaiGallery: (
-    options: EHentaiImportOptions,
-  ) => Promise<EHentaiGalleryStatus>;
-  importFromEHentai: (
-    options: EHentaiImportOptions,
-  ) => Promise<EHentaiImportProgress>;
-  cancelEHentaiImport: () => Promise<void>;
-  getEHentaiImportSettings: () => Promise<EHentaiImportOptions>;
-  updateEHentaiImportSettings: (
-    settings: EHentaiImportOptions,
-  ) => Promise<EHentaiImportOptions>;
   getTagTranslationSettings: () => Promise<TagTranslationSettings>;
   updateTagTranslationSettings: (
     settings: TagTranslationSettings,
@@ -786,14 +810,13 @@ export interface AsteriaApi {
   onHydrusImportProgress: (
     listener: (progress: HydrusImportProgress) => void,
   ) => () => void;
-  onEHentaiImportProgress: (
-    listener: (progress: EHentaiImportProgress) => void,
-  ) => () => void;
   onDialogStateChanged: (
     listener: (state: GenericDialogState) => void,
   ) => () => void;
   onFileDetailReset: (listener: (fileId: number) => void) => () => void;
-  onFilesChanged: (listener: () => void) => () => void;
+  onFilesChanged: (
+    listener: (payload: FilesChangedPayload) => void,
+  ) => () => void;
   onFileFavoriteChanged: (
     listener: (fileId: number, favorite: boolean) => void,
   ) => () => void;

@@ -1,4 +1,4 @@
-import { nativeImage, net } from "electron";
+import { net } from "electron";
 import { createWriteStream } from "node:fs";
 import {
   mkdir,
@@ -11,6 +11,7 @@ import {
 import { basename, dirname, extname, join, resolve } from "node:path";
 import { pipeline } from "node:stream/promises";
 import * as ort from "onnxruntime-node";
+import sharp from "sharp";
 import {
   addFileTags,
   getAiSettings,
@@ -334,7 +335,7 @@ async function predictTagsForImage(
   settings: AiSettings,
 ): Promise<TagDraft[]> {
   const bundle = await loadModelBundle(settings);
-  const input = createInputTensor(imagePath, bundle);
+  const input = await createInputTensor(imagePath, bundle);
   const outputs = await bundle.session.run({ [bundle.inputName]: input });
   const output = outputs[bundle.outputName];
 
@@ -455,64 +456,53 @@ async function loadLabels(labelPath: string): Promise<LabelData> {
   return labels;
 }
 
-function createInputTensor(imagePath: string, bundle: ModelBundle): ort.Tensor {
-  const image = nativeImage.createFromPath(imagePath);
+async function createInputTensor(
+  imagePath: string,
+  bundle: ModelBundle,
+): Promise<ort.Tensor> {
+  let decoded: { data: Buffer; info: sharp.OutputInfo };
 
-  if (image.isEmpty()) {
+  // sharp decodes and resizes on the libvips thread pool instead of blocking
+  // the main-process event loop the way nativeImage did
+  try {
+    decoded = await sharp(imagePath)
+      .flatten({ background: { r: 255, g: 255, b: 255 } })
+      .resize(bundle.width, bundle.height, {
+        fit: "contain",
+        background: { r: 255, g: 255, b: 255 },
+      })
+      .toColourspace("srgb")
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+  } catch {
     throw new Error("图片解码失败");
   }
 
-  const size = image.getSize();
+  const { data: pixels, info } = decoded;
 
-  if (size.width <= 0 || size.height <= 0) {
+  if (info.width !== bundle.width || info.height !== bundle.height) {
     throw new Error("图片尺寸无效");
   }
 
-  const scale = Math.min(
-    bundle.width / size.width,
-    bundle.height / size.height,
-  );
-  const resizedWidth = Math.max(1, Math.round(size.width * scale));
-  const resizedHeight = Math.max(1, Math.round(size.height * scale));
-  const resized = image.resize({
-    width: resizedWidth,
-    height: resizedHeight,
-    quality: "best",
-  });
-  const bitmap = resized.toBitmap();
-  const data = new Float32Array(bundle.width * bundle.height * 3);
-  data.fill(255);
+  const channels = info.channels;
+  const planeSize = bundle.width * bundle.height;
+  const data = new Float32Array(planeSize * 3);
 
-  const offsetX = Math.floor((bundle.width - resizedWidth) / 2);
-  const offsetY = Math.floor((bundle.height - resizedHeight) / 2);
+  for (let index = 0; index < planeSize; index += 1) {
+    const sourceIndex = index * channels;
+    const red = pixels[sourceIndex] ?? 255;
+    const green = channels >= 3 ? (pixels[sourceIndex + 1] ?? 255) : red;
+    const blue = channels >= 3 ? (pixels[sourceIndex + 2] ?? 255) : red;
 
-  for (let y = 0; y < resizedHeight; y += 1) {
-    for (let x = 0; x < resizedWidth; x += 1) {
-      const sourceIndex = (y * resizedWidth + x) * 4;
-      const targetX = offsetX + x;
-      const targetY = offsetY + y;
-      const blue = bitmap[sourceIndex] ?? 255;
-      const green = bitmap[sourceIndex + 1] ?? 255;
-      const red = bitmap[sourceIndex + 2] ?? 255;
-      const alpha = (bitmap[sourceIndex + 3] ?? 255) / 255;
-      const pixel = [
-        compositeOverWhite(blue, alpha),
-        compositeOverWhite(green, alpha),
-        compositeOverWhite(red, alpha),
-      ];
-
-      if (bundle.layout === "nchw") {
-        const planeSize = bundle.width * bundle.height;
-        const baseIndex = targetY * bundle.width + targetX;
-        data[baseIndex] = pixel[0] ?? 255;
-        data[planeSize + baseIndex] = pixel[1] ?? 255;
-        data[planeSize * 2 + baseIndex] = pixel[2] ?? 255;
-      } else {
-        const targetIndex = (targetY * bundle.width + targetX) * 3;
-        data[targetIndex] = pixel[0] ?? 255;
-        data[targetIndex + 1] = pixel[1] ?? 255;
-        data[targetIndex + 2] = pixel[2] ?? 255;
-      }
+    // WD-style tagger models expect BGR channel order
+    if (bundle.layout === "nchw") {
+      data[index] = blue;
+      data[planeSize + index] = green;
+      data[planeSize * 2 + index] = red;
+    } else {
+      data[index * 3] = blue;
+      data[index * 3 + 1] = green;
+      data[index * 3 + 2] = red;
     }
   }
 
@@ -688,6 +678,8 @@ function updateAiTaggingStatus(total: number, completed: number): void {
   currentTaggingStatus = {
     active: completed < total,
     message: completed < total ? "正在模型打标" : "模型打标完成",
+    messageKey:
+      completed < total ? "app.workStatus.aiTagging" : "app.workStatus.aiDone",
     queued: Math.max(0, total - completed),
     processing: completed < total ? 1 : 0,
     completed,
@@ -704,6 +696,7 @@ function createIdleAiWorkStatus(): WorkStatus {
   return {
     active: false,
     message: "模型打标空闲",
+    messageKey: "app.workStatus.aiIdle",
     queued: 0,
     processing: 0,
     completed: 0,
@@ -751,10 +744,6 @@ function normalizeFileIds(fileIds: number[]): number[] {
 
 function displayTagName(rawName: string): string {
   return rawName.trim().replace(/_/g, " ").replace(/\s+/g, " ");
-}
-
-function compositeOverWhite(value: number, alpha: number): number {
-  return Math.round(value * alpha + 255 * (1 - alpha));
 }
 
 function parseCsvRows(text: string): string[][] {

@@ -15,6 +15,7 @@ import type {
   HydrusImportProgress,
   TagDraft,
 } from "../shared/ipc.js";
+import { IpcEvent } from "../shared/ipcChannels.js";
 
 const DEFAULT_METADATA_BATCH_SIZE = 100;
 const HYDRUS_REQUEST_TIMEOUT_MS = 10_000;
@@ -102,7 +103,11 @@ export async function importFromHydrus(
   try {
     emitHydrusProgress(
       sender,
-      createHydrusProgress({ phase: "testing", message: "测试 Hydrus 连接" }),
+      createHydrusProgress({
+        phase: "testing",
+        message: "测试 Hydrus 连接",
+        messageKey: "window.hydrus.testingConnectionProgress",
+      }),
     );
     const status = await testHydrusConnection(normalizedOptions);
 
@@ -113,7 +118,11 @@ export async function importFromHydrus(
     assertHydrusNotCanceled();
     emitHydrusProgress(
       sender,
-      createHydrusProgress({ phase: "searching", message: "搜索 Hydrus 文件" }),
+      createHydrusProgress({
+        phase: "searching",
+        message: "搜索 Hydrus 文件",
+        messageKey: "window.hydrus.searchingFiles",
+      }),
     );
 
     const fileIds = await searchHydrusFileIds(baseUrl, normalizedOptions);
@@ -126,6 +135,7 @@ export async function importFromHydrus(
       const completed = createHydrusProgress({
         phase: "completed",
         message: "没有匹配的 Hydrus 文件",
+        messageKey: "window.hydrus.noMatches",
         total: 0,
         ...counters,
       });
@@ -138,6 +148,8 @@ export async function importFromHydrus(
       createHydrusProgress({
         phase: "metadata",
         message: `搜索到 ${limitedFileIds.length} 个 Hydrus 文件，读取元数据`,
+        messageKey: "window.hydrus.metadataReading",
+        messageValues: { count: limitedFileIds.length },
         total: limitedFileIds.length,
       }),
     );
@@ -165,6 +177,7 @@ export async function importFromHydrus(
         createHydrusProgress({
           phase: "importing",
           message: "迁移 Hydrus 文件",
+          messageKey: "window.hydrus.importingFiles",
           total: limitedFileIds.length,
           currentFile: String(fileId),
           ...counters,
@@ -236,6 +249,7 @@ export async function importFromHydrus(
       total: limitedFileIds.length,
       currentFile: null,
       message: "Hydrus 导入完成",
+      messageKey: "window.hydrus.importComplete",
       ...counters,
     });
     emitHydrusProgress(sender, completed);
@@ -248,6 +262,11 @@ export async function importFromHydrus(
         : error instanceof Error
           ? error.message
           : "Hydrus 导入失败",
+      ...(hydrusImportCanceled
+        ? { messageKey: "window.hydrus.importCanceled" }
+        : error instanceof Error
+          ? {}
+          : { messageKey: "window.hydrus.importFailed" }),
       ...counters,
     });
     emitHydrusProgress(sender, failed);
@@ -696,5 +715,5 @@ function emitHydrusProgress(
   sender: WebContents,
   progress: HydrusImportProgress,
 ): void {
-  sender.send("hydrus-import:progress", progress);
+  sender.send(IpcEvent.HYDRUS_IMPORT_PROGRESS, progress);
 }

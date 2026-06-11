@@ -1,9 +1,5 @@
-import { useEffect, useState } from "react";
-import type {
-  FileDomain,
-  SearchHintRecord,
-  TagRecord,
-} from "../../../shared/ipc";
+import { useEffect, useRef, useState } from "react";
+import type { SearchHintRecord, TagRecord } from "../../../shared/ipc";
 import {
   createTagToken,
   formatTagLabel,
@@ -14,9 +10,7 @@ import {
 } from "../utils/tags";
 import { mergeIds } from "../utils/ids";
 import {
-  getFileDomainDisplayName,
   useLanguage,
-  type TranslationFunction,
 } from "../utils/language";
 
 export type SearchOperator = "+" | "-" | "/" | "(" | ")";
@@ -97,6 +91,7 @@ export function SearchView({
   const [lastPendingFilterIndex, setLastPendingFilterIndex] = useState<
     number | null
   >(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const selectableTokenIndexes = tokens
     .map((token, index) => (token.kind === "tag" ? index : null))
     .filter((index): index is number => index !== null);
@@ -239,7 +234,7 @@ export function SearchView({
     const tokenDraft = {
       id: tag.id,
       namespace: tag.namespace,
-      name: formatSearchTagLabel(tag, t),
+      name: tag.name,
       styleName: tag.styleName,
       color: "color" in tag ? tag.color : null,
     };
@@ -268,6 +263,13 @@ export function SearchView({
     setLastPendingTokenIndex(null);
     setSuggestions([]);
     setSelectedSuggestionIndex(0);
+    focusSearchInput();
+  }
+
+  function focusSearchInput(): void {
+    requestAnimationFrame(() => {
+      inputRef.current?.focus();
+    });
   }
 
   function appendOperator(operator: SearchOperator): void {
@@ -453,7 +455,7 @@ export function SearchView({
                 }}
               >
                 <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
-                  {formatSearchTagLabel(tag, t)}
+                  {formatTagLabel(tag)}
                 </span>
                 <span className="min-w-0 overflow-hidden text-right text-ellipsis whitespace-nowrap text-(--muted)">
                   {tag.fileCount}
@@ -477,7 +479,7 @@ export function SearchView({
                 style={getSearchTokenStyle(token.token)}
                 onMouseDown={(event) => handleTokenMouseDown(event, index)}
               >
-                {formatSearchTagLabel(token.token, t)}
+                {formatTagLabel(token.token)}
               </span>
             ) : (
               <span
@@ -492,6 +494,7 @@ export function SearchView({
             aria-label={t("window.search.input")}
             disabled={locked}
             placeholder={t("window.search.placeholder")}
+            ref={inputRef}
             value={text}
             onChange={(event) => setText(event.target.value)}
             onKeyDown={handleKeyDown}
@@ -518,7 +521,7 @@ export function SearchView({
                     key={`${token.token.key}-${tokenIndex}`}
                     style={getSearchTokenStyle(token.token)}
                   >
-                    {formatSearchTagLabel(token.token, t)}
+                    {formatTagLabel(token.token)}
                   </span>
                 ) : (
                   <span
@@ -582,43 +585,6 @@ export function buildSearchExpression(
 
 function quoteSearchTag(value: string): string {
   return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
-}
-
-function formatSearchTagLabel(
-  tag: Pick<TagRecord, "namespace" | "name"> & {
-    id?: number;
-    kind?: string;
-    styleName?: string;
-  },
-  t: TranslationFunction,
-): string {
-  const domain = getSearchTagDomain(tag);
-
-  return domain ? getFileDomainDisplayName(domain, t) : formatTagLabel(tag);
-}
-
-function getSearchTagDomain(tag: {
-  id?: number;
-  kind?: string;
-  styleName?: string;
-}): FileDomain | null {
-  if (tag.kind !== "domain" && tag.styleName !== "domain") {
-    return null;
-  }
-
-  if (tag.id === -1) {
-    return "pending";
-  }
-
-  if (tag.id === -2) {
-    return "library";
-  }
-
-  if (tag.id === -3) {
-    return "trash";
-  }
-
-  return null;
 }
 
 function isSearchOperator(value: string): value is SearchOperator {
