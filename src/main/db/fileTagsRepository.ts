@@ -45,6 +45,52 @@ export function listFileTags(fileId: number): FileTagRecord[] {
     .all(fileId) as FileTagRecord[];
 }
 
+export function listFileTagsByFileIds(
+  fileIds: number[],
+): Map<number, FileTagRecord[]> {
+  const db = getDatabaseConnection();
+  const normalizedFileIds = normalizeFileIds(fileIds);
+  const tagsByFileId = new Map<number, FileTagRecord[]>();
+
+  if (normalizedFileIds.length === 0) {
+    return tagsByFileId;
+  }
+
+  const placeholders = createPlaceholders(normalizedFileIds.length);
+  const rows = db
+    .prepare(
+      `SELECT
+        file_tags.file_id AS fileId,
+        tags.id,
+        tag_styles.name AS styleName,
+        tags.namespace,
+        tags.name,
+        tags.display_name AS displayName,
+        file_tags.created_at AS createdAt
+       FROM file_tags
+       JOIN tags ON tags.id = file_tags.tag_id
+       JOIN tag_styles ON tag_styles.id = tags.style_id
+       WHERE file_tags.file_id IN (${placeholders})
+       ORDER BY file_tags.file_id ASC, tag_styles.name ASC, tags.namespace ASC, tags.name ASC`,
+    )
+    .all(...normalizedFileIds) as Array<FileTagRecord & { fileId: number }>;
+
+  for (const row of rows) {
+    const tags = tagsByFileId.get(row.fileId) ?? [];
+    tags.push({
+      id: row.id,
+      styleName: row.styleName,
+      namespace: row.namespace,
+      name: row.name,
+      displayName: row.displayName,
+      createdAt: row.createdAt,
+    });
+    tagsByFileId.set(row.fileId, tags);
+  }
+
+  return tagsByFileId;
+}
+
 export function listFileParentTags(fileId: number): FileTagRecord[] {
   const db = getDatabaseConnection();
 

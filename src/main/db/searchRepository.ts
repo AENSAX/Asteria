@@ -438,9 +438,7 @@ function normalizeBrowserPage(value: number): number {
 }
 
 function normalizeBrowserPageSize(value: number): number {
-  return Number.isInteger(value) && value > 0
-    ? Math.min(500, Math.max(1, value))
-    : 100;
+  return Number.isInteger(value) && value > 0 ? value : 100;
 }
 
 function createBrowserFileSortSql(request: BrowserSearchPageRequest): string {
@@ -450,4 +448,3 @@ function createBrowserFileSortSql(request: BrowserSearchPageRequest): string {
 
   return `${column} ${direction}`;
 }
-

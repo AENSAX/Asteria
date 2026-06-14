@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { TagTranslationSettings } from "../../../shared/ipc";
 import { ActionFeedbackButton } from "../components/ActionFeedbackButton";
+import { getButtonClassName } from "../components/Button";
 import { useLanguage } from "../utils/language";
 
 const fallbackSettings: TagTranslationSettings = {
@@ -19,11 +20,10 @@ const translationHintClass = "h-5 text-[10px] leading-5 text-(--muted)";
 const translationCheckClass =
   "grid min-h-6 grid-cols-[18px_minmax(0,1fr)] items-center gap-1.5 border border-(--line) bg-(--panel) px-2 text-[12px]";
 const translationFooterClass =
-  "grid grid-cols-[minmax(0,1fr)_58px_70px] items-center border-t border-(--line) bg-(--surface-bg)";
+  "grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-1 border-t border-(--line) bg-(--surface-bg) px-1";
 const translationFooterTextClass =
   "min-w-0 overflow-hidden px-2 leading-[31px] text-ellipsis whitespace-nowrap text-(--muted)";
-const translationButtonClass =
-  "ui-button ui-button-fill min-w-0 border-y-0 border-r-0 border-l-(--line)";
+const translationButtonClass = getButtonClassName({ size: "medium" });
 
 export function TagTranslationWindow(): JSX.Element {
   const { t } = useLanguage();
@@ -164,7 +164,11 @@ export function TagTranslationWindow(): JSX.Element {
         >
           {t("common.refresh")}
         </button>
-        <ActionFeedbackButton label={t("common.save")} onAction={saveSettings} />
+        <ActionFeedbackButton
+          label={t("common.save")}
+          size="medium"
+          onAction={saveSettings}
+        />
       </footer>
     </section>
   );

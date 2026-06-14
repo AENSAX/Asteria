@@ -6,6 +6,7 @@ import type {
   ApiServiceRecord,
 } from "../../../shared/ipc";
 import { ActionFeedbackButton } from "../components/ActionFeedbackButton";
+import { getButtonClassName } from "../components/Button";
 import { ResizableColumns } from "../components/ResizableColumns";
 import { useLanguage } from "../utils/language";
 
@@ -23,8 +24,7 @@ const apiSidebarCreateClass =
   "grid grid-cols-[minmax(0,1fr)_auto] gap-1.5 border-t border-(--line) p-2";
 const apiInputClass =
   "ui-input";
-const apiButtonClass =
-  "ui-button";
+const apiButtonClass = getButtonClassName();
 const apiContentClass =
   "grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] bg-(--panel)";
 const apiToolbarClass =

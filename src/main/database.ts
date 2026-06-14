@@ -51,13 +51,17 @@ export {
 } from "./db/tagStylesRepository.js";
 export {
   addTagParent,
+  addTagParents,
   addTagSibling,
+  addTagSiblings,
   getDirectParentTagIds,
   getTagRelationTree,
   listTagParents,
   listTagSiblings,
   removeTagParent,
+  removeTagParents,
   removeTagSibling,
+  removeTagSiblings,
   resolveEffectiveTagIds,
   resolveParentTagIds,
 } from "./db/tagRelationsRepository.js";
@@ -75,6 +79,7 @@ export {
 } from "./db/fileTagsRepository.js";
 export {
   createManagedTag,
+  createManagedTags,
   deleteManagedTag,
   deleteManagedTags,
   listManagedTags,
@@ -121,6 +126,7 @@ export {
   searchTags,
 } from "./db/searchRepository.js";
 export {
+  deleteAllTrashedFilesPermanently,
   deleteFilesPermanently,
   getFileDetail,
   getFileOriginalPath,
@@ -128,13 +134,18 @@ export {
   hasStoredFileReference,
   hasStoredPathReference,
   listDatabaseFiles,
+  listBrowserFileIds,
   listBrowserFilePage,
   listBrowserFiles,
+  listBrowserFilesByIds,
   listFavoriteFilePage,
   listFavoriteFiles,
   listFilesForExport,
   listFilesForStorageMigration,
+  listThumbnailCandidates,
+  listThumbnailSources,
   listTrashedFiles,
+  restoreAllTrashedFiles,
   restoreFiles,
   setFileFavorite,
   trashFiles,

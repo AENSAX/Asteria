@@ -7,6 +7,7 @@ import type {
   TagSiblingRecord,
   TagStyleRecord,
 } from "../../../../shared/ipc";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { useLanguage } from "../../utils/language";
 import {
   formatTagLabel,
@@ -24,6 +25,7 @@ import {
 } from "./classNames";
 import {
   TAG_CATALOG_ROW_HEIGHT,
+  createManagedTagSearchIndex,
   filterManagedTags,
   pickVisibleManagedTagRows,
   sortManagedTags,
@@ -62,19 +64,23 @@ export function TagCatalogPanel({
   const [viewport, setViewport] = useState({ scrollTop: 0, height: 0 });
   const listRef = useRef<HTMLDivElement | null>(null);
   const frameRef = useRef<number | null>(null);
+  const debouncedTagListQuery = useDebouncedValue(tagListQuery, 120);
+  const tagSearchIndex = useMemo(
+    () => createManagedTagSearchIndex(tags, tagParents, tagSiblings),
+    [tagParents, tagSiblings, tags],
+  );
   const displayedTags = useMemo(
     () =>
       sortManagedTags(
-        filterManagedTags(tags, tagListQuery, tagParents, tagSiblings),
+        filterManagedTags(tags, debouncedTagListQuery, tagSearchIndex),
         tagListSortKey,
         tagListSortDirection,
       ),
     [
-      tagListQuery,
+      debouncedTagListQuery,
+      tagSearchIndex,
       tagListSortDirection,
       tagListSortKey,
-      tagParents,
-      tagSiblings,
       tags,
     ],
   );
@@ -124,7 +130,12 @@ export function TagCatalogPanel({
     }
 
     updateViewport();
-  }, [activeStyleId, tagListQuery, tagListSortDirection, tagListSortKey]);
+  }, [
+    activeStyleId,
+    debouncedTagListQuery,
+    tagListSortDirection,
+    tagListSortKey,
+  ]);
 
   useEffect(() => {
     return () => {

@@ -15,6 +15,7 @@ export function useTagTokenInput({ onCommit }: UseTagTokenInputOptions): {
   setTokens: React.Dispatch<React.SetStateAction<TagToken[]>>;
   reset: () => void;
   addTokenFromSuggestion: (tag: TagRecord) => void;
+  addTokensFromText: (text: string) => TagToken[];
   handleKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void;
 } {
   const [tokens, setTokens] = useState<TagToken[]>([]);
@@ -128,6 +129,34 @@ export function useTagTokenInput({ onCommit }: UseTagTokenInputOptions): {
     }
   }
 
+  function addTokensFromText(value: string): TagToken[] {
+    const nextTokens = parseTagListText(value)
+      .map((item) => parseTagText(item))
+      .filter((item): item is NonNullable<ReturnType<typeof parseTagText>> =>
+        Boolean(item),
+      )
+      .map((draft) => createTagToken(draft));
+    const tokenKeys = new Set(tokens.map((token) => token.key));
+    const addedTokens = nextTokens.filter((token) => {
+      if (tokenKeys.has(token.key)) {
+        return false;
+      }
+
+      tokenKeys.add(token.key);
+      return true;
+    });
+
+    setTokens([...tokens, ...addedTokens]);
+
+    if (addedTokens.length > 0) {
+      setText("");
+      setSuggestions([]);
+      setSelectedSuggestionIndex(0);
+    }
+
+    return addedTokens;
+  }
+
   function addToken(token: TagToken): void {
     setTokens((currentTokens) => {
       if (
@@ -168,6 +197,14 @@ export function useTagTokenInput({ onCommit }: UseTagTokenInputOptions): {
     setTokens,
     reset,
     addTokenFromSuggestion,
+    addTokensFromText,
     handleKeyDown,
   };
+}
+
+function parseTagListText(text: string): string[] {
+  return text
+    .split(/[,，;；\r\n]+/u)
+    .map((item) => item.trim())
+    .filter(Boolean);
 }

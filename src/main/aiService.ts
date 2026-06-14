@@ -10,6 +10,7 @@ import {
 } from "node:fs/promises";
 import { basename, dirname, extname, join, resolve } from "node:path";
 import { pipeline } from "node:stream/promises";
+import { setImmediate as yieldToEventLoop } from "node:timers/promises";
 import * as ort from "onnxruntime-node";
 import sharp from "sharp";
 import {
@@ -80,6 +81,7 @@ const DEFAULT_LABEL_URL =
   "https://huggingface.co/SmilingWolf/wd-vit-tagger-v3/resolve/main/selected_tags.csv";
 const MODEL_EXTENSIONS = new Set(["onnx", "safetensors", "pt", "pth", "bin"]);
 const AI_INPUT_FALLBACK_SIZE = 448;
+const AI_PREPROCESS_YIELD_PIXEL_INTERVAL = 65_536;
 const cachedBundles = new Map<string, Promise<ModelBundle>>();
 let currentTaggingStatus: WorkStatus = createIdleAiWorkStatus();
 let taggingStatusListener: ((status: WorkStatus) => void) | null = null;
@@ -488,23 +490,7 @@ async function createInputTensor(
   const planeSize = bundle.width * bundle.height;
   const data = new Float32Array(planeSize * 3);
 
-  for (let index = 0; index < planeSize; index += 1) {
-    const sourceIndex = index * channels;
-    const red = pixels[sourceIndex] ?? 255;
-    const green = channels >= 3 ? (pixels[sourceIndex + 1] ?? 255) : red;
-    const blue = channels >= 3 ? (pixels[sourceIndex + 2] ?? 255) : red;
-
-    // WD-style tagger models expect BGR channel order
-    if (bundle.layout === "nchw") {
-      data[index] = blue;
-      data[planeSize + index] = green;
-      data[planeSize * 2 + index] = red;
-    } else {
-      data[index * 3] = blue;
-      data[index * 3 + 1] = green;
-      data[index * 3 + 2] = red;
-    }
-  }
+  await fillInputTensorData(data, pixels, channels, planeSize, bundle.layout);
 
   const dimensions =
     bundle.layout === "nchw"
@@ -512,6 +498,39 @@ async function createInputTensor(
       : [1, bundle.height, bundle.width, 3];
 
   return new ort.Tensor("float32", data, dimensions);
+}
+
+async function fillInputTensorData(
+  target: Float32Array,
+  pixels: Buffer,
+  channels: number,
+  planeSize: number,
+  layout: ModelLayout,
+): Promise<void> {
+  for (let index = 0; index < planeSize; index += 1) {
+    if (
+      index > 0 &&
+      index % AI_PREPROCESS_YIELD_PIXEL_INTERVAL === 0
+    ) {
+      await yieldToEventLoop();
+    }
+
+    const sourceIndex = index * channels;
+    const red = pixels[sourceIndex] ?? 255;
+    const green = channels >= 3 ? (pixels[sourceIndex + 1] ?? 255) : red;
+    const blue = channels >= 3 ? (pixels[sourceIndex + 2] ?? 255) : red;
+
+    // WD-style tagger models expect BGR channel order
+    if (layout === "nchw") {
+      target[index] = blue;
+      target[planeSize + index] = green;
+      target[planeSize * 2 + index] = red;
+    } else {
+      target[index * 3] = blue;
+      target[index * 3 + 1] = green;
+      target[index * 3 + 2] = red;
+    }
+  }
 }
 
 function extractPredictions(

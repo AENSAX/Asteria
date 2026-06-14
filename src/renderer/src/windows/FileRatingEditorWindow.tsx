@@ -48,15 +48,12 @@ export function FileRatingEditorWindow({
     }
 
     try {
-      const [groups, nextEntries, browserFiles] = await Promise.all([
+      const [groups, nextEntries, selectedFiles] = await Promise.all([
         window.asteria.listRatingGroups(),
         window.asteria.listRatingEntries(groupId),
-        window.asteria.listBrowserFiles(),
+        window.asteria.listBrowserFilesByIds(normalizedFileIds),
       ]);
       const nextGroup = groups.find((item) => item.id === groupId) ?? null;
-      const selectedFiles = browserFiles.filter((file) =>
-        normalizedFileIds.includes(file.id),
-      );
 
       setGroup(nextGroup);
       setEntries(nextEntries);

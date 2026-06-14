@@ -5,7 +5,9 @@ import type {
   ManagedTagRenamePreview,
   SortDirection,
   TagDraft,
+  TagParentPair,
   TagParentRecord,
+  TagSiblingPair,
   TagSiblingRecord,
   TagStyleRecord,
 } from "../../../shared/ipc";
@@ -449,24 +451,16 @@ export function TagManagerWindow(): JSX.Element {
     });
   }
 
-  function collectRelationError(
-    errors: string[],
-    error: unknown,
-    fallbackMessage: string,
-  ): void {
-    errors.push(error instanceof Error ? error.message : fallbackMessage);
-  }
-
   async function addSiblingRelations(
     aliasTagIds: number[],
     canonicalTagId: number,
   ): Promise<{ updatedCount: number; errors: string[] }> {
-    const errors: string[] = [];
-    let updatedCount = 0;
-
     if (!window.asteria) {
-      return { updatedCount, errors };
+      return { updatedCount: 0, errors: [] };
     }
+
+    const errors: string[] = [];
+    const pairs: TagSiblingPair[] = [];
 
     for (const aliasTagId of aliasTagIds) {
       if (aliasTagId === canonicalTagId) {
@@ -474,19 +468,18 @@ export function TagManagerWindow(): JSX.Element {
         continue;
       }
 
-      try {
-        await window.asteria.addTagSibling(aliasTagId, canonicalTagId);
-        updatedCount += 1;
-      } catch (error) {
-        collectRelationError(
-          errors,
-          error,
-          t("window.tagManager.siblingSetFailed"),
-        );
-      }
+      pairs.push({ aliasTagId, canonicalTagId });
     }
 
-    return { updatedCount, errors };
+    const result =
+      pairs.length > 0
+        ? await window.asteria.addTagSiblings(pairs)
+        : { succeeded: 0, errors: [] };
+
+    return {
+      updatedCount: result.succeeded,
+      errors: [...errors, ...result.errors],
+    };
   }
 
   async function addRelationTags(
@@ -501,8 +494,8 @@ export function TagManagerWindow(): JSX.Element {
       return;
     }
 
-    let addedCount = 0;
     const errors: string[] = [];
+    const pairs: TagParentPair[] = [];
 
     for (const sourceId of selectedRelationSourceIds) {
       for (const token of tokens) {
@@ -518,18 +511,14 @@ export function TagManagerWindow(): JSX.Element {
           continue;
         }
 
-        try {
-          await window.asteria.addTagParent(childTagId, parentTagId);
-          addedCount += 1;
-        } catch (error) {
-          collectRelationError(
-            errors,
-            error,
-            t("window.tagManager.parentAddFailed"),
-          );
-        }
+        pairs.push({ childTagId, parentTagId });
       }
     }
+
+    const result =
+      pairs.length > 0
+        ? await window.asteria.addTagParents(pairs)
+        : { succeeded: 0, errors: [] };
 
     if (kind === "parent") {
       parentInput.reset();
@@ -539,11 +528,15 @@ export function TagManagerWindow(): JSX.Element {
 
     await loadTagParents();
     setMessage(
-      t("window.tagManager.parentRelationsAdded", { count: addedCount }),
+      t("window.tagManager.parentRelationsAdded", {
+        count: result.succeeded,
+      }),
     );
 
-    if (errors.length > 0) {
-      await showRelationErrorDialog(errors);
+    const allErrors = [...errors, ...result.errors];
+
+    if (allErrors.length > 0) {
+      await showRelationErrorDialog(allErrors);
     }
   }
 
@@ -568,7 +561,7 @@ export function TagManagerWindow(): JSX.Element {
       return;
     }
 
-    let removedCount = 0;
+    const pairs: TagParentPair[] = [];
 
     for (const sourceId of selectedRelationSourceIds) {
       for (const relationTagId of relationTagIds) {
@@ -579,23 +572,25 @@ export function TagManagerWindow(): JSX.Element {
           continue;
         }
 
-        try {
-          await window.asteria.removeTagParent(childTagId, parentTagId);
-          removedCount += 1;
-        } catch (error) {
-          setMessage(
-            error instanceof Error
-              ? error.message
-              : t("window.tagManager.parentRemoveFailed"),
-          );
-        }
+        pairs.push({ childTagId, parentTagId });
       }
     }
 
+    const result =
+      pairs.length > 0
+        ? await window.asteria.removeTagParents(pairs)
+        : { succeeded: 0, errors: [] };
+
     await loadTagParents();
     setMessage(
-      t("window.tagManager.parentRelationsRemoved", { count: removedCount }),
+      t("window.tagManager.parentRelationsRemoved", {
+        count: result.succeeded,
+      }),
     );
+
+    if (result.errors.length > 0) {
+      await showRelationErrorDialog(result.errors);
+    }
   }
 
   async function setCanonicalTagForSelectedSources(
@@ -666,23 +661,16 @@ export function TagManagerWindow(): JSX.Element {
       return;
     }
 
-    let removedCount = 0;
-
-    for (const aliasTagId of aliasTagIds) {
-      try {
-        await window.asteria.removeTagSibling(aliasTagId);
-        removedCount += 1;
-      } catch (error) {
-        setMessage(
-          error instanceof Error
-            ? error.message
-            : t("window.tagManager.siblingRemoveFailed"),
-        );
-      }
-    }
+    const result = await window.asteria.removeTagSiblings(aliasTagIds);
 
     await loadTagSiblings();
-    setMessage(t("window.tagManager.siblingsRemoved", { count: removedCount }));
+    setMessage(
+      t("window.tagManager.siblingsRemoved", { count: result.succeeded }),
+    );
+
+    if (result.errors.length > 0) {
+      await showRelationErrorDialog(result.errors);
+    }
   }
 
   async function openRelationTreeWindow(
@@ -792,23 +780,18 @@ export function TagManagerWindow(): JSX.Element {
       return;
     }
 
-    const createdKeys = new Set<string>();
-    let failureMessage = "";
+    const result = await window.asteria.createManagedTags(
+      activeStyleId,
+      pendingCreateTags.map((pendingTag) => ({
+        namespace: pendingTag.namespace,
+        name: pendingTag.name,
+      })),
+    );
+    const createdKeys = new Set(result.tags.map(createTagKey));
+    const failureMessage = result.errors[0] ?? "";
 
-    for (const pendingTag of pendingCreateTags) {
-      try {
-        const created = await window.asteria.createManagedTag(activeStyleId, {
-          namespace: pendingTag.namespace,
-          name: pendingTag.name,
-        });
-        addManagedTagToStaging(created);
-        createdKeys.add(pendingTag.key);
-      } catch (error) {
-        failureMessage =
-          error instanceof Error
-            ? error.message
-            : t("window.tagManager.createFailed");
-      }
+    for (const created of result.tags) {
+      addManagedTagToStaging(created);
     }
 
     if (createdKeys.size > 0) {

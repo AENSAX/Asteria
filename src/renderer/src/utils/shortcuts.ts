@@ -2,6 +2,8 @@ import type { TranslationKey } from "./language";
 
 export type ShortcutAction =
   | "close-window"
+  | "copy"
+  | "paste"
   | "select-all"
   | "remove-selected"
   | "detail-previous-file"
@@ -38,6 +40,18 @@ export const shortcutActionConfigs: ShortcutActionConfig[] = [
     labelKey: "settings.shortcut.closeWindow",
     descriptionKey: "settings.shortcut.closeWindowDesc",
     defaults: [{ action: "close-window", key: "Escape" }],
+  },
+  {
+    action: "copy",
+    labelKey: "settings.shortcut.copy",
+    descriptionKey: "settings.shortcut.copyDesc",
+    defaults: [{ action: "copy", key: "c", ctrl: true }],
+  },
+  {
+    action: "paste",
+    labelKey: "settings.shortcut.paste",
+    descriptionKey: "settings.shortcut.pasteDesc",
+    defaults: [{ action: "paste", key: "v", ctrl: true }],
   },
   {
     action: "select-all",

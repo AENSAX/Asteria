@@ -20,12 +20,15 @@ import {
   closeDatabase,
   addFileTags,
   addTagParent,
+  addTagParents,
   addTagSibling,
+  addTagSiblings,
   addFileUrl,
   addTagsToFiles,
   createApiService,
   deleteAppSetting,
   deleteApiService,
+  deleteAllTrashedFilesPermanently,
   deleteFilesPermanently as deleteFilesPermanentlyFromDatabase,
   createRatingEntry,
   createRatingGroup,
@@ -44,6 +47,7 @@ import {
   getStorageSettings,
   initializeDatabase,
   createManagedTag,
+  createManagedTags,
   createTagStyle,
   deleteManagedTag,
   deleteManagedTags,
@@ -59,8 +63,10 @@ import {
   listFileTags,
   listFileUrls,
   listBatchFileTags,
+  listBrowserFileIds,
   listBrowserFilePage,
   listBrowserFiles,
+  listBrowserFilesByIds,
   listDatabaseFiles,
   listManagedTags,
   listTagParents,
@@ -71,7 +77,9 @@ import {
   listTagStyles,
   removeFileTags,
   removeTagParent,
+  removeTagParents,
   removeTagSibling,
+  removeTagSiblings,
   removeFileUrl,
   removeTagsFromFiles,
   deleteRatingEntry,
@@ -80,6 +88,7 @@ import {
   renameManagedTag,
   renameRatingGroup,
   reorderRatingEntries,
+  restoreAllTrashedFiles,
   restoreFiles,
   searchTags,
   searchBrowserFilePage,
@@ -125,7 +134,9 @@ import {
 import { cancelExport, exportFiles } from "./exportService.js";
 import {
   cancelHydrusImport,
+  getHydrusImportWorkStatus,
   importFromHydrus,
+  setHydrusImportStatusListener,
   testHydrusConnection,
 } from "./hydrusImportService.js";
 import {
@@ -248,6 +259,7 @@ const {
 } = createWorkStatusManager({
   getImageConversionWorkStatus,
   getAiTaggingWorkStatus,
+  getHydrusImportWorkStatus,
   getThumbnailWorkStatus,
 });
 
@@ -1170,13 +1182,17 @@ async function openStoredFileExternally(fileId: number): Promise<void> {
 const TRANSPARENT_DRAG_ICON_URL =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
 
-function startFileDrag(sender: WebContents, fileIds: number[]): void {
-  const files = fileIds
+function resolveExistingFilePaths(fileIds: number[]): string[] {
+  return fileIds
     .map((fileId) => getFileOriginalPath(fileId))
     .filter(
       (filePath): filePath is string =>
         Boolean(filePath) && existsSync(filePath as string),
     );
+}
+
+function startFileDrag(sender: WebContents, fileIds: number[]): void {
+  const files = resolveExistingFilePaths(fileIds);
   const [firstFile] = files;
 
   if (!firstFile) {
@@ -1210,6 +1226,18 @@ function resolveFileDragIcon(fileIds: number[]): NativeImage {
 
 async function deleteStoredFilesPermanently(fileIds: number[]): Promise<void> {
   const deletedFiles = deleteFilesPermanentlyFromDatabase(fileIds);
+  await deleteStoredFileArtifacts(deletedFiles);
+}
+
+async function deleteAllStoredFilesPermanently(): Promise<number> {
+  const deletedFiles = deleteAllTrashedFilesPermanently();
+  await deleteStoredFileArtifacts(deletedFiles);
+  return deletedFiles.length;
+}
+
+async function deleteStoredFileArtifacts(
+  deletedFiles: DatabaseFileRecord[],
+): Promise<void> {
   const checkedStoragePaths = new Set<string>();
 
   for (const file of deletedFiles) {
@@ -1248,6 +1276,7 @@ app.whenReady().then(async () => {
   setThumbnailStatusListener(broadcastCombinedWorkStatus);
   setAiTaggingStatusListener(broadcastCombinedWorkStatus);
   setImageConversionStatusListener(broadcastCombinedWorkStatus);
+  setHydrusImportStatusListener(broadcastCombinedWorkStatus);
   queueAllMissingThumbnails("low");
 
   protocol.handle("asteria-media", async (request) => {
@@ -1327,8 +1356,10 @@ app.whenReady().then(async () => {
     },
     getDatabaseStatus,
     listDatabaseFiles,
+    listBrowserFileIds,
     listBrowserFilePage,
     listBrowserFiles,
+    listBrowserFilesByIds,
     searchBrowserFilePage,
     listFavoriteFilePage,
     listFavoriteFiles,
@@ -1341,7 +1372,9 @@ app.whenReady().then(async () => {
     listTrashedFiles,
     trashFiles,
     restoreFiles,
+    restoreAllTrashedFiles,
     deleteStoredFilesPermanently,
+    deleteAllStoredFilesPermanently,
     setFilesDomain,
     listDomains,
     broadcastFilesChanged,
@@ -1409,10 +1442,15 @@ app.whenReady().then(async () => {
     listTagSiblings,
     getTagRelationTree,
     addTagParent,
+    addTagParents,
     removeTagParent,
+    removeTagParents,
     addTagSibling,
+    addTagSiblings,
     removeTagSibling,
+    removeTagSiblings,
     createManagedTag,
+    createManagedTags,
     renameManagedTag,
     previewManagedTagRename,
     deleteManagedTag,

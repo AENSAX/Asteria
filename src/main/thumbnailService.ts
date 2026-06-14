@@ -1,11 +1,13 @@
 import { nativeImage } from "electron";
 import { mkdir, stat, unlink, writeFile } from "node:fs/promises";
 import { extname, join } from "node:path";
+import sharp from "sharp";
 import {
   getFileOriginalPath,
   getFileThumbnailSource,
   getThumbnailStoragePath,
-  listBrowserFiles,
+  listThumbnailCandidates,
+  listThumbnailSources,
   updateFileDimensions,
 } from "./database.js";
 import { IMAGE_EXTENSIONS, VIDEO_EXTENSIONS } from "../shared/media.js";
@@ -20,6 +22,8 @@ interface ThumbnailJob {
 
 const THUMBNAIL_MAX_SIZE = 256;
 const THUMBNAIL_CONCURRENCY = 2;
+const THUMBNAIL_FILE_EXTENSION = "webp";
+const THUMBNAIL_WEBP_QUALITY = 82;
 const priorityOrder: ThumbnailPriority[] = ["high", "normal", "low"];
 const queues: Record<ThumbnailPriority, ThumbnailJob[]> = {
   high: [],
@@ -62,21 +66,19 @@ export function queueThumbnailPreload(
     return;
   }
 
-  for (const fileId of normalizedFileIds) {
-    const source = getFileThumbnailSource(fileId);
-
-    if (!source) {
-      continue;
-    }
-
-    const cacheKey = createThumbnailCacheKey(fileId, source.sha256);
+  for (const source of listThumbnailSources(normalizedFileIds)) {
+    const cacheKey = createThumbnailCacheKey(source.fileId, source.sha256);
 
     if (queuedKeys.has(cacheKey) || inFlightThumbnails.has(cacheKey)) {
       promoteQueuedThumbnail(cacheKey, priority);
       continue;
     }
 
-    queues[priority].push({ fileId, cacheKey, sha256: source.sha256 });
+    queues[priority].push({
+      fileId: source.fileId,
+      cacheKey,
+      sha256: source.sha256,
+    });
     queuedKeys.add(cacheKey);
     ensureQueuedThumbnailPromise(cacheKey);
   }
@@ -86,14 +88,27 @@ export function queueThumbnailPreload(
 }
 
 export function queueAllMissingThumbnails(priority: ThumbnailPriority): void {
-  queueThumbnailPreload(
-    listBrowserFiles()
-      .filter((file) =>
-        isThumbnailExtension(file.extension ?? file.originalPath),
-      )
-      .map((file) => file.id),
-    priority,
-  );
+  const candidates = listThumbnailCandidates();
+
+  for (const source of candidates) {
+    const cacheKey = createThumbnailCacheKey(source.fileId, source.sha256);
+
+    if (queuedKeys.has(cacheKey) || inFlightThumbnails.has(cacheKey)) {
+      promoteQueuedThumbnail(cacheKey, priority);
+      continue;
+    }
+
+    queues[priority].push({
+      fileId: source.fileId,
+      cacheKey,
+      sha256: source.sha256,
+    });
+    queuedKeys.add(cacheKey);
+    ensureQueuedThumbnailPromise(cacheKey);
+  }
+
+  emitThumbnailStatus();
+  void startThumbnailWorkers();
 }
 
 export async function ensureThumbnailForFile(
@@ -220,10 +235,72 @@ async function createThumbnailForFile(
     // Cache miss; generate below.
   }
 
+  const thumbnail = IMAGE_EXTENSIONS.has(extension)
+    ? (await createSharpImageThumbnail(source.sourcePath)) ??
+      (await createNativeThumbnail(source.sourcePath, true))
+    : await createNativeThumbnail(source.sourcePath, false);
+
+  if (!thumbnail) {
+    return null;
+  }
+
+  if (
+    !source.width ||
+    !source.height ||
+    source.width <= 0 ||
+    source.height <= 0
+  ) {
+    updateFileDimensions(fileId, thumbnail.width, thumbnail.height);
+  }
+
+  if (deletingThumbnailHashes.has(source.sha256)) {
+    return null;
+  }
+
+  await mkdir(join(getThumbnailStoragePath(), source.sha256.slice(0, 2)), {
+    recursive: true,
+  });
+  await writeFile(thumbnailPath, thumbnail.data);
+  return thumbnailPath;
+}
+
+async function createSharpImageThumbnail(
+  sourcePath: string,
+): Promise<{ data: Buffer; width: number; height: number } | null> {
+  try {
+    const metadata = await sharp(sourcePath).metadata();
+    const metadataSize = readSharpMetadataSize(metadata);
+    const { data, info } = await sharp(sourcePath, { animated: false })
+      .rotate()
+      .resize(THUMBNAIL_MAX_SIZE, THUMBNAIL_MAX_SIZE, {
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .webp({ quality: THUMBNAIL_WEBP_QUALITY })
+      .toBuffer({ resolveWithObject: true });
+
+    if (data.length === 0 || info.width <= 0 || info.height <= 0) {
+      return null;
+    }
+
+    return {
+      data,
+      width: metadataSize.width || info.width,
+      height: metadataSize.height || info.height,
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function createNativeThumbnail(
+  sourcePath: string,
+  allowImageFallback: boolean,
+): Promise<{ data: Buffer; width: number; height: number } | null> {
   let image: Electron.NativeImage;
 
   try {
-    image = await nativeImage.createThumbnailFromPath(source.sourcePath, {
+    image = await nativeImage.createThumbnailFromPath(sourcePath, {
       width: THUMBNAIL_MAX_SIZE,
       height: THUMBNAIL_MAX_SIZE,
     });
@@ -231,12 +308,8 @@ async function createThumbnailForFile(
     return null;
   }
 
-  if (
-    image.isEmpty() &&
-    IMAGE_EXTENSIONS.has(extension) &&
-    extension !== "svg"
-  ) {
-    image = nativeImage.createFromPath(source.sourcePath);
+  if (image.isEmpty() && allowImageFallback) {
+    image = nativeImage.createFromPath(sourcePath);
   }
 
   if (image.isEmpty()) {
@@ -249,10 +322,6 @@ async function createThumbnailForFile(
     return null;
   }
 
-  if (!source.width || !source.height || source.width <= 0 || source.height <= 0) {
-    updateFileDimensions(fileId, size.width, size.height);
-  }
-
   const scale = Math.min(
     1,
     THUMBNAIL_MAX_SIZE / size.width,
@@ -261,16 +330,31 @@ async function createThumbnailForFile(
   const width = Math.max(1, Math.round(size.width * scale));
   const height = Math.max(1, Math.round(size.height * scale));
   const thumbnail = image.resize({ width, height, quality: "good" });
+  const data = await sharp(thumbnail.toPNG())
+    .webp({ quality: THUMBNAIL_WEBP_QUALITY })
+    .toBuffer();
 
-  if (deletingThumbnailHashes.has(source.sha256)) {
-    return null;
+  return {
+    data,
+    width: size.width,
+    height: size.height,
+  };
+}
+
+function readSharpMetadataSize(metadata: sharp.Metadata): {
+  width: number;
+  height: number;
+} {
+  const width = metadata.width ?? 0;
+  const height = metadata.height ?? 0;
+
+  if (width <= 0 || height <= 0) {
+    return { width: 0, height: 0 };
   }
 
-  await mkdir(join(getThumbnailStoragePath(), source.sha256.slice(0, 2)), {
-    recursive: true,
-  });
-  await writeFile(thumbnailPath, thumbnail.toPNG());
-  return thumbnailPath;
+  return metadata.orientation && metadata.orientation >= 5
+    ? { width: height, height: width }
+    : { width, height };
 }
 
 function shiftNextThumbnailJob(): ThumbnailJob | null {
@@ -352,7 +436,11 @@ function buildThumbnailStatus(): WorkStatus {
 }
 
 export function getThumbnailPath(sha256: string): string {
-  return join(getThumbnailStoragePath(), sha256.slice(0, 2), `${sha256}.png`);
+  return join(
+    getThumbnailStoragePath(),
+    sha256.slice(0, 2),
+    `${sha256}.${THUMBNAIL_FILE_EXTENSION}`,
+  );
 }
 
 function createThumbnailCacheKey(fileId: number, sha256: string): string {

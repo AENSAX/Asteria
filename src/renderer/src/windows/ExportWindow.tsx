@@ -5,6 +5,7 @@ import {
   type TranslationFunction,
   type TranslationKey,
 } from "../utils/language";
+import { getButtonClassName } from "../components/Button";
 
 interface ExportWindowProps {
   fileIds: number[];
@@ -28,9 +29,11 @@ const exportCheckRowClass =
   "grid min-h-6 grid-cols-[16px_minmax(0,1fr)] items-center gap-1.5";
 const exportInputClass =
   "ui-input";
-const exportButtonClass = "ui-button ui-button-md";
-const exportPathButtonClass =
-  "ui-button h-6 w-8 min-w-0 px-0 text-center text-[13px] leading-none";
+const exportButtonClass = getButtonClassName({ size: "medium" });
+const exportPathButtonClass = getButtonClassName({
+  size: "compact",
+  className: "w-8 min-w-0 px-0 text-center text-[13px] leading-none",
+});
 const exportPreviewClass =
   "flex min-h-6 flex-wrap items-center gap-1 border border-(--line) bg-(--surface-inset-bg) p-1";
 const exportTokenClass =

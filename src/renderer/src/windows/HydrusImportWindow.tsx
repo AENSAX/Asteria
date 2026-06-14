@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   HydrusConnectionStatus,
   HydrusImportOptions,
   HydrusImportProgress,
 } from "../../../shared/ipc";
 import { ActionFeedbackButton } from "../components/ActionFeedbackButton";
+import { getButtonClassName } from "../components/Button";
 import { ResizableColumns } from "../components/ResizableColumns";
 import {
   useLanguage,
@@ -23,7 +24,8 @@ const hydrusCheckClass =
 const hydrusContentClass =
   "grid min-h-0 min-w-0 grid-rows-[auto_auto_auto_auto_auto_minmax(0,1fr)] gap-2 overflow-hidden p-2";
 const hydrusToolbarClass = "flex h-6 items-center gap-1.5";
-const hydrusButtonClass = "ui-button";
+const hydrusButtonClass = getButtonClassName();
+const hydrusCompactButtonClass = getButtonClassName({ size: "compact" });
 const hydrusProgressClass =
   "grid h-5 grid-cols-[minmax(0,1fr)_42px] items-center gap-1.5";
 const hydrusStatsClass =
@@ -43,7 +45,7 @@ const hydrusStatusOkClass = "text-(--success-ink)";
 const hydrusDebugClass =
   "grid min-h-0 min-w-0 grid-rows-[24px_minmax(0,1fr)] border border-(--line) overflow-hidden";
 const hydrusDebugHeaderClass =
-  "grid grid-cols-[minmax(0,1fr)_48px] border-b border-(--line) bg-(--surface-raised-bg) px-1.5";
+  "grid grid-cols-[minmax(0,1fr)_56px] items-center gap-1 border-b border-(--line) bg-(--surface-raised-bg) px-1.5";
 const hydrusDebugListClass = "min-h-0 overflow-auto bg-(--surface-deep-bg)";
 
 export function HydrusImportWindow(): JSX.Element {
@@ -66,6 +68,8 @@ export function HydrusImportWindow(): JSX.Element {
   const [debugLines, setDebugLines] = useState<string[]>(() => [
     t("window.hydrus.waiting"),
   ]);
+  const closeConfirmedRef = useRef(false);
+  const closeConfirmOpenRef = useRef(false);
   const importing =
     progress.phase === "testing" ||
     progress.phase === "searching" ||
@@ -98,6 +102,23 @@ export function HydrusImportWindow(): JSX.Element {
       setProgress(nextProgress);
     });
   }, [t]);
+
+  useEffect(() => {
+    function handleBeforeUnload(event: BeforeUnloadEvent): void {
+      if (!importing || closeConfirmedRef.current) {
+        return;
+      }
+
+      event.preventDefault();
+      void confirmCloseDuringImport();
+    }
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [importing, t]);
 
   async function loadSettings(): Promise<void> {
     if (!window.asteria) {
@@ -261,6 +282,37 @@ export function HydrusImportWindow(): JSX.Element {
   async function cancelImport(): Promise<void> {
     appendDebug(t("window.hydrus.cancelImport"));
     await window.asteria?.cancelHydrusImport();
+  }
+
+  async function confirmCloseDuringImport(): Promise<void> {
+    if (!window.asteria || closeConfirmOpenRef.current) {
+      return;
+    }
+
+    closeConfirmOpenRef.current = true;
+    let confirmed = false;
+
+    try {
+      confirmed = await window.asteria.confirmDialog({
+        title: t("window.hydrus.closeConfirmTitle"),
+        message: t("window.hydrus.closeConfirmMessage"),
+        confirmText: t("window.hydrus.closeConfirmClose"),
+        cancelText: t("common.cancel"),
+      });
+    } finally {
+      closeConfirmOpenRef.current = false;
+    }
+
+    if (!confirmed) {
+      return;
+    }
+
+    appendDebug(t("window.hydrus.closeCancelingImport"));
+    await window.asteria.cancelHydrusImport();
+    closeConfirmedRef.current = true;
+    window.setTimeout(() => {
+      window.close();
+    }, 0);
   }
 
   function appendDebug(line: string): void {
@@ -522,7 +574,7 @@ export function HydrusImportWindow(): JSX.Element {
             <header className={hydrusDebugHeaderClass}>
               <span>{t("window.hydrus.debug")}</span>
               <button
-                className={hydrusButtonClass}
+                className={hydrusCompactButtonClass}
                 type="button"
                 onClick={() => setDebugLines([])}
               >

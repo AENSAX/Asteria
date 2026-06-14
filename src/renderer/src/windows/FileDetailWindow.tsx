@@ -24,6 +24,7 @@ import {
   formatTagLabel,
   getTagNamespaceClassName,
   getTagNamespaceStyle,
+  type TagToken,
 } from "../utils/tags";
 import { filesChangedIncludes } from "../utils/filesChanged";
 import { type TranslationFunction, useLanguage } from "../utils/language";
@@ -69,6 +70,9 @@ export function FileDetailWindow({
   const [activeRatingGroups, setActiveRatingGroups] = useState<
     RatingGroupRecord[]
   >([]);
+  const [selectedTagClipboardText, setSelectedTagClipboardText] = useState<
+    string | null
+  >(null);
   const [imageZoom, setImageZoom] = useState(1);
   const [imagePan, setImagePan] = useState({ x: 0, y: 0 });
   const [contextMenu, setContextMenu] = useState<{
@@ -147,6 +151,9 @@ export function FileDetailWindow({
   useShortcut("detail-next-file", () => switchFile(1), {
     enabled: orderedFileIds.length > 0,
   });
+  useShortcut("copy", () => void copySelectedTagsToClipboard(), {
+    enabled: Boolean(selectedTagClipboardText),
+  });
 
   async function loadFileDetail(): Promise<void> {
     if (!Number.isInteger(currentFileId) || currentFileId <= 0) {
@@ -160,20 +167,19 @@ export function FileDetailWindow({
     }
 
     try {
-      const [nextFile, contextFileIds, fallbackOrderedFiles, nextRatingGroups] =
+      const [nextFile, contextFileIds, nextRatingGroups] =
         await Promise.all([
           window.asteria.getFileDetail(currentFileId),
           window.asteria.getFileDetailSequence(),
-          window.asteria.listBrowserFiles(),
           window.asteria.listRatingGroups(),
         ]);
-
-      setFile(nextFile);
-      setOrderedFileIds(
+      const orderedIds =
         contextFileIds.length > 0
           ? contextFileIds
-          : fallbackOrderedFiles.map((item) => item.id),
-      );
+          : await window.asteria.listBrowserFileIds();
+
+      setFile(nextFile);
+      setOrderedFileIds(orderedIds);
       setActiveRatingGroups(nextRatingGroups.filter((group) => group.isActive));
       resetImageViewport();
       setMessage(nextFile ? "" : t("window.fileDetail.notFound"));
@@ -304,6 +310,14 @@ export function FileDetailWindow({
 
     setContextMenu(null);
     await window.asteria?.openScreeningWindow([file.id]);
+  }
+
+  async function copySelectedTagsToClipboard(): Promise<void> {
+    if (!window.asteria || !selectedTagClipboardText) {
+      return;
+    }
+
+    await window.asteria.writeClipboardText(selectedTagClipboardText);
   }
 
   async function trashCurrentFile(): Promise<void> {
@@ -452,6 +466,7 @@ export function FileDetailWindow({
         <FileDetailTagColumn
           domain={file?.domain ?? null}
           fileId={currentFileId}
+          onSelectedTagClipboardTextChange={setSelectedTagClipboardText}
         />
       }
       right={
@@ -721,11 +736,13 @@ function ScreeningImage({ file }: { file: FileDetailRecord }): JSX.Element {
 interface FileDetailTagColumnProps {
   domain: FileDomain | null;
   fileId: number;
+  onSelectedTagClipboardTextChange?: (text: string | null) => void;
 }
 
 function FileDetailTagColumn({
   domain,
   fileId,
+  onSelectedTagClipboardTextChange,
 }: FileDetailTagColumnProps): JSX.Element {
   const { t } = useLanguage();
   const [fileTags, setFileTags] = useState<FileTagRecord[]>([]);
@@ -779,6 +796,9 @@ function FileDetailTagColumn({
     () => void removePendingFileTags(pendingTagIds),
     { enabled: pendingTagIds.length > 0 },
   );
+  useShortcut("paste", () => void pasteTagsFromClipboard(), {
+    allowInEditable: true,
+  });
 
   useEffect(() => {
     tagInput.reset();
@@ -786,6 +806,26 @@ function FileDetailTagColumn({
     setLastPendingTagId(null);
     void loadFileTags();
   }, [fileId]);
+
+  useEffect(() => {
+    if (!onSelectedTagClipboardTextChange) {
+      return;
+    }
+
+    const selectedTags = getSelectedFileTagsForClipboard(
+      orderedFileTags,
+      pendingTagIds,
+    );
+    const text = selectedTags.map(formatTagClipboardText).join(", ");
+    onSelectedTagClipboardTextChange(text || null);
+  }, [onSelectedTagClipboardTextChange, orderedFileTags, pendingTagIds]);
+
+  useEffect(
+    () => () => {
+      onSelectedTagClipboardTextChange?.(null);
+    },
+    [onSelectedTagClipboardTextChange],
+  );
 
   useEffect(() => {
     function clearPendingTags(event: MouseEvent): void {
@@ -842,6 +882,62 @@ function FileDetailTagColumn({
     await loadFileTags();
     setPendingTagIds([]);
     setLastPendingTagId(null);
+  }
+
+  async function pasteTagsFromClipboard(): Promise<void> {
+    if (!window.asteria || !isTagInputFocused()) {
+      return;
+    }
+
+    const clipboardText = await window.asteria.readClipboardText();
+    const previousTokens = tagInput.tokens;
+    const addedTokens = tagInput.addTokensFromText(clipboardText);
+    await confirmAndCommitPastedTags(addedTokens, previousTokens);
+  }
+
+  function handleTagInputPaste(
+    event: React.ClipboardEvent<HTMLInputElement>,
+  ): void {
+    const text = event.clipboardData.getData("text/plain");
+    const previousTokens = tagInput.tokens;
+    const addedTokens = tagInput.addTokensFromText(text);
+
+    if (addedTokens.length === 0 || !window.asteria) {
+      return;
+    }
+
+    event.preventDefault();
+    void confirmAndCommitPastedTags(addedTokens, previousTokens);
+  }
+
+  async function confirmAndCommitPastedTags(
+    addedTokens: TagToken[],
+    previousTokens: TagToken[],
+  ): Promise<void> {
+    if (!window.asteria || addedTokens.length === 0) {
+      return;
+    }
+
+    const confirmed = await window.asteria.confirmDialog({
+      title: t("window.fileDetail.confirmAddTagsTitle"),
+      message: t("window.fileDetail.confirmAddTags", {
+        count: addedTokens.length,
+      }),
+    });
+
+    if (!confirmed) {
+      tagInput.setTokens(previousTokens);
+      return;
+    }
+
+    await window.asteria.addFileTags(fileId, addedTokens);
+    tagInput.reset();
+    await loadFileTags();
+  }
+
+  function isTagInputFocused(): boolean {
+    const activeElement = document.activeElement;
+    return Boolean(activeElement?.closest("[data-file-detail-tag-input]"));
   }
 
   const fileTagSelection = useMultiSelection({
@@ -981,6 +1077,7 @@ function FileDetailTagColumn({
         tokens={tagInput.tokens}
         onKeyDown={tagInput.handleKeyDown}
         onPickSuggestion={tagInput.addTokenFromSuggestion}
+        onPaste={handleTagInputPaste}
         onTextChange={tagInput.setText}
       />
     </aside>
@@ -1057,6 +1154,24 @@ function createDomainPseudoTagId(domain: FileDomain): number {
   }
 
   return -3;
+}
+
+function getSelectedFileTagsForClipboard(
+  orderedFileTags: FileTagRecord[],
+  pendingTagIds: number[],
+): FileTagRecord[] {
+  if (pendingTagIds.length === 0) {
+    return [];
+  }
+
+  const selectedIds = new Set(pendingTagIds);
+  return orderedFileTags.filter((tag) => selectedIds.has(tag.id));
+}
+
+function formatTagClipboardText(
+  tag: Pick<FileTagRecord, "namespace" | "name">,
+): string {
+  return tag.namespace ? `${tag.namespace}:${tag.name}` : tag.name;
 }
 
 function getInferredTagTitle(

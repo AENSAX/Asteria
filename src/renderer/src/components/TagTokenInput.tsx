@@ -17,6 +17,7 @@ interface TagTokenInputProps {
   onTextChange: (text: string) => void;
   onKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void;
   onPickSuggestion: (tag: TagRecord) => void;
+  onPaste?: (event: React.ClipboardEvent<HTMLInputElement>) => void;
 }
 
 export function TagTokenInput({
@@ -29,6 +30,7 @@ export function TagTokenInput({
   onTextChange,
   onKeyDown,
   onPickSuggestion,
+  onPaste,
 }: TagTokenInputProps): JSX.Element {
   return (
     <div className="relative min-w-0 border-t border-(--line) bg-(--surface-input-panel-bg)">
@@ -39,7 +41,10 @@ export function TagTokenInput({
         onPick={onPickSuggestion}
       />
 
-      <div className="flex min-h-[30px] flex-wrap items-center gap-1 p-1">
+      <div
+        className="flex min-h-[30px] flex-wrap items-center gap-1 p-1"
+        data-file-detail-tag-input
+      >
         {tokens.map((token) => (
           <span
             className={getTagNamespaceClassName(
@@ -59,6 +64,7 @@ export function TagTokenInput({
           value={text}
           onChange={(event) => onTextChange(event.target.value)}
           onKeyDown={onKeyDown}
+          onPaste={onPaste}
         />
       </div>
     </div>

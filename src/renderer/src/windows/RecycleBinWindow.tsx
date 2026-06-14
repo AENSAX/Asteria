@@ -111,30 +111,6 @@ export function RecycleBinWindow(): JSX.Element {
     }
   }
 
-  async function collectAllTrashedFileIds(): Promise<number[]> {
-    if (!window.asteria || !page) {
-      return [];
-    }
-
-    const firstPage = await window.asteria.listTrashedFiles(1);
-    const totalPageCount = Math.max(
-      1,
-      Math.ceil(firstPage.total / firstPage.pageSize),
-    );
-    const fileIds = firstPage.files.map((file) => file.id);
-
-    for (
-      let nextPageNumber = 2;
-      nextPageNumber <= totalPageCount;
-      nextPageNumber += 1
-    ) {
-      const nextPage = await window.asteria.listTrashedFiles(nextPageNumber);
-      fileIds.push(...nextPage.files.map((file) => file.id));
-    }
-
-    return fileIds;
-  }
-
   async function restoreAllFiles(): Promise<void> {
     if (!window.asteria || !page || page.total === 0 || bulkOperating) {
       return;
@@ -143,13 +119,7 @@ export function RecycleBinWindow(): JSX.Element {
     setBulkOperating(true);
 
     try {
-      const fileIds = await collectAllTrashedFileIds();
-
-      if (fileIds.length === 0) {
-        return;
-      }
-
-      await window.asteria.restoreFiles(fileIds);
+      await window.asteria.restoreAllTrashedFiles();
       setPendingFileIds([]);
       setLastPendingFileId(null);
       setPageNumber(1);
@@ -180,13 +150,7 @@ export function RecycleBinWindow(): JSX.Element {
     setBulkOperating(true);
 
     try {
-      const fileIds = await collectAllTrashedFileIds();
-
-      if (fileIds.length === 0) {
-        return;
-      }
-
-      await window.asteria.deleteFilesPermanently(fileIds);
+      await window.asteria.deleteAllTrashedFilesPermanently();
       setPendingFileIds([]);
       setLastPendingFileId(null);
       setPageNumber(1);

@@ -37,6 +37,8 @@ export interface VirtualManagedTagRow {
   top: number;
 }
 
+export type ManagedTagSearchIndex = Map<number, string>;
+
 export const TAG_CATALOG_ROW_HEIGHT = 28;
 export const TAG_CATALOG_OVERSCAN_PX = 180;
 
@@ -55,8 +57,7 @@ export function createTagMap(
 export function filterManagedTags(
   tags: ManagedTagRecord[],
   queryText: string,
-  parents: TagParentRecord[],
-  siblings: TagSiblingRecord[],
+  searchIndex: ManagedTagSearchIndex,
 ): ManagedTagRecord[] {
   const query = queryText.trim().toLowerCase();
 
@@ -64,9 +65,18 @@ export function filterManagedTags(
     return tags;
   }
 
-  const relatedLabelsByTagId = createRelatedTagSearchLabels(parents, siblings);
+  return tags.filter((tag) => (searchIndex.get(tag.id) ?? "").includes(query));
+}
 
-  return tags.filter((tag) => {
+export function createManagedTagSearchIndex(
+  tags: ManagedTagRecord[],
+  parents: TagParentRecord[],
+  siblings: TagSiblingRecord[],
+): ManagedTagSearchIndex {
+  const relatedLabelsByTagId = createRelatedTagSearchLabels(parents, siblings);
+  const searchIndex: ManagedTagSearchIndex = new Map();
+
+  for (const tag of tags) {
     const labels = [
       formatTagLabel(tag),
       tag.displayName ?? "",
@@ -74,8 +84,10 @@ export function filterManagedTags(
       ...(relatedLabelsByTagId.get(tag.id) ?? []),
     ];
 
-    return labels.some((label) => label.toLowerCase().includes(query));
-  });
+    searchIndex.set(tag.id, labels.join("\n").toLowerCase());
+  }
+
+  return searchIndex;
 }
 
 function createRelatedTagSearchLabels(

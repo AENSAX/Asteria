@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import type { RatingEntryRecord, RatingGroupRecord } from "../../../shared/ipc";
 import { ActionFeedbackButton } from "../components/ActionFeedbackButton";
+import {
+  buttonScopeClassNames,
+  getButtonClassName,
+} from "../components/Button";
 import { Icon } from "../components/Icon";
 import {
   ManagerSidebar,
@@ -12,13 +16,12 @@ import { useLanguage } from "../utils/language";
 const defaultEntryColor = "#d9dde1";
 const inputClass =
   "ui-input";
-const buttonClass =
-  "ui-button ui-button-md";
+const buttonClass = getButtonClassName({ size: "medium" });
 const panelClass =
   "grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_minmax(0,1fr)] bg-(--panel)";
 const toolbarClass = "grid gap-1 border-b border-(--line) bg-(--panel) p-2";
 const groupEditRowClass =
-  "ui-button-scope grid grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-1.5";
+  `${buttonScopeClassNames.default} grid grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-1.5`;
 const entryCreateRowClass =
   "grid grid-cols-[minmax(0,1fr)_24px_minmax(72px,auto)_minmax(0,1fr)] gap-1.5 items-center";
 const entryCountClass =
@@ -30,8 +33,7 @@ const entryRowClass =
 const entryRowDraggingClass = "bg-(--selection-bg)";
 const dragHandleClass = "cursor-grab text-center text-(--muted)";
 const swatchClass = "h-4 w-4 border border-(--line-strong)";
-const entryActionClass =
-  "ui-button ui-button-md";
+const entryActionClass = getButtonClassName({ size: "medium" });
 
 export function RatingManagerWindow(): JSX.Element {
   const { t } = useLanguage();

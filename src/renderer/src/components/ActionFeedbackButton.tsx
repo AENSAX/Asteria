@@ -1,4 +1,8 @@
 import { useEffect, useRef, useState, type ButtonHTMLAttributes } from "react";
+import {
+  getButtonClassName,
+  type ButtonClassOptions,
+} from "./Button";
 import { useLanguage } from "../utils/language";
 
 type FeedbackKind = "save" | "apply";
@@ -6,7 +10,7 @@ type FeedbackKind = "save" | "apply";
 interface ActionFeedbackButtonProps extends Omit<
   ButtonHTMLAttributes<HTMLButtonElement>,
   "children" | "onClick"
-> {
+>, ButtonClassOptions {
   afterFeedback?: () => void;
   feedbackKind?: FeedbackKind;
   label: string;
@@ -20,9 +24,12 @@ export function ActionFeedbackButton({
   afterFeedback,
   className,
   disabled,
+  fill,
   feedbackKind = "save",
   label,
   onAction,
+  size,
+  tone,
   type = "button",
   ...buttonProps
 }: ActionFeedbackButtonProps): JSX.Element {
@@ -65,9 +72,14 @@ export function ActionFeedbackButton({
   return (
     <button
       {...buttonProps}
-      className={["ui-button", className, responded ? successClass : ""]
-        .filter(Boolean)
-        .join(" ")}
+      className={getButtonClassName({
+        className: [className, responded ? successClass : ""]
+          .filter(Boolean)
+          .join(" "),
+        fill,
+        size,
+        tone,
+      })}
       disabled={disabled}
       type={type}
       onClick={() => void handleClick()}

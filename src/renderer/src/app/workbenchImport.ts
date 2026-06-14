@@ -5,6 +5,10 @@ import type {
 } from "../../../shared/ipc";
 import { readDroppedImportData } from "../utils/dropImport";
 import { confirmDuplicateImports } from "../utils/importConfirm";
+import {
+  consumeInternalFileDrag,
+  isInternalFileDragActive,
+} from "../utils/internalFileDrag";
 import { type TranslationFunction } from "../utils/language";
 
 interface WorkbenchImportHandlersOptions<PageItem> {
@@ -186,6 +190,11 @@ export function createWorkbenchImportHandlers<PageItem>({
   function handleDragOver(event: DragEvent<HTMLElement>): void {
     event.preventDefault();
 
+    if (isInternalFileDragActive()) {
+      setDragActive(false);
+      return;
+    }
+
     if (!isImporting) {
       setDragActive(true);
     }
@@ -202,6 +211,11 @@ export function createWorkbenchImportHandlers<PageItem>({
   function handleDrop(event: DragEvent<HTMLElement>): void {
     event.preventDefault();
     setDragActive(false);
+
+    if (consumeInternalFileDrag()) {
+      return;
+    }
+
     const importPage = openImportView();
     void importDroppedData(event.dataTransfer, importPage);
   }

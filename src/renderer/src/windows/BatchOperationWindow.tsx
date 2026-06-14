@@ -165,10 +165,7 @@ export function BatchOperationWindow({
       return;
     }
 
-    const idSet = new Set(fileIds);
-    const selectedFiles = (await window.asteria.listBrowserFiles()).filter(
-      (file) => idSet.has(file.id),
-    );
+    const selectedFiles = await window.asteria.listBrowserFilesByIds(fileIds);
 
     setFiles(selectedFiles);
     setMessage({

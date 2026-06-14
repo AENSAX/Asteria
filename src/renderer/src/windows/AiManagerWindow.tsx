@@ -5,6 +5,7 @@ import type {
   AiSettings,
 } from "../../../shared/ipc";
 import { ActionFeedbackButton } from "../components/ActionFeedbackButton";
+import { getButtonClassName } from "../components/Button";
 import { ResizableColumns } from "../components/ResizableColumns";
 import { formatBytes } from "../utils/format";
 import { useLanguage } from "../utils/language";
@@ -56,8 +57,7 @@ const aiSelectClass = aiInputClass;
 const aiPathRowClass =
   "grid grid-cols-[70px_minmax(0,1fr)_34px] items-center gap-0";
 const aiModelActionsClass = "grid grid-cols-[80px_104px_minmax(0,1fr)] gap-1.5";
-const aiButtonClass =
-  "ui-button";
+const aiButtonClass = getButtonClassName();
 const aiModelPanelClass =
   "grid min-h-0 min-w-0 grid-rows-[26px_minmax(0,1fr)] border border-(--line) bg-(--panel)";
 const aiModelHeaderClass =
@@ -70,11 +70,10 @@ const aiFeaturePanelClass =
 const aiCheckRowClass =
   "grid h-7 grid-cols-[20px_minmax(0,1fr)] items-center border border-(--line-strong) bg-(--panel-strong) px-2 text-[12px]";
 const aiFooterClass =
-  "grid grid-cols-[minmax(0,1fr)_58px_58px] border-t border-(--line) bg-(--surface-bg)";
+  "grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-1 border-t border-(--line) bg-(--surface-bg) px-1";
 const aiFooterSpanClass =
   "min-w-0 overflow-hidden px-2 leading-[33px] text-ellipsis whitespace-nowrap text-(--muted)";
-const aiFooterButtonClass =
-  "ui-button ui-button-fill min-w-0 border-y-0 border-r-0 border-l-(--line)";
+const aiFooterButtonClass = getButtonClassName({ size: "medium" });
 
 export function AiManagerWindow(): JSX.Element {
   const { t } = useLanguage();
@@ -448,7 +447,11 @@ export function AiManagerWindow(): JSX.Element {
             >
               {t("common.refresh")}
             </button>
-            <ActionFeedbackButton label={t("common.save")} onAction={saveSettings} />
+            <ActionFeedbackButton
+              className={aiFooterButtonClass}
+              label={t("common.save")}
+              onAction={saveSettings}
+            />
           </footer>
         </main>
       }

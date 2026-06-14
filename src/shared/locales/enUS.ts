@@ -86,6 +86,9 @@ export const enUSTranslations = {
   "app.workStatus.tagTranslationIdle": "Tag translation idle",
   "app.workStatus.tagTranslating": "Translating tags",
   "app.workStatus.tagTranslationDone": "Tag translation complete",
+  "app.workStatus.hydrusIdle": "Hydrus Import idle",
+  "app.workStatus.hydrusImporting": "Importing from Hydrus",
+  "app.workStatus.hydrusCanceling": "Canceling Hydrus Import",
   "app.domain.pending": "Pending",
   "app.domain.library": "In Library",
   "app.domain.trash": "Recycle Bin",
@@ -168,6 +171,10 @@ export const enUSTranslations = {
   "settings.shortcut.resetDefaults": "Reset defaults",
   "settings.shortcut.closeWindow": "Close current window",
   "settings.shortcut.closeWindowDesc": "Except the main window",
+  "settings.shortcut.copy": "Copy",
+  "settings.shortcut.copyDesc": "Copy the current selected tags or files",
+  "settings.shortcut.paste": "Paste",
+  "settings.shortcut.pasteDesc": "Paste into the current paste target",
   "settings.shortcut.selectAll": "Select all current items",
   "settings.shortcut.selectAllDesc":
     "Only applies to the current multi-select area",
@@ -515,6 +522,12 @@ export const enUSTranslations = {
   "window.hydrus.importFailed": "Hydrus Import failed",
   "window.hydrus.importCanceled": "Hydrus Import canceled",
   "window.hydrus.importComplete": "Hydrus Import complete",
+  "window.hydrus.closeConfirmTitle": "Hydrus Import is running",
+  "window.hydrus.closeConfirmMessage":
+    "Closing this window will cancel the current Hydrus Import. Fully imported files will be kept, and unfinished downloads and temporary tasks will be cleaned up. Close anyway?",
+  "window.hydrus.closeConfirmClose": "Close and cancel",
+  "window.hydrus.closeCancelingImport":
+    "Canceling Hydrus Import and cleaning temporary tasks",
   "window.hydrus.importingFiles": "Migrating Hydrus files",
   "window.hydrus.metadataReading":
     "Found {count} Hydrus files, reading metadata",
@@ -563,6 +576,8 @@ export const enUSTranslations = {
   "window.fileDetail.canonicalTagTitle":
     "{tag}, mapped to canonical tag by alias relation",
   "window.fileDetail.addTags": "Enter tags to add",
+  "window.fileDetail.confirmAddTagsTitle": "Confirm Add Tags",
+  "window.fileDetail.confirmAddTags": "Add {count} tags to this file?",
   "window.fileDetail.title": "File Detail",
 
   "window.import.now": "Import now",

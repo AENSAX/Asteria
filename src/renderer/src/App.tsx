@@ -566,7 +566,7 @@ function WorkbenchApp(): JSX.Element {
   }
 
   return (
-    <div className="grid h-full min-h-[620px] min-w-[920px] grid-rows-[28px_30px_minmax(0,1fr)_20px]">
+    <div className="grid h-full min-h-0 min-w-0 overflow-hidden grid-rows-[28px_30px_minmax(0,1fr)_20px]">
       <WorkbenchMenuBar
         activePageAvailable={Boolean(activePage)}
         isImporting={isImporting}
@@ -604,7 +604,7 @@ function WorkbenchApp(): JSX.Element {
 
       <main
         className={cx(
-          "relative min-h-0 min-w-0 bg-(--bg) p-2",
+          "relative min-h-0 min-w-0 overflow-hidden bg-(--bg) p-2",
           dragActive &&
             "bg-(--selection-bg) [&_.module-view]:border-(--accent)",
         )}

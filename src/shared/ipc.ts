@@ -103,6 +103,26 @@ export interface TagSiblingRecord {
   createdAt: string;
 }
 
+export interface TagParentPair {
+  childTagId: number;
+  parentTagId: number;
+}
+
+export interface TagSiblingPair {
+  aliasTagId: number;
+  canonicalTagId: number;
+}
+
+export interface BatchMutationResult {
+  succeeded: number;
+  errors: string[];
+}
+
+export interface CreateManagedTagsResult {
+  tags: ManagedTagRecord[];
+  errors: string[];
+}
+
 export type TagRelationTreeKind = "parent" | "sibling";
 
 export interface TagRelationTreeNode extends TagRecord {
@@ -567,7 +587,9 @@ export interface AsteriaApi {
   listBrowserFilePage: (
     request: BrowserFilePageRequest,
   ) => Promise<BrowserFilePage>;
+  listBrowserFileIds: () => Promise<number[]>;
   listBrowserFiles: () => Promise<BrowserFileRecord[]>;
+  listBrowserFilesByIds: (fileIds: number[]) => Promise<BrowserFileRecord[]>;
   searchBrowserFilePage: (
     request: BrowserSearchPageRequest,
   ) => Promise<BrowserFilePage>;
@@ -602,6 +624,8 @@ export interface AsteriaApi {
   openFavoritesWindow: () => Promise<void>;
   openFileExternally: (fileId: number) => Promise<void>;
   startFileDrag: (fileIds: number[]) => void;
+  readClipboardText: () => Promise<string>;
+  writeClipboardText: (text: string) => Promise<void>;
   setWindowTitle: (title: string) => Promise<void>;
   getFileDetail: (id: number) => Promise<FileDetailRecord | null>;
   getFileDetailSequence: () => Promise<number[]>;
@@ -639,7 +663,9 @@ export interface AsteriaApi {
   listTrashedFiles: (page: number) => Promise<DatabaseFilePage>;
   trashFiles: (fileIds: number[]) => Promise<void>;
   restoreFiles: (fileIds: number[]) => Promise<void>;
+  restoreAllTrashedFiles: () => Promise<number>;
   deleteFilesPermanently: (fileIds: number[]) => Promise<void>;
+  deleteAllTrashedFilesPermanently: () => Promise<number>;
   setFilesDomain: (fileIds: number[], domain: FileDomain) => Promise<void>;
   listDomains: () => Promise<DomainRecord[]>;
   listFileUrls: (fileIds: number[]) => Promise<FileUrlRecord[]>;
@@ -715,16 +741,24 @@ export interface AsteriaApi {
     childTagId: number,
     parentTagId: number,
   ) => Promise<TagParentRecord>;
+  addTagParents: (pairs: TagParentPair[]) => Promise<BatchMutationResult>;
   removeTagParent: (childTagId: number, parentTagId: number) => Promise<void>;
+  removeTagParents: (pairs: TagParentPair[]) => Promise<BatchMutationResult>;
   addTagSibling: (
     aliasTagId: number,
     canonicalTagId: number,
   ) => Promise<TagSiblingRecord>;
+  addTagSiblings: (pairs: TagSiblingPair[]) => Promise<BatchMutationResult>;
   removeTagSibling: (aliasTagId: number) => Promise<void>;
+  removeTagSiblings: (aliasTagIds: number[]) => Promise<BatchMutationResult>;
   createManagedTag: (
     styleId: number,
     tag: TagDraft,
   ) => Promise<ManagedTagRecord>;
+  createManagedTags: (
+    styleId: number,
+    tags: TagDraft[],
+  ) => Promise<CreateManagedTagsResult>;
   renameManagedTag: (tagId: number, tag: TagDraft) => Promise<ManagedTagRecord>;
   previewManagedTagRename: (
     tagId: number,

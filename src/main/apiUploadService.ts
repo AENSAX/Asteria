@@ -1,5 +1,6 @@
 import { app } from "electron";
 import { randomUUID } from "node:crypto";
+import { createWriteStream } from "node:fs";
 import {
   mkdir,
   readdir,
@@ -10,6 +11,8 @@ import {
 } from "node:fs/promises";
 import { basename, extname, join } from "node:path";
 import type { IncomingMessage } from "node:http";
+import { finished } from "node:stream/promises";
+import Busboy from "busboy";
 import sharp from "sharp";
 import {
   createApiUploadedFileRecord,
@@ -36,10 +39,10 @@ interface UploadMetadata {
   forceDuplicate: boolean;
 }
 
-interface UploadedPart {
-  name: string;
-  filename: string | null;
-  data: Buffer;
+interface MultipartUpload {
+  tempPath: string;
+  fileName: string;
+  metadata: UploadMetadata;
 }
 
 interface BatchUploadFileState extends UploadMetadata {
@@ -60,6 +63,9 @@ interface BatchUploadState {
 const UPLOAD_BATCH_ROOT = "api-upload-batches";
 const UPLOAD_TEMP_ROOT = "api-upload-temp";
 const MAX_REQUEST_BYTES = 256 * 1024 * 1024;
+const MAX_MULTIPART_FIELD_BYTES = 256 * 1024;
+const MAX_MULTIPART_FIELDS = 64;
+const MAX_MULTIPART_FILES = 8;
 
 export async function handleSingleFileUpload(
   request: IncomingMessage,
@@ -76,11 +82,9 @@ export async function handleSingleFileUpload(
     };
   }
 
-  const body = await readRequestBody(request);
-  const parts = parseMultipartBody(body, contentType);
-  const filePart = parts.find((part) => part.name === "file" && part.filename);
+  const upload = await parseMultipartUpload(request, contentType, "upload.bin");
 
-  if (!filePart) {
+  if (!upload) {
     return {
       statusCode: 400,
       body: {
@@ -90,24 +94,18 @@ export async function handleSingleFileUpload(
     };
   }
 
-  const metadata = readMultipartMetadata(parts);
-  const tempPath = await writeTempUploadFile(
-    filePart.filename ?? "upload.bin",
-    filePart.data,
-  );
-
   try {
     const result = await commitUploadedFile(
-      tempPath,
-      filePart.filename ?? basename(tempPath),
-      metadata,
+      upload.tempPath,
+      upload.fileName,
+      upload.metadata,
     );
     return {
       statusCode: result.ok ? 200 : 409,
       body: result,
     };
   } finally {
-    await rm(tempPath, { force: true });
+    await rm(upload.tempPath, { force: true });
   }
 }
 
@@ -126,11 +124,9 @@ export async function handleFileDuplicateLookup(
     };
   }
 
-  const body = await readRequestBody(request);
-  const parts = parseMultipartBody(body, contentType);
-  const filePart = parts.find((part) => part.name === "file" && part.filename);
+  const upload = await parseMultipartUpload(request, contentType, "lookup.bin");
 
-  if (!filePart) {
+  if (!upload) {
     return {
       statusCode: 400,
       body: {
@@ -140,13 +136,8 @@ export async function handleFileDuplicateLookup(
     };
   }
 
-  const tempPath = await writeTempUploadFile(
-    filePart.filename ?? "lookup.bin",
-    filePart.data,
-  );
-
   try {
-    const sha256 = await hashFile(tempPath);
+    const sha256 = await hashFile(upload.tempPath);
     const identifiers = listApiFileIdentifiersBySha256(sha256);
 
     return {
@@ -160,7 +151,7 @@ export async function handleFileDuplicateLookup(
       },
     };
   } finally {
-    await rm(tempPath, { force: true });
+    await rm(upload.tempPath, { force: true });
   }
 }
 
@@ -492,21 +483,16 @@ function normalizeBatchFile(value: unknown): BatchUploadFileState {
   };
 }
 
-function readMultipartMetadata(parts: UploadedPart[]): UploadMetadata {
-  function readText(name: string): string | null {
-    const part = parts.find((item) => item.name === name && !item.filename);
-    return part ? part.data.toString("utf8").trim() : null;
-  }
-
+function readMultipartMetadata(fields: Map<string, string[]>): UploadMetadata {
   return {
-    tags: normalizeApiTags(readJsonText(readText("tags"))),
-    tagStyleName: readText("tagStyle"),
+    tags: normalizeApiTags(readJsonText(readFieldText(fields, "tags"))),
+    tagStyleName: readFieldText(fields, "tagStyle"),
     urls: normalizeApiUrls(
-      readJsonText(readText("url")) ??
-        readJsonText(readText("urls")) ??
-        readText("url"),
+      readJsonText(readFieldText(fields, "url")) ??
+        readJsonText(readFieldText(fields, "urls")) ??
+        readFieldText(fields, "url"),
     ),
-    forceDuplicate: readBoolean(readText("forceDuplicate")),
+    forceDuplicate: readBoolean(readFieldText(fields, "forceDuplicate")),
   };
 }
 
@@ -622,15 +608,10 @@ function getBatchFileChunkDirectory(
   return join(getBatchDirectory(batchId), "chunks", uploadFileId);
 }
 
-async function writeTempUploadFile(
-  fileName: string,
-  data: Buffer,
-): Promise<string> {
+async function createTempUploadPath(fileName: string): Promise<string> {
   const directory = join(app.getPath("userData"), "runtime", UPLOAD_TEMP_ROOT);
   await mkdir(directory, { recursive: true });
-  const path = join(directory, `${randomUUID()}-${basename(fileName)}`);
-  await writeFile(path, data);
-  return path;
+  return join(directory, `${randomUUID()}-${basename(fileName)}`);
 }
 
 export async function readJsonBody(request: IncomingMessage): Promise<unknown> {
@@ -664,78 +645,151 @@ function readRequestBody(request: IncomingMessage): Promise<Buffer> {
   });
 }
 
-function parseMultipartBody(
-  body: Buffer,
-  contentType: string | string[],
-): UploadedPart[] {
-  const header = normalizeHeader(contentType);
-  const match = /boundary=([^;]+)/i.exec(header);
+function parseMultipartUpload(
+  request: IncomingMessage,
+  contentType: string,
+  fallbackFileName: string,
+): Promise<MultipartUpload | null> {
+  return new Promise((resolve, reject) => {
+    const fields = new Map<string, string[]>();
+    const fileWrites: Promise<void>[] = [];
+    let fileName: string | null = null;
+    let tempPath: string | null = null;
+    let activeWriter: ReturnType<typeof createWriteStream> | null = null;
+    let totalBytes = 0;
+    let requestBytes = 0;
+    let completed = false;
 
-  if (!match) {
-    throw new Error("multipart boundary 缺失");
-  }
+    const onRequestData = (chunk: Buffer): void => {
+      requestBytes += chunk.length;
 
-  const boundaryText = match[1];
+      if (requestBytes > MAX_REQUEST_BYTES) {
+        fail(new Error("请求体过大"));
+      }
+    };
 
-  if (!boundaryText) {
-    throw new Error("multipart boundary 缺失");
-  }
+    const onRequestError = (error: Error): void => fail(error);
 
-  const boundary = Buffer.from(`--${boundaryText.replace(/^"|"$/g, "")}`);
-  const parts: UploadedPart[] = [];
-  let position = body.indexOf(boundary);
-
-  while (position !== -1) {
-    let nextPosition = body.indexOf(boundary, position + boundary.length);
-
-    if (nextPosition === -1) {
-      break;
+    function cleanup(): void {
+      request.off("data", onRequestData);
+      request.off("error", onRequestError);
+      parser.removeAllListeners();
     }
 
-    let part = body.subarray(position + boundary.length, nextPosition);
-    position = nextPosition;
+    function fail(error: unknown): void {
+      if (completed) {
+        return;
+      }
 
-    if (part.subarray(0, 2).toString() === "--") {
-      break;
+      completed = true;
+      request.unpipe(parser);
+      cleanup();
+      request.destroy(error instanceof Error ? error : undefined);
+      activeWriter?.destroy(error instanceof Error ? error : undefined);
+
+      void (tempPath ? rm(tempPath, { force: true }) : Promise.resolve());
+      reject(error);
     }
 
-    if (part.subarray(0, 2).toString() === "\r\n") {
-      part = part.subarray(2);
-    }
+    const parser = Busboy({
+      headers: {
+        ...request.headers,
+        "content-type": contentType,
+      },
+      limits: {
+        fieldSize: MAX_MULTIPART_FIELD_BYTES,
+        fields: MAX_MULTIPART_FIELDS,
+        files: MAX_MULTIPART_FILES,
+        fileSize: MAX_REQUEST_BYTES,
+        parts: MAX_MULTIPART_FIELDS + MAX_MULTIPART_FILES,
+      },
+    });
 
-    if (part.subarray(part.length - 2).toString() === "\r\n") {
-      part = part.subarray(0, part.length - 2);
-    }
+    parser.on("field", (name, value) => {
+      const values = fields.get(name) ?? [];
+      values.push(value.trim());
+      fields.set(name, values);
+    });
 
-    const headerEnd = part.indexOf(Buffer.from("\r\n\r\n"));
+    parser.on("file", (name, file, info) => {
+      if (name !== "file" || tempPath) {
+        file.resume();
+        return;
+      }
 
-    if (headerEnd === -1) {
-      continue;
-    }
+      fileName = info.filename || fallbackFileName;
 
-    const rawHeaders = part.subarray(0, headerEnd).toString("utf8");
-    const data = part.subarray(headerEnd + 4);
-    const disposition =
-      rawHeaders
-        .split("\r\n")
-        .find((line) =>
-          line.toLowerCase().startsWith("content-disposition:"),
-        ) ?? "";
-    const name = /name="([^"]+)"/.exec(disposition)?.[1] ?? "";
-    const filename = /filename="([^"]*)"/.exec(disposition)?.[1] ?? null;
+      const writeTask = createTempUploadPath(fileName)
+        .then((path) => {
+          tempPath = path;
+          const writer = createWriteStream(path);
+          activeWriter = writer;
 
-    if (name) {
-      parts.push({ name, filename, data });
-    }
+          file.on("data", (chunk: Buffer) => {
+            totalBytes += chunk.length;
 
-    nextPosition = body.indexOf(boundary, position + boundary.length);
-  }
+            if (totalBytes > MAX_REQUEST_BYTES) {
+              fail(new Error("请求体过大"));
+            }
+          });
+          file.on("limit", () => fail(new Error("请求体过大")));
+          file.on("error", fail);
+          writer.on("error", fail);
 
-  return parts;
+          file.pipe(writer);
+          return finished(writer);
+        })
+        .then(() => {
+          activeWriter = null;
+        });
+
+      fileWrites.push(writeTask);
+    });
+
+    parser.on("error", fail);
+    parser.on("filesLimit", () => fail(new Error("上传文件字段过多")));
+    parser.on("fieldsLimit", () => fail(new Error("上传字段过多")));
+    parser.on("partsLimit", () => fail(new Error("上传字段过多")));
+    parser.on("finish", () => {
+      if (completed) {
+        return;
+      }
+
+      Promise.all(fileWrites)
+        .then(() => {
+          if (completed) {
+            return;
+          }
+
+          completed = true;
+          cleanup();
+
+          if (!tempPath || !fileName) {
+            resolve(null);
+            return;
+          }
+
+          resolve({
+            tempPath,
+            fileName,
+            metadata: readMultipartMetadata(fields),
+          });
+        })
+        .catch(fail);
+    });
+
+    request.on("data", onRequestData);
+    request.on("error", onRequestError);
+    request.pipe(parser);
+  });
 }
 
 function normalizeHeader(value: string | string[] | undefined): string {
   return Array.isArray(value) ? value.join(";") : (value ?? "");
+}
+
+function readFieldText(fields: Map<string, string[]>, name: string): string | null {
+  return fields.get(name)?.[0] ?? null;
 }
 
 function readJsonText(value: string | null): unknown {

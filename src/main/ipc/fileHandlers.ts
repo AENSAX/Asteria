@@ -1,4 +1,4 @@
-import type { IpcMain } from "electron";
+import { clipboard, type IpcMain } from "electron";
 import type { WebContents } from "electron";
 import type {
   BrowserFilePage,
@@ -20,8 +20,10 @@ type NormalizeIpcFileIds = (value: unknown) => number[];
 export interface FileHandlersContext {
   getDatabaseStatus: () => DatabaseStatus;
   listDatabaseFiles: (page: number) => DatabaseFilePage;
+  listBrowserFileIds: () => number[];
   listBrowserFilePage: (request: BrowserFilePageRequest) => BrowserFilePage;
   listBrowserFiles: () => BrowserFileRecord[];
+  listBrowserFilesByIds: (fileIds: number[]) => BrowserFileRecord[];
   searchBrowserFilePage: (request: BrowserSearchPageRequest) => BrowserFilePage;
   listFavoriteFilePage: (request: BrowserFilePageRequest) => BrowserFilePage;
   listFavoriteFiles: () => BrowserFileRecord[];
@@ -34,7 +36,9 @@ export interface FileHandlersContext {
   listTrashedFiles: (page: number) => DatabaseFilePage;
   trashFiles: (fileIds: number[]) => void;
   restoreFiles: (fileIds: number[]) => void;
+  restoreAllTrashedFiles: () => number;
   deleteStoredFilesPermanently: (fileIds: number[]) => Promise<void>;
+  deleteAllStoredFilesPermanently: () => Promise<number>;
   setFilesDomain: (fileIds: number[], domain: FileDomain) => void;
   listDomains: () => DomainRecord[];
   broadcastFilesChanged: (payload?: Partial<FilesChangedPayload>) => void;
@@ -92,6 +96,12 @@ export function registerFileHandlers(
   ipcMain.handle(IpcChannel.BROWSER_LIST_FILES, () =>
     context.listBrowserFiles(),
   );
+  ipcMain.handle(IpcChannel.BROWSER_LIST_FILE_IDS, () =>
+    context.listBrowserFileIds(),
+  );
+  ipcMain.handle(IpcChannel.BROWSER_LIST_FILES_BY_IDS, (_event, fileIds) =>
+    context.listBrowserFilesByIds(context.normalizeIpcFileIds(fileIds)),
+  );
   ipcMain.handle(IpcChannel.BROWSER_LIST_FILE_PAGE, (_event, request: unknown) =>
     context.listBrowserFilePage(normalizeBrowserFilePageRequest(request)),
   );
@@ -142,6 +152,10 @@ export function registerFileHandlers(
       return context.openStoredFileExternally(fileId);
     },
   );
+  ipcMain.handle(IpcChannel.CLIPBOARD_READ_TEXT, () => clipboard.readText());
+  ipcMain.handle(IpcChannel.CLIPBOARD_WRITE_TEXT, (_event, text: unknown) => {
+    clipboard.writeText(typeof text === "string" ? text : "");
+  });
   ipcMain.on(IpcChannel.FILE_START_DRAG, (event, fileIds: unknown) => {
     context.startFileDrag(event.sender, context.normalizeIpcFileIds(fileIds));
   });
@@ -164,6 +178,14 @@ export function registerFileHandlers(
       fileIds: normalizedFileIds,
     });
   });
+  ipcMain.handle(IpcChannel.TRASH_RESTORE_ALL_FILES, () => {
+    const restoredCount = context.restoreAllTrashedFiles();
+    context.broadcastFilesChanged({
+      kind: "restored",
+      fullRefresh: true,
+    });
+    return restoredCount;
+  });
   ipcMain.handle(
     IpcChannel.TRASH_DELETE_FILES_PERMANENTLY,
     async (_event, fileIds: unknown) => {
@@ -175,6 +197,14 @@ export function registerFileHandlers(
       });
     },
   );
+  ipcMain.handle(IpcChannel.TRASH_DELETE_ALL_FILES_PERMANENTLY, async () => {
+    const deletedCount = await context.deleteAllStoredFilesPermanently();
+    context.broadcastFilesChanged({
+      kind: "deleted",
+      fullRefresh: true,
+    });
+    return deletedCount;
+  });
   ipcMain.handle(
     IpcChannel.FILE_SET_DOMAIN,
     async (event, fileIds: unknown, domain: unknown) => {

@@ -55,6 +55,7 @@ interface RenderWorkbenchViewOptions {
 const emptyPageClass =
   "grid h-full min-h-0 min-w-0 place-items-center bg-(--panel)";
 const emptyPageLogoClass = "h-80 w-80 object-contain opacity-80";
+const workbenchViewShellClass = "h-full min-h-0 min-w-0 overflow-hidden";
 
 export function renderWorkbenchView({
   activePage,
@@ -82,23 +83,25 @@ export function renderWorkbenchView({
     activePage?.viewRefreshSequenceByTabId[node.getId()] ?? 0;
 
   if (component === "empty-page") {
-    return <EmptyPagePlaceholder />;
+    return wrapWorkbenchView(component, <EmptyPagePlaceholder />);
   }
 
   if (component === "file-import") {
-    return (
+    return wrapWorkbenchView(
+      component,
       <ImportView
         dragActive={dragActive}
         percent={percent}
         progress={progress}
         onCancelQueue={() => void onCancelImportQueue()}
         onCommitQueue={(queueFiles) => void onCommitImportQueue(queueFiles)}
-      />
+      />,
     );
   }
 
   if (component === "file-browser") {
-    return (
+    return wrapWorkbenchView(
+      component,
       <FileBrowserView
         importQueueMode={Boolean(activePage?.importQueueActive)}
         refreshSequence={refreshSequence}
@@ -107,12 +110,13 @@ export function renderWorkbenchView({
         onImportQueueEmpty={onDeactivateImportQueue}
         onSelectionChange={onBrowserSelectionChange}
         onStateChange={onBrowserStateChange}
-      />
+      />,
     );
   }
 
   if (component === "search") {
-    return (
+    return wrapWorkbenchView(
+      component,
       <SearchView
         appendTagRequest={activePage?.searchAppendTagRequest ?? null}
         inputState={activePage?.searchInputState ?? defaultSearchInputState}
@@ -122,12 +126,13 @@ export function renderWorkbenchView({
         onRemoveFilters={onRemoveSearchFilters}
         onSearch={onSearch}
         locked={Boolean(activePage?.importQueueActive)}
-      />
+      />,
     );
   }
 
   if (component === "tag-list") {
-    return (
+    return wrapWorkbenchView(
+      component,
       <TagListView
         locked={Boolean(activePage?.importQueueActive)}
         refreshSequence={refreshSequence}
@@ -135,13 +140,25 @@ export function renderWorkbenchView({
         state={activePage?.tagListViewState ?? defaultTagListViewState}
         onAppendSearchTag={onAppendSearchTag}
         onStateChange={onTagListStateChange}
-      />
+      />,
     );
   }
 
-  return (
+  return wrapWorkbenchView(
+    component,
     <div className="grid h-full place-items-center text-(--muted)">
       {t("app.unknownView")}
+    </div>,
+  );
+}
+
+function wrapWorkbenchView(
+  component: WorkbenchViewComponent,
+  children: JSX.Element,
+): JSX.Element {
+  return (
+    <div className={workbenchViewShellClass} data-workbench-view={component}>
+      {children}
     </div>
   );
 }

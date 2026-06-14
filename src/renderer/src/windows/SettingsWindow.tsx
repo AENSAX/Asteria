@@ -6,6 +6,7 @@ import type {
   StorageSettings,
 } from "../../../shared/ipc";
 import { ActionFeedbackButton } from "../components/ActionFeedbackButton";
+import { buttonScopeClassNames } from "../components/Button";
 import { ResizableColumns } from "../components/ResizableColumns";
 import {
   loadInterfaceSettings,
@@ -112,17 +113,17 @@ const titleClass =
   "h-7 border-b border-(--line) bg-(--panel-strong) px-2 font-semibold leading-7";
 const pathListClass = "grid gap-2 p-2";
 const pathRowClass =
-  "ui-button-scope grid grid-cols-[104px_minmax(0,1fr)_32px_58px] items-center gap-1.5 [&>span]:text-[12px] [&>span]:text-(--text) [&>input]:h-6 [&>input]:min-w-0 [&>input]:border [&>input]:border-(--line-strong) [&>input]:bg-(--surface-inset-bg) [&>input]:px-1.5 [&>input]:text-(--ink) [&>input::placeholder]:text-(--disabled-ink) [&>button]:min-w-0";
+  `${buttonScopeClassNames.default} grid grid-cols-[104px_minmax(0,1fr)_32px_58px] items-center gap-1.5 [&>span]:text-[12px] [&>span]:text-(--text) [&>input]:h-6 [&>input]:min-w-0 [&>input]:border [&>input]:border-(--line-strong) [&>input]:bg-(--surface-inset-bg) [&>input]:px-1.5 [&>input]:text-(--ink) [&>input::placeholder]:text-(--disabled-ink) [&>button]:min-w-0`;
 const checkRowClass =
-  "ui-button-scope grid min-h-6 grid-cols-[16px_minmax(0,1fr)_70px] items-center gap-1.5 text-[12px] [&>input]:m-0 [&>input]:h-3.5 [&>input]:w-3.5 [&>span]:text-(--text)";
+  `${buttonScopeClassNames.default} grid min-h-6 grid-cols-[16px_minmax(0,1fr)_70px] items-center gap-1.5 text-[12px] [&>input]:m-0 [&>input]:h-3.5 [&>input]:w-3.5 [&>span]:text-(--text)`;
 const smallInputButtonClass =
-  "ui-button-scope [&>input]:h-6 [&>input]:min-w-0 [&>input]:border [&>input]:border-(--line-strong) [&>input]:bg-(--surface-inset-bg) [&>input]:px-1.5 [&>input]:text-(--ink) [&>input::placeholder]:text-(--disabled-ink) [&>button]:min-w-0 [&>button]:px-1.5";
+  `${buttonScopeClassNames.default} [&>input]:h-6 [&>input]:min-w-0 [&>input]:border [&>input]:border-(--line-strong) [&>input]:bg-(--surface-inset-bg) [&>input]:px-1.5 [&>input]:text-(--ink) [&>input::placeholder]:text-(--disabled-ink) [&>button]:min-w-0 [&>button]:px-1.5`;
 const compactSelectRowClass =
-  "ui-button-scope grid grid-cols-[104px_160px_58px_minmax(0,1fr)] items-center gap-1.5 [&>span]:text-[12px] [&>span]:text-(--text) [&>select]:h-6 [&>select]:min-w-0 [&>select]:border [&>select]:border-(--line-strong) [&>select]:bg-(--surface-inset-bg) [&>select]:px-1.5 [&>select]:text-(--ink) [&>button]:min-w-0";
+  `${buttonScopeClassNames.default} grid grid-cols-[104px_160px_58px_minmax(0,1fr)] items-center gap-1.5 [&>span]:text-[12px] [&>span]:text-(--text) [&>select]:h-6 [&>select]:min-w-0 [&>select]:border [&>select]:border-(--line-strong) [&>select]:bg-(--surface-inset-bg) [&>select]:px-1.5 [&>select]:text-(--ink) [&>button]:min-w-0`;
 const shortcutRowClass =
   "grid min-h-7 grid-cols-[130px_150px_minmax(0,1fr)] items-center gap-1.5 border-b border-(--line) px-2 py-[3px] text-(--ink)";
 const shortcutControlsClass =
-  "ui-button-scope ui-button-compact-scope flex min-w-0 flex-wrap gap-1";
+  `${buttonScopeClassNames.default} ${buttonScopeClassNames.compact} flex min-w-0 flex-wrap gap-1`;
 
 export function SettingsWindow(): JSX.Element {
   const { t } = useLanguage();

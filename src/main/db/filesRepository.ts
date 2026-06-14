@@ -8,13 +8,23 @@ import type {
   FileDetailRecord,
   FileRatingRecord,
 } from "../../shared/ipc.js";
+import { IMAGE_EXTENSIONS, VIDEO_EXTENSIONS } from "../../shared/media.js";
 import { getDatabaseConnection } from "./connection.js";
 import { createPlaceholders, normalizeFileIds } from "./queryUtils.js";
 import {
   DATABASE_FILE_SELECT_COLUMNS,
   DATABASE_FILE_SELECT_COLUMNS_WITH_DELETED_DOMAIN,
 } from "./sqlFragments.js";
-import { listFileTags } from "./fileTagsRepository.js";
+import { listFileTagsByFileIds } from "./fileTagsRepository.js";
+
+export interface ThumbnailSourceRecord {
+  fileId: number;
+  sourcePath: string;
+  sha256: string;
+  extension: string | null;
+  width: number | null;
+  height: number | null;
+}
 
 export function listDatabaseFiles(
   page: number,
@@ -83,6 +93,50 @@ export function listBrowserFiles(): BrowserFileRecord[] {
     .all() as DatabaseFileRecord[];
 
   return attachActiveRatings(db, rows.map(toBrowserFileRecord));
+}
+
+export function listBrowserFileIds(): number[] {
+  const db = getDatabaseConnection();
+  const rows = db
+    .prepare(
+      `SELECT id
+       FROM files
+       WHERE deleted_at IS NULL
+       ORDER BY imported_at DESC, id DESC`,
+    )
+    .all() as Array<{ id: number }>;
+
+  return rows.map((row) => row.id);
+}
+
+export function listBrowserFilesByIds(fileIds: number[]): BrowserFileRecord[] {
+  const db = getDatabaseConnection();
+  const normalizedFileIds = normalizeFileIds(fileIds);
+
+  if (normalizedFileIds.length === 0) {
+    return [];
+  }
+
+  const placeholders = createPlaceholders(normalizedFileIds.length);
+  const rows = db
+    .prepare(
+      `SELECT
+        ${DATABASE_FILE_SELECT_COLUMNS}
+       FROM files
+       WHERE deleted_at IS NULL
+         AND id IN (${placeholders})`,
+    )
+    .all(...normalizedFileIds) as DatabaseFileRecord[];
+  const filesById = new Map(
+    attachActiveRatings(db, rows.map(toBrowserFileRecord)).map((file) => [
+      file.id,
+      file,
+    ]),
+  );
+
+  return normalizedFileIds
+    .map((fileId) => filesById.get(fileId))
+    .filter((file): file is BrowserFileRecord => Boolean(file));
 }
 
 export function listBrowserFilePage(
@@ -177,6 +231,8 @@ export function listFilesForExport(fileIds: number[]): ExportFileRecord[] {
     )
     .all(...normalizedFileIds) as DatabaseFileRecord[];
   const filesById = new Map(rows.map((row) => [row.id, row]));
+  const tagsByFileId = listFileTagsByFileIds(normalizedFileIds);
+  const ratingsByFileId = listFileRatingsByFileIds(db, normalizedFileIds);
 
   return normalizedFileIds
     .map((fileId) => filesById.get(fileId))
@@ -184,8 +240,8 @@ export function listFilesForExport(fileIds: number[]): ExportFileRecord[] {
     .map((file) => ({
       ...file,
       sourcePath: file.storagePath ?? file.originalPath,
-      tags: listFileTags(file.id),
-      ratings: listFileRatingsForExport(db, file.id),
+      tags: tagsByFileId.get(file.id) ?? [],
+      ratings: ratingsByFileId.get(file.id) ?? [],
     }));
 }
 
@@ -204,17 +260,23 @@ export function getFileOriginalPath(id: number): string | null {
 
 export function getFileThumbnailSource(
   id: number,
-): {
-  sourcePath: string;
-  sha256: string;
-  extension: string | null;
-  width: number | null;
-  height: number | null;
-} | null {
+): ThumbnailSourceRecord | null {
+  return listThumbnailSources([id])[0] ?? null;
+}
+
+export function listThumbnailSources(fileIds: number[]): ThumbnailSourceRecord[] {
   const db = getDatabaseConnection();
-  const row = db
+  const normalizedFileIds = normalizeFileIds(fileIds);
+
+  if (normalizedFileIds.length === 0) {
+    return [];
+  }
+
+  const placeholders = createPlaceholders(normalizedFileIds.length);
+  const rows = db
     .prepare(
       `SELECT
+        id AS fileId,
         sha256,
         extension,
         width,
@@ -222,30 +284,67 @@ export function getFileThumbnailSource(
         storage_path AS storagePath,
         original_path AS originalPath
        FROM files
-       WHERE id = ?`,
+       WHERE id IN (${placeholders})`,
     )
-    .get(id) as
-    | {
-        sha256: string;
-        extension: string | null;
-        width: number | null;
-        height: number | null;
-        storagePath: string | null;
-        originalPath: string;
-      }
-    | undefined;
+    .all(...normalizedFileIds) as Array<{
+    fileId: number;
+    sha256: string;
+    extension: string | null;
+    width: number | null;
+    height: number | null;
+    storagePath: string | null;
+    originalPath: string;
+  }>;
+  const rowsById = new Map(rows.map((row) => [row.fileId, row]));
 
-  if (!row) {
-    return null;
-  }
+  return normalizedFileIds
+    .map((fileId) => rowsById.get(fileId))
+    .filter((row): row is NonNullable<typeof row> => Boolean(row))
+    .map(toThumbnailSourceRecord);
+}
 
-  return {
-    sourcePath: row.storagePath ?? row.originalPath,
-    sha256: row.sha256,
-    extension: row.extension,
-    width: row.width,
-    height: row.height,
-  };
+export function listThumbnailCandidates(): ThumbnailSourceRecord[] {
+  const db = getDatabaseConnection();
+  const extensions = [...IMAGE_EXTENSIONS, ...VIDEO_EXTENSIONS];
+  const placeholders = createPlaceholders(extensions.length);
+  const originalPathExtensionFilters = extensions
+    .map(() => "lower(original_path) LIKE ?")
+    .join(" OR ");
+  const rows = db
+    .prepare(
+      `SELECT
+        id AS fileId,
+        sha256,
+        extension,
+        width,
+        height,
+        storage_path AS storagePath,
+        original_path AS originalPath
+       FROM files
+       WHERE deleted_at IS NULL
+         AND (
+           lower(replace(coalesce(extension, ''), '.', '')) IN (${placeholders})
+           OR (
+             extension IS NULL
+             AND (${originalPathExtensionFilters})
+           )
+         )
+       ORDER BY imported_at DESC, id DESC`,
+    )
+    .all(
+      ...extensions,
+      ...extensions.map((extension) => `%.${extension}`),
+    ) as Array<{
+    fileId: number;
+    sha256: string;
+    extension: string | null;
+    width: number | null;
+    height: number | null;
+    storagePath: string | null;
+    originalPath: string;
+  }>;
+
+  return rows.map(toThumbnailSourceRecord);
 }
 
 export function updateFileDimensions(
@@ -364,6 +463,20 @@ export function restoreFiles(fileIds: number[]): void {
   ).run(...normalizedFileIds);
 }
 
+export function restoreAllTrashedFiles(): number {
+  const db = getDatabaseConnection();
+  const result = db
+    .prepare(
+      `UPDATE files
+       SET deleted_at = NULL,
+           updated_at = datetime('now')
+       WHERE deleted_at IS NOT NULL`,
+    )
+    .run();
+
+  return result.changes;
+}
+
 export function deleteFilesPermanently(
   fileIds: number[],
 ): DatabaseFileRecord[] {
@@ -387,6 +500,26 @@ export function deleteFilesPermanently(
   db.prepare(`DELETE FROM files WHERE id IN (${placeholders})`).run(
     ...normalizedFileIds,
   );
+
+  return files;
+}
+
+export function deleteAllTrashedFilesPermanently(): DatabaseFileRecord[] {
+  const db = getDatabaseConnection();
+  const files = db
+    .prepare(
+      `SELECT
+        ${DATABASE_FILE_SELECT_COLUMNS_WITH_DELETED_DOMAIN}
+       FROM files
+       WHERE deleted_at IS NOT NULL`,
+    )
+    .all() as DatabaseFileRecord[];
+
+  if (files.length === 0) {
+    return [];
+  }
+
+  db.prepare("DELETE FROM files WHERE deleted_at IS NOT NULL").run();
 
   return files;
 }
@@ -456,9 +589,7 @@ function normalizeBrowserPage(value: number): number {
 }
 
 function normalizeBrowserPageSize(value: number): number {
-  return Number.isInteger(value) && value > 0
-    ? Math.min(500, Math.max(1, value))
-    : 100;
+  return Number.isInteger(value) && value > 0 ? value : 100;
 }
 
 function createBrowserFileSortSql(request: BrowserFilePageRequest): string {
@@ -549,4 +680,66 @@ export function listFileRatingsForExport(
        ORDER BY rating_groups.id ASC, rating_entries.sort_order ASC, rating_entries.id ASC`,
     )
     .all(fileId) as FileRatingRecord[];
+}
+
+function listFileRatingsByFileIds(
+  db: Database.Database,
+  fileIds: number[],
+): Map<number, FileRatingRecord[]> {
+  const ratingsByFileId = new Map<number, FileRatingRecord[]>();
+
+  if (fileIds.length === 0) {
+    return ratingsByFileId;
+  }
+
+  const placeholders = createPlaceholders(fileIds.length);
+  const rows = db
+    .prepare(
+      `SELECT
+        file_ratings.file_id AS fileId,
+        rating_groups.id AS groupId,
+        rating_groups.name AS groupName,
+        rating_entries.id AS entryId,
+        rating_entries.label,
+        rating_entries.color
+       FROM file_ratings
+       JOIN rating_entries ON rating_entries.id = file_ratings.entry_id
+       JOIN rating_groups ON rating_groups.id = rating_entries.group_id
+       WHERE file_ratings.file_id IN (${placeholders})
+       ORDER BY file_ratings.file_id ASC, rating_groups.id ASC, rating_entries.sort_order ASC, rating_entries.id ASC`,
+    )
+    .all(...fileIds) as Array<FileRatingRecord & { fileId: number }>;
+
+  for (const row of rows) {
+    const ratings = ratingsByFileId.get(row.fileId) ?? [];
+    ratings.push({
+      groupId: row.groupId,
+      groupName: row.groupName,
+      entryId: row.entryId,
+      label: row.label,
+      color: row.color,
+    });
+    ratingsByFileId.set(row.fileId, ratings);
+  }
+
+  return ratingsByFileId;
+}
+
+function toThumbnailSourceRecord(row: {
+  fileId: number;
+  sha256: string;
+  extension: string | null;
+  width: number | null;
+  height: number | null;
+  storagePath: string | null;
+  originalPath: string;
+}): ThumbnailSourceRecord {
+  return {
+    fileId: row.fileId,
+    sourcePath: row.storagePath ?? row.originalPath,
+    sha256: row.sha256,
+    extension: row.extension,
+    width: row.width,
+    height: row.height,
+  };
 }

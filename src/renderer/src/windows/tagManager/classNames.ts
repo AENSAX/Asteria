@@ -1,6 +1,8 @@
+import { getButtonClassName } from "../../components/Button";
+
 export const managerInputClass =
   "ui-input";
-export const managerButtonClass = "ui-button ui-button-md";
+export const managerButtonClass = getButtonClassName({ size: "medium" });
 export const tagCatalogRowClass =
   "absolute left-0 right-0 grid w-full grid-cols-[minmax(0,1fr)_64px] items-center gap-2 border-0 border-b border-(--line) bg-transparent px-2 text-left text-[12px] text-(--ink) hover:bg-(--accent-weak)";
 export const tagCatalogHeadClass =

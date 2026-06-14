@@ -20,6 +20,7 @@ import {
 } from "../utils/interfaceSettings";
 import { filesChangedAffectsBrowserPage } from "../utils/filesChanged";
 import { confirmDuplicateImports } from "../utils/importConfirm";
+import { markInternalFileDrag } from "../utils/internalFileDrag";
 import { isImageExtension, isVideoExtension } from "../utils/media";
 import { useLanguage } from "../utils/language";
 
@@ -38,6 +39,12 @@ interface BrowserGalleryItem {
   file: BrowserDisplayFile;
   index: number;
   width: number;
+  height: number;
+}
+
+interface BrowserGalleryRow {
+  items: BrowserGalleryItem[];
+  top: number;
   height: number;
 }
 
@@ -62,6 +69,9 @@ export interface BrowserViewState {
 
 const DECODED_PREVIEW_CACHE_LIMIT = 384;
 const BROWSER_GALLERY_GAP = 12;
+const BROWSER_VIRTUAL_OVERSCAN_PX = 900;
+const THUMBNAIL_PRELOAD_BATCH_SIZE = 64;
+const THUMBNAIL_PRELOAD_BATCH_DELAY_MS = 40;
 const defaultAiSettings: AiSettings = {
   modelPath: "",
   modelName: "",
@@ -79,11 +89,12 @@ const decodedPreviewCache = new Map<
   }
 >();
 const browserRootClass =
-  "grid h-full min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_24px] bg-(--panel)";
+  "grid h-full min-h-0 min-w-0 overflow-hidden grid-rows-[minmax(0,1fr)_24px] bg-(--panel)";
 const browserGridClass =
   "relative min-h-0 overflow-auto p-3";
+const browserGalleryViewportClass = "relative";
 const browserGalleryRowClass =
-  "browser-gallery-row flex items-start gap-3";
+  "browser-gallery-row absolute top-0 left-0 flex items-start gap-3";
 const browserCellClass =
   "browser-file-cell relative inline-grid cursor-default";
 const browserCellPendingClass = "pending";
@@ -135,6 +146,8 @@ export function FileBrowserView({
     () => loadInterfaceSettings().browserPreviewSize,
   );
   const [gridWidth, setGridWidth] = useState(0);
+  const [gridHeight, setGridHeight] = useState(0);
+  const [scrollTop, setScrollTop] = useState(0);
   const [runtimeDimensions, setRuntimeDimensions] = useState<
     Record<number, BrowserRuntimeDimensions>
   >({});
@@ -158,6 +171,14 @@ export function FileBrowserView({
   const gridRef = useRef<HTMLDivElement | null>(null);
   const onSelectionChangeRef = useRef(onSelectionChange);
   const deferredPressFileIdRef = useRef<number | null>(null);
+  const pendingRuntimeDimensionsRef = useRef<
+    Record<number, BrowserRuntimeDimensions>
+  >({});
+  const runtimeDimensionsFrameRef = useRef<number | null>(null);
+  const pendingScrollTopRef = useRef(0);
+  const scrollFrameRef = useRef<number | null>(null);
+  const thumbnailPreloadTimerRef = useRef<number | null>(null);
+  const thumbnailPreloadRunRef = useRef(0);
   const sortedFiles = useMemo(
     () =>
       importQueueMode
@@ -182,13 +203,25 @@ export function FileBrowserView({
   );
   const galleryRows = useMemo(
     () =>
-      createJustifiedGalleryRows(
+      createPositionedGalleryRows(
         pageFiles,
         gridWidth,
         previewSize,
         runtimeDimensions,
       ),
     [gridWidth, pageFiles, previewSize, runtimeDimensions],
+  );
+  const virtualGallery = useMemo(
+    () => createVirtualGallery(galleryRows, scrollTop, gridHeight),
+    [galleryRows, gridHeight, scrollTop],
+  );
+  const visiblePreviewIdSet = useMemo(
+    () => new Set(visiblePreviewIds),
+    [visiblePreviewIds],
+  );
+  const visiblePreviewFiles = useMemo(
+    () => virtualGallery.rows.flatMap((row) => row.items.map((item) => item.file)),
+    [virtualGallery.rows],
   );
   const pageEndIndex = pageStartIndex + pageFiles.length;
   const boxSelection = useBoxSelection({
@@ -235,6 +268,23 @@ export function FileBrowserView({
     onSelectionChangeRef.current = onSelectionChange;
   }, [onSelectionChange]);
 
+  useEffect(
+    () => () => {
+      if (runtimeDimensionsFrameRef.current !== null) {
+        window.cancelAnimationFrame(runtimeDimensionsFrameRef.current);
+      }
+
+      if (scrollFrameRef.current !== null) {
+        window.cancelAnimationFrame(scrollFrameRef.current);
+      }
+
+      if (thumbnailPreloadTimerRef.current !== null) {
+        window.clearTimeout(thumbnailPreloadTimerRef.current);
+      }
+    },
+    [],
+  );
+
   useEffect(() => {
     onSelectionChangeRef.current(pendingFileIds);
   }, [pendingFileIds]);
@@ -266,7 +316,23 @@ export function FileBrowserView({
       grid.scrollTop = 0;
     }
 
+    setScrollTop(0);
+    pendingScrollTopRef.current = 0;
+
+    if (scrollFrameRef.current !== null) {
+      window.cancelAnimationFrame(scrollFrameRef.current);
+      scrollFrameRef.current = null;
+    }
+
+    cancelScheduledThumbnailPreload();
     setVisiblePreviewIds([]);
+    pendingRuntimeDimensionsRef.current = {};
+
+    if (runtimeDimensionsFrameRef.current !== null) {
+      window.cancelAnimationFrame(runtimeDimensionsFrameRef.current);
+      runtimeDimensionsFrameRef.current = null;
+    }
+
     setPendingFileIds((currentIds) =>
       currentIds.filter((id) => pageFiles.some((file) => file.id === id)),
     );
@@ -284,23 +350,26 @@ export function FileBrowserView({
 
     if (!grid) {
       setGridWidth(0);
+      setGridHeight(0);
       return undefined;
     }
 
-    function updateGridWidth(): void {
+    function updateGridSize(): void {
       const currentGrid = gridRef.current;
 
       if (!currentGrid) {
         setGridWidth(0);
+        setGridHeight(0);
         return;
       }
 
       setGridWidth(Math.max(0, currentGrid.clientWidth - 24));
+      setGridHeight(currentGrid.clientHeight);
     }
 
-    updateGridWidth();
+    updateGridSize();
 
-    const observer = new ResizeObserver(updateGridWidth);
+    const observer = new ResizeObserver(updateGridSize);
     observer.observe(grid);
 
     return () => {
@@ -309,28 +378,28 @@ export function FileBrowserView({
   }, []);
 
   useEffect(() => {
-    setVisiblePreviewIds(pageFiles.map((file) => file.id));
-  }, [pageFiles]);
+    const nextVisiblePreviewIds = visiblePreviewFiles.map((file) => file.id);
+    setVisiblePreviewIds((currentIds) =>
+      areNumberArraysEqual(currentIds, nextVisiblePreviewIds)
+        ? currentIds
+        : nextVisiblePreviewIds,
+    );
+  }, [visiblePreviewFiles]);
 
   useEffect(() => {
-    if (visiblePreviewIds.length === 0) {
+    if (visiblePreviewFiles.length === 0) {
+      cancelScheduledThumbnailPreload();
       return;
     }
 
-    const visibleFiles = pageFiles.filter((file) =>
-      visiblePreviewIds.includes(file.id),
-    );
-    const thumbnailFileIds = visibleFiles
+    const thumbnailFileIds = visiblePreviewFiles
       .filter(usesThumbnailPreview)
       .map((file) => file.id);
 
-    if (thumbnailFileIds.length > 0) {
-      void window.asteria?.preloadThumbnails(thumbnailFileIds);
-    }
-
-    warmDecodedPreviewCache(visibleFiles);
+    scheduleThumbnailPreload(thumbnailFileIds);
+    warmDecodedPreviewCache(visiblePreviewFiles);
     setCachedPreviewUrls(getDecodedPreviewCacheUrls());
-  }, [pageFiles, visiblePreviewIds]);
+  }, [visiblePreviewFiles]);
 
   useShortcut("select-all", () => {
     const fileIds = pageFiles.map((file) => file.id);
@@ -402,15 +471,34 @@ export function FileBrowserView({
   }, [importQueueMode]);
 
   useEffect(() => {
-    function closeContextMenu(): void {
-      setContextMenu(null);
-      setBlankContextMenu(null);
+    function handleWindowMouseDown(event: MouseEvent): void {
+      const targetElement =
+        event.target instanceof Element ? event.target : null;
+
+      if (event.button === 0 && !targetElement?.closest(".context-menu")) {
+        setContextMenu(null);
+        setBlankContextMenu(null);
+      }
+
+      if (isScrollbarMouseTarget(event.target, event.clientX, event.clientY)) {
+        return;
+      }
+
+      if (targetElement?.closest(".browser-file-cell, .context-menu")) {
+        return;
+      }
+
+      if (targetElement?.closest("[data-workbench-view]")) {
+        return;
+      }
+
+      clearFileSelection();
     }
 
-    window.addEventListener("mousedown", closeContextMenu);
+    window.addEventListener("mousedown", handleWindowMouseDown, true);
 
     return () => {
-      window.removeEventListener("mousedown", closeContextMenu);
+      window.removeEventListener("mousedown", handleWindowMouseDown, true);
     };
   }, []);
 
@@ -498,6 +586,61 @@ export function FileBrowserView({
     );
   }
 
+  function clearFileSelection(): void {
+    setPendingFileIds((currentIds) =>
+      currentIds.length > 0 ? [] : currentIds,
+    );
+    setLastPendingFileId((currentId) =>
+      currentId === null ? currentId : null,
+    );
+    deferredPressFileIdRef.current = null;
+  }
+
+  function isScrollbarMouseTarget(
+    target: EventTarget | null,
+    clientX: number,
+    clientY: number,
+  ): boolean {
+    const element = target instanceof HTMLElement ? target : null;
+
+    if (!element) {
+      return false;
+    }
+
+    const rect = element.getBoundingClientRect();
+    const verticalScrollbarWidth = element.offsetWidth - element.clientWidth;
+    const horizontalScrollbarHeight = element.offsetHeight - element.clientHeight;
+    const isVerticalScrollbar =
+      verticalScrollbarWidth > 0 &&
+      element.scrollHeight > element.clientHeight &&
+      clientX >= rect.right - verticalScrollbarWidth &&
+      clientX <= rect.right;
+    const isHorizontalScrollbar =
+      horizontalScrollbarHeight > 0 &&
+      element.scrollWidth > element.clientWidth &&
+      clientY >= rect.bottom - horizontalScrollbarHeight &&
+      clientY <= rect.bottom;
+
+    return isVerticalScrollbar || isHorizontalScrollbar;
+  }
+
+  function isBrowserBlankArea(
+    target: EventTarget | null,
+    container: HTMLElement,
+  ): boolean {
+    if (target === container) {
+      return true;
+    }
+
+    const element = target instanceof Element ? target : null;
+
+    if (!element || element.closest(".browser-file-cell")) {
+      return false;
+    }
+
+    return Boolean(element.closest("[data-browser-gallery-blank]"));
+  }
+
   async function toggleFavorite(file: BrowserDisplayFile): Promise<void> {
     if (importQueueMode || isImportQueueFile(file) || !window.asteria) {
       return;
@@ -573,40 +716,123 @@ export function FileBrowserView({
       return;
     }
 
-    window.asteria.startFileDrag(
-      pendingFileIds.includes(file.id) ? pendingFileIds : [file.id],
-    );
+    const draggedFileIds = pendingFileIds.includes(file.id)
+      ? pendingFileIds
+      : [file.id];
+
+    markInternalFileDrag();
+    window.asteria.startFileDrag(draggedFileIds);
   }
 
   function handleBrowserGridMouseDown(
     event: React.MouseEvent<HTMLDivElement>,
   ): void {
-    if (event.target === event.currentTarget) {
-      setPendingFileIds([]);
-      setLastPendingFileId(null);
+    if (
+      isScrollbarMouseTarget(event.target, event.clientX, event.clientY)
+    ) {
+      return;
+    }
+
+    if (isBrowserBlankArea(event.target, event.currentTarget)) {
+      clearFileSelection();
       setContextMenu(null);
       setBlankContextMenu(null);
     }
   }
 
+  function handleBrowserGridScroll(
+    event: React.UIEvent<HTMLDivElement>,
+  ): void {
+    pendingScrollTopRef.current = event.currentTarget.scrollTop;
+
+    if (scrollFrameRef.current !== null) {
+      return;
+    }
+
+    scrollFrameRef.current = window.requestAnimationFrame(() => {
+      scrollFrameRef.current = null;
+      setScrollTop((currentScrollTop) =>
+        currentScrollTop === pendingScrollTopRef.current
+          ? currentScrollTop
+          : pendingScrollTopRef.current,
+      );
+    });
+  }
+
+  function cancelScheduledThumbnailPreload(): void {
+    thumbnailPreloadRunRef.current += 1;
+
+    if (thumbnailPreloadTimerRef.current !== null) {
+      window.clearTimeout(thumbnailPreloadTimerRef.current);
+      thumbnailPreloadTimerRef.current = null;
+    }
+  }
+
+  function scheduleThumbnailPreload(fileIds: number[]): void {
+    if (!window.asteria || fileIds.length === 0) {
+      cancelScheduledThumbnailPreload();
+      return;
+    }
+
+    cancelScheduledThumbnailPreload();
+    const runId = thumbnailPreloadRunRef.current;
+    const normalizedFileIds = uniquePositiveIntegers(fileIds);
+    let offset = 0;
+
+    function preloadNextBatch(): void {
+      if (runId !== thumbnailPreloadRunRef.current || !window.asteria) {
+        return;
+      }
+
+      const batch = normalizedFileIds.slice(
+        offset,
+        offset + THUMBNAIL_PRELOAD_BATCH_SIZE,
+      );
+      offset += THUMBNAIL_PRELOAD_BATCH_SIZE;
+
+      if (batch.length > 0) {
+        void window.asteria.preloadThumbnails(batch);
+      }
+
+      if (offset < normalizedFileIds.length) {
+        thumbnailPreloadTimerRef.current = window.setTimeout(
+          preloadNextBatch,
+          THUMBNAIL_PRELOAD_BATCH_DELAY_MS,
+        );
+      } else {
+        thumbnailPreloadTimerRef.current = null;
+      }
+    }
+
+    thumbnailPreloadTimerRef.current = window.setTimeout(
+      preloadNextBatch,
+      THUMBNAIL_PRELOAD_BATCH_DELAY_MS,
+    );
+  }
+
   function handleBrowserGridMouseDownCapture(
     event: React.MouseEvent<HTMLDivElement>,
   ): void {
+    if (
+      isScrollbarMouseTarget(event.target, event.clientX, event.clientY)
+    ) {
+      return;
+    }
+
     boxSelection.handleMouseDownCapture(event);
   }
 
   function handleBrowserGridContextMenu(
     event: React.MouseEvent<HTMLDivElement>,
   ): void {
-    if (event.target !== event.currentTarget) {
+    if (!isBrowserBlankArea(event.target, event.currentTarget)) {
       return;
     }
 
     event.preventDefault();
     event.stopPropagation();
     setContextMenu(null);
-    setPendingFileIds([]);
-    setLastPendingFileId(null);
+    clearFileSelection();
     setBlankContextMenu({
       x: event.clientX,
       y: event.clientY,
@@ -897,17 +1123,49 @@ export function FileBrowserView({
       return;
     }
 
-    setRuntimeDimensions((current) => {
-      const existing = current[fileId];
+    pendingRuntimeDimensionsRef.current[fileId] = { width, height };
+    scheduleRuntimeDimensionsFlush();
+  }
 
-      if (existing?.width === width && existing.height === height) {
-        return current;
+  function scheduleRuntimeDimensionsFlush(): void {
+    if (runtimeDimensionsFrameRef.current !== null) {
+      return;
+    }
+
+    runtimeDimensionsFrameRef.current = window.requestAnimationFrame(() => {
+      runtimeDimensionsFrameRef.current = null;
+      flushRuntimeDimensions();
+    });
+  }
+
+  function flushRuntimeDimensions(): void {
+    const pendingEntries = Object.entries(pendingRuntimeDimensionsRef.current);
+    pendingRuntimeDimensionsRef.current = {};
+
+    if (pendingEntries.length === 0) {
+      return;
+    }
+
+    setRuntimeDimensions((current) => {
+      let changed = false;
+      const nextDimensions = { ...current };
+
+      for (const [fileIdText, dimensions] of pendingEntries) {
+        const fileId = Number(fileIdText);
+        const existing = current[fileId];
+
+        if (
+          existing?.width === dimensions.width &&
+          existing.height === dimensions.height
+        ) {
+          continue;
+        }
+
+        nextDimensions[fileId] = dimensions;
+        changed = true;
       }
 
-      return {
-        ...current,
-        [fileId]: { width, height },
-      };
+      return changed ? nextDimensions : current;
     });
   }
 
@@ -924,67 +1182,81 @@ export function FileBrowserView({
         onContextMenu={handleBrowserGridContextMenu}
         onMouseDownCapture={handleBrowserGridMouseDownCapture}
         onMouseDown={handleBrowserGridMouseDown}
+        onScroll={handleBrowserGridScroll}
       >
         {pageFiles.length > 0 ? (
-          galleryRows.map((row, rowIndex) => (
-            <div className={browserGalleryRowClass} key={rowIndex}>
-              {row.map(({ file, height, index, width }) => (
-                <article
-                  className={`${browserCellClass} ${pendingFileIds.includes(file.id) ? browserCellPendingClass : ""}`}
-                  data-box-select-id={file.id}
-                  draggable={!importQueueMode && !isImportQueueFile(file)}
-                  key={file.id}
-                  style={{
-                    height: `${height}px`,
-                    width: `${width}px`,
-                  }}
-                  onClick={() => handleBrowserFileClick(file)}
-                  onDragStart={(event) =>
-                    handleBrowserFileDragStart(event, file)
-                  }
-                  onMouseDown={(event) =>
-                    handleBrowserFilePress(event, file, index)
-                  }
-                  onContextMenu={(event) =>
-                    handleBrowserFileContextMenu(event, file)
-                  }
-                >
-                  {isImportQueueFile(file) ? (
-                    <div
-                      className={`${importBadgeClass} ${file.duplicate ? importBadgeDuplicateClass : ""}`}
-                      title={
-                        file.status === "failed"
-                          ? (file.errorMessage ?? undefined)
-                          : undefined
-                      }
-                    >
-                      {file.duplicate
-                        ? t("window.import.duplicate")
-                        : file.status === "failed"
-                          ? t("window.import.failed")
-                          : t("window.browser.pending")}
-                    </div>
-                  ) : (
-                    <>
-                      <FileRatingStack ratings={file.ratings} />
-                      <FavoriteButton
-                        active={Boolean(file.isFavorite)}
-                        onToggle={() => void toggleFavorite(file)}
-                      />
-                    </>
-                  )}
-                  <div className={browserMediaClass}>
-                    {renderBrowserMedia(
-                      file,
-                      visiblePreviewIds.includes(file.id) ||
-                        isPreviewCached(file, cachedPreviewUrls),
-                      handlePreviewImageLoad,
+          <div
+            className={browserGalleryViewportClass}
+            data-browser-gallery-blank
+            style={{ height: `${virtualGallery.totalHeight}px` }}
+          >
+            {virtualGallery.rows.map((row) => (
+              <div
+                className={browserGalleryRowClass}
+                key={row.items[0]?.file.id ?? row.top}
+                style={{
+                  height: `${row.height}px`,
+                  transform: `translateY(${row.top}px)`,
+                }}
+              >
+                {row.items.map(({ file, height, index, width }) => (
+                  <article
+                    className={`${browserCellClass} ${pendingFileIds.includes(file.id) ? browserCellPendingClass : ""}`}
+                    data-box-select-id={file.id}
+                    draggable={!importQueueMode && !isImportQueueFile(file)}
+                    key={file.id}
+                    style={{
+                      height: `${height}px`,
+                      width: `${width}px`,
+                    }}
+                    onClick={() => handleBrowserFileClick(file)}
+                    onDragStart={(event) =>
+                      handleBrowserFileDragStart(event, file)
+                    }
+                    onMouseDown={(event) =>
+                      handleBrowserFilePress(event, file, index)
+                    }
+                    onContextMenu={(event) =>
+                      handleBrowserFileContextMenu(event, file)
+                    }
+                  >
+                    {isImportQueueFile(file) ? (
+                      <div
+                        className={`${importBadgeClass} ${file.duplicate ? importBadgeDuplicateClass : ""}`}
+                        title={
+                          file.status === "failed"
+                            ? (file.errorMessage ?? undefined)
+                            : undefined
+                        }
+                      >
+                        {file.duplicate
+                          ? t("window.import.duplicate")
+                          : file.status === "failed"
+                            ? t("window.import.failed")
+                            : t("window.browser.pending")}
+                      </div>
+                    ) : (
+                      <>
+                        <FileRatingStack ratings={file.ratings} />
+                        <FavoriteButton
+                          active={Boolean(file.isFavorite)}
+                          onToggle={() => void toggleFavorite(file)}
+                        />
+                      </>
                     )}
-                  </div>
-                </article>
-              ))}
-            </div>
-          ))
+                    <div className={browserMediaClass}>
+                      {renderBrowserMedia(
+                        file,
+                        visiblePreviewIdSet.has(file.id) ||
+                          isPreviewCached(file, cachedPreviewUrls),
+                        handlePreviewImageLoad,
+                      )}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ))}
+          </div>
         ) : (
           <div className="text-(--muted)">{t("window.browser.noRecords")}</div>
         )}
@@ -1169,20 +1441,27 @@ export function FileBrowserView({
   );
 }
 
-function createJustifiedGalleryRows(
+function createPositionedGalleryRows(
   files: BrowserDisplayFile[],
   availableWidth: number,
   targetRowHeight: number,
   runtimeDimensions: Record<number, BrowserRuntimeDimensions>,
-): BrowserGalleryItem[][] {
+): BrowserGalleryRow[] {
   if (files.length === 0) {
     return [];
   }
 
   const rowWidth = Math.max(targetRowHeight, availableWidth);
-  const rows: BrowserGalleryItem[][] = [];
+  const rows: BrowserGalleryRow[] = [];
   let currentRow: BrowserGalleryDraftItem[] = [];
   let currentRatio = 0;
+  let top = 0;
+
+  function pushRow(items: BrowserGalleryItem[]): void {
+    const height = items[0]?.height ?? targetRowHeight;
+    rows.push({ items, top, height });
+    top += height + BROWSER_GALLERY_GAP;
+  }
 
   files.forEach((file, index) => {
     const ratio = getBrowserFileAspectRatio(file, runtimeDimensions[file.id]);
@@ -1193,19 +1472,101 @@ function createJustifiedGalleryRows(
     const naturalRowWidth = currentRatio * targetRowHeight + gapWidth;
 
     if (naturalRowWidth >= rowWidth) {
-      rows.push(
-        createGalleryRow(currentRow, rowWidth, targetRowHeight, true),
-      );
+      pushRow(createGalleryRow(currentRow, rowWidth, targetRowHeight, true));
       currentRow = [];
       currentRatio = 0;
     }
   });
 
   if (currentRow.length > 0) {
-    rows.push(createGalleryRow(currentRow, rowWidth, targetRowHeight, false));
+    pushRow(createGalleryRow(currentRow, rowWidth, targetRowHeight, false));
   }
 
   return rows;
+}
+
+function createVirtualGallery(
+  rows: BrowserGalleryRow[],
+  scrollTop: number,
+  viewportHeight: number,
+): { rows: BrowserGalleryRow[]; totalHeight: number } {
+  if (rows.length === 0) {
+    return { rows: [], totalHeight: 0 };
+  }
+
+  const lastRow = rows[rows.length - 1];
+
+  if (!lastRow) {
+    return { rows: [], totalHeight: 0 };
+  }
+
+  const totalHeight = lastRow.top + lastRow.height;
+  const viewportStart = Math.max(0, scrollTop - BROWSER_VIRTUAL_OVERSCAN_PX);
+  const viewportEnd =
+    scrollTop + Math.max(1, viewportHeight) + BROWSER_VIRTUAL_OVERSCAN_PX;
+  const startIndex = findFirstGalleryRowAfter(rows, viewportStart);
+  const endIndex = findFirstGalleryRowAtOrAfter(rows, viewportEnd);
+
+  return {
+    rows: rows.slice(startIndex, endIndex),
+    totalHeight,
+  };
+}
+
+function findFirstGalleryRowAfter(
+  rows: BrowserGalleryRow[],
+  viewportStart: number,
+): number {
+  let low = 0;
+  let high = rows.length;
+
+  while (low < high) {
+    const middle = Math.floor((low + high) / 2);
+    const row = rows[middle];
+
+    if (row && row.top + row.height < viewportStart) {
+      low = middle + 1;
+    } else {
+      high = middle;
+    }
+  }
+
+  return low;
+}
+
+function findFirstGalleryRowAtOrAfter(
+  rows: BrowserGalleryRow[],
+  viewportEnd: number,
+): number {
+  let low = 0;
+  let high = rows.length;
+
+  while (low < high) {
+    const middle = Math.floor((low + high) / 2);
+    const row = rows[middle];
+
+    if (row && row.top <= viewportEnd) {
+      low = middle + 1;
+    } else {
+      high = middle;
+    }
+  }
+
+  return low;
+}
+
+function areNumberArraysEqual(left: number[], right: number[]): boolean {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  return left.every((value, index) => value === right[index]);
+}
+
+function uniquePositiveIntegers(values: number[]): number[] {
+  return Array.from(
+    new Set(values.filter((value) => Number.isInteger(value) && value > 0)),
+  );
 }
 
 function createGalleryRow(

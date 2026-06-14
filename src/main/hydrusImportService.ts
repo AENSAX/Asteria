@@ -1,5 +1,5 @@
 import { app, type WebContents } from "electron";
-import { request as requestHttp } from "node:http";
+import { request as requestHttp, type ClientRequest } from "node:http";
 import { request as requestHttps } from "node:https";
 import { mkdir, rm, stat, writeFile } from "node:fs/promises";
 import { extname, join } from "node:path";
@@ -14,12 +14,17 @@ import type {
   HydrusImportOptions,
   HydrusImportProgress,
   TagDraft,
+  WorkStatus,
 } from "../shared/ipc.js";
 import { IpcEvent } from "../shared/ipcChannels.js";
 
 const DEFAULT_METADATA_BATCH_SIZE = 100;
 const HYDRUS_REQUEST_TIMEOUT_MS = 10_000;
 let hydrusImportCanceled = false;
+let hydrusImportActive = false;
+let hydrusImportStatus: WorkStatus = createIdleHydrusImportWorkStatus();
+let hydrusImportStatusListener: ((status: WorkStatus) => void) | null = null;
+const activeHydrusRequests = new Set<ClientRequest>();
 
 interface HydrusFileMetadata {
   file_id?: number;
@@ -44,6 +49,17 @@ interface HydrusImportCounters {
 interface HydrusFileImportResult {
   status: "imported" | "duplicated" | "skipped" | "failed";
   message: string;
+}
+
+export function setHydrusImportStatusListener(
+  listener: (status: WorkStatus) => void,
+): void {
+  hydrusImportStatusListener = listener;
+  emitHydrusImportStatus();
+}
+
+export function getHydrusImportWorkStatus(): WorkStatus {
+  return hydrusImportStatus;
 }
 
 export async function testHydrusConnection(
@@ -91,6 +107,11 @@ export async function importFromHydrus(
   sender: WebContents,
   options: HydrusImportOptions,
 ): Promise<HydrusImportProgress> {
+  if (hydrusImportActive) {
+    throw new Error("Hydrus 导入正在进行");
+  }
+
+  hydrusImportActive = true;
   hydrusImportCanceled = false;
   const normalizedOptions = normalizeHydrusImportOptions(options);
   const baseUrl = normalizeHydrusBaseUrl(normalizedOptions.baseUrl);
@@ -230,6 +251,10 @@ export async function importFromHydrus(
           );
         }
       } catch (error) {
+        if (hydrusImportCanceled) {
+          throw error;
+        }
+
         counters.failed += 1;
         emitHydrusProgress(
           sender,
@@ -273,11 +298,32 @@ export async function importFromHydrus(
     });
     emitHydrusProgress(sender, failed);
     return failed;
+  } finally {
+    await cleanupHydrusRuntimeDirectory();
+    hydrusImportActive = false;
+    hydrusImportCanceled = false;
   }
 }
 
 export function cancelHydrusImport(): void {
+  if (!hydrusImportActive) {
+    return;
+  }
+
   hydrusImportCanceled = true;
+
+  if (hydrusImportStatus.active) {
+    hydrusImportStatus = {
+      ...hydrusImportStatus,
+      message: "正在取消 Hydrus 导入",
+      messageKey: "app.workStatus.hydrusCanceling",
+    };
+    emitHydrusImportStatus();
+  }
+
+  for (const request of activeHydrusRequests) {
+    request.destroy(new Error("已取消 Hydrus 导入"));
+  }
 }
 
 async function searchHydrusFileIds(
@@ -350,13 +396,19 @@ async function importHydrusFile(
   let tempPath: string;
 
   try {
+    assertHydrusNotCanceled();
     tempPath = await downloadHydrusFile(
       baseUrl,
       options.accessKey,
       fileId,
       metadata,
     );
+    assertHydrusNotCanceled();
   } catch (error) {
+    if (hydrusImportCanceled) {
+      throw error;
+    }
+
     return {
       status: "failed",
       message: error instanceof Error ? error.message : "下载失败",
@@ -364,8 +416,11 @@ async function importHydrusFile(
   }
 
   try {
+    assertHydrusNotCanceled();
     const fileStat = await stat(tempPath);
+    assertHydrusNotCanceled();
     const sha256 = await hashFile(tempPath);
+    assertHydrusNotCanceled();
     const existing = findStoredFileForApiUpload(sha256);
 
     if (existing && !options.forceDuplicate) {
@@ -390,6 +445,7 @@ async function importHydrusFile(
           sizeBytes: fileStat.size,
         });
 
+    assertHydrusNotCanceled();
     createApiUploadedFileRecord({
       sha256,
       originalPath: `hydrus:${metadata.hash ?? fileId}`,
@@ -409,6 +465,10 @@ async function importHydrusFile(
       message: existing ? "创建重复对象" : "已导入",
     };
   } catch (error) {
+    if (hydrusImportCanceled) {
+      throw error;
+    }
+
     return {
       status: "failed",
       message: error instanceof Error ? error.message : "写入失败",
@@ -434,7 +494,7 @@ async function downloadHydrusFile(
   }
 
   const buffer = Buffer.from(await response.arrayBuffer());
-  const directory = join(app.getPath("userData"), "runtime", "hydrus-import");
+  const directory = getHydrusRuntimeDirectory();
   await mkdir(directory, { recursive: true });
 
   const extension =
@@ -442,6 +502,18 @@ async function downloadHydrusFile(
   const filePath = join(directory, `${metadata.hash ?? fileId}.${extension}`);
   await writeFile(filePath, buffer);
   return filePath;
+}
+
+async function cleanupHydrusRuntimeDirectory(): Promise<void> {
+  try {
+    await rm(getHydrusRuntimeDirectory(), { recursive: true, force: true });
+  } catch {
+    // Runtime import files are temporary; cleanup failure should not mask import results.
+  }
+}
+
+function getHydrusRuntimeDirectory(): string {
+  return join(app.getPath("userData"), "runtime", "hydrus-import");
 }
 
 function extractHydrusTags(value: unknown): TagDraft[] {
@@ -634,7 +706,27 @@ function requestHydrusUrl(url: URL, accessKey: string): Promise<Response> {
   const request = url.protocol === "https:" ? requestHttps : requestHttp;
 
   return new Promise((resolveRequest, rejectRequest) => {
+    assertHydrusNotCanceled();
     const headers: Record<string, string> = {};
+    let settled = false;
+
+    function resolveOnce(response: Response): void {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      resolveRequest(response);
+    }
+
+    function rejectOnce(error: Error): void {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      rejectRequest(error);
+    }
 
     if (accessKey) {
       headers["Hydrus-Client-API-Access-Key"] = accessKey;
@@ -651,11 +743,21 @@ function requestHydrusUrl(url: URL, accessKey: string): Promise<Response> {
         const chunks: Buffer[] = [];
 
         incomingMessage.on("data", (chunk: Buffer) => {
+          if (hydrusImportCanceled) {
+            clientRequest.destroy(new Error("已取消 Hydrus 导入"));
+            return;
+          }
+
           chunks.push(chunk);
         });
 
         incomingMessage.on("end", () => {
-          resolveRequest(
+          if (hydrusImportCanceled) {
+            rejectOnce(new Error("已取消 Hydrus 导入"));
+            return;
+          }
+
+          resolveOnce(
             new Response(Buffer.concat(chunks), {
               status: incomingMessage.statusCode ?? 0,
             }),
@@ -663,14 +765,24 @@ function requestHydrusUrl(url: URL, accessKey: string): Promise<Response> {
         });
       },
     );
+    activeHydrusRequests.add(clientRequest);
 
     clientRequest.on("timeout", () => {
       clientRequest.destroy(new Error("Hydrus API 请求超时"));
     });
 
     clientRequest.on("error", (error) => {
-      rejectRequest(error);
+      rejectOnce(error);
     });
+
+    clientRequest.on("close", () => {
+      activeHydrusRequests.delete(clientRequest);
+    });
+
+    if (hydrusImportCanceled) {
+      clientRequest.destroy(new Error("已取消 Hydrus 导入"));
+      return;
+    }
 
     clientRequest.end();
   });
@@ -725,5 +837,53 @@ function emitHydrusProgress(
   sender: WebContents,
   progress: HydrusImportProgress,
 ): void {
-  sender.send(IpcEvent.HYDRUS_IMPORT_PROGRESS, progress);
+  updateHydrusImportStatus(progress);
+
+  if (!sender.isDestroyed()) {
+    sender.send(IpcEvent.HYDRUS_IMPORT_PROGRESS, progress);
+  }
+}
+
+function updateHydrusImportStatus(progress: HydrusImportProgress): void {
+  hydrusImportStatus = toHydrusImportWorkStatus(progress);
+  emitHydrusImportStatus();
+}
+
+function emitHydrusImportStatus(): void {
+  hydrusImportStatusListener?.(hydrusImportStatus);
+}
+
+function toHydrusImportWorkStatus(progress: HydrusImportProgress): WorkStatus {
+  const active =
+    progress.phase === "testing" ||
+    progress.phase === "searching" ||
+    progress.phase === "metadata" ||
+    progress.phase === "importing";
+  const total = Math.max(0, progress.total);
+  const processed = Math.max(0, progress.processed);
+
+  if (!active) {
+    return createIdleHydrusImportWorkStatus();
+  }
+
+  return {
+    active: true,
+    message: progress.message || "正在从 Hydrus 导入",
+    messageKey: progress.messageKey ?? "app.workStatus.hydrusImporting",
+    ...(progress.messageValues ? { messageValues: progress.messageValues } : {}),
+    queued: Math.max(0, total - processed),
+    processing: 1,
+    completed: processed,
+  };
+}
+
+function createIdleHydrusImportWorkStatus(): WorkStatus {
+  return {
+    active: false,
+    message: "Hydrus 导入空闲",
+    messageKey: "app.workStatus.hydrusIdle",
+    queued: 0,
+    processing: 0,
+    completed: 0,
+  };
 }

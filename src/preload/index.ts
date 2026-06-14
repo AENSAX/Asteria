@@ -15,7 +15,11 @@ const api: AsteriaApi = {
     ipcRenderer.invoke(IpcChannel.DATABASE_LIST_FILES, page),
   listBrowserFilePage: (request) =>
     ipcRenderer.invoke(IpcChannel.BROWSER_LIST_FILE_PAGE, request),
+  listBrowserFileIds: () =>
+    ipcRenderer.invoke(IpcChannel.BROWSER_LIST_FILE_IDS),
   listBrowserFiles: () => ipcRenderer.invoke(IpcChannel.BROWSER_LIST_FILES),
+  listBrowserFilesByIds: (fileIds) =>
+    ipcRenderer.invoke(IpcChannel.BROWSER_LIST_FILES_BY_IDS, fileIds),
   searchBrowserFilePage: (request) =>
     ipcRenderer.invoke(IpcChannel.BROWSER_SEARCH_FILE_PAGE, request),
   listFavoriteFilePage: (request) =>
@@ -68,6 +72,9 @@ const api: AsteriaApi = {
   startFileDrag: (fileIds) => {
     ipcRenderer.send(IpcChannel.FILE_START_DRAG, fileIds);
   },
+  readClipboardText: () => ipcRenderer.invoke(IpcChannel.CLIPBOARD_READ_TEXT),
+  writeClipboardText: (text) =>
+    ipcRenderer.invoke(IpcChannel.CLIPBOARD_WRITE_TEXT, text),
   setWindowTitle: (title) =>
     ipcRenderer.invoke(IpcChannel.WINDOW_SET_TITLE, title),
   getFileDetail: (id) => ipcRenderer.invoke(IpcChannel.FILE_GET_DETAIL, id),
@@ -117,8 +124,12 @@ const api: AsteriaApi = {
     ipcRenderer.invoke(IpcChannel.TRASH_PUT_FILES, fileIds),
   restoreFiles: (fileIds) =>
     ipcRenderer.invoke(IpcChannel.TRASH_RESTORE_FILES, fileIds),
+  restoreAllTrashedFiles: () =>
+    ipcRenderer.invoke(IpcChannel.TRASH_RESTORE_ALL_FILES),
   deleteFilesPermanently: (fileIds) =>
     ipcRenderer.invoke(IpcChannel.TRASH_DELETE_FILES_PERMANENTLY, fileIds),
+  deleteAllTrashedFilesPermanently: () =>
+    ipcRenderer.invoke(IpcChannel.TRASH_DELETE_ALL_FILES_PERMANENTLY),
   setFilesDomain: (fileIds, domain) =>
     ipcRenderer.invoke(IpcChannel.FILE_SET_DOMAIN, fileIds, domain),
   listDomains: () => ipcRenderer.invoke(IpcChannel.DOMAIN_LIST),
@@ -194,14 +205,24 @@ const api: AsteriaApi = {
     ipcRenderer.invoke(IpcChannel.TAG_GET_RELATION_TREE, tagIds, kind),
   addTagParent: (childTagId, parentTagId) =>
     ipcRenderer.invoke(IpcChannel.TAG_ADD_PARENT, childTagId, parentTagId),
+  addTagParents: (pairs) =>
+    ipcRenderer.invoke(IpcChannel.TAG_ADD_PARENTS, pairs),
   removeTagParent: (childTagId, parentTagId) =>
     ipcRenderer.invoke(IpcChannel.TAG_REMOVE_PARENT, childTagId, parentTagId),
+  removeTagParents: (pairs) =>
+    ipcRenderer.invoke(IpcChannel.TAG_REMOVE_PARENTS, pairs),
   addTagSibling: (aliasTagId, canonicalTagId) =>
     ipcRenderer.invoke(IpcChannel.TAG_ADD_SIBLING, aliasTagId, canonicalTagId),
+  addTagSiblings: (pairs) =>
+    ipcRenderer.invoke(IpcChannel.TAG_ADD_SIBLINGS, pairs),
   removeTagSibling: (aliasTagId) =>
     ipcRenderer.invoke(IpcChannel.TAG_REMOVE_SIBLING, aliasTagId),
+  removeTagSiblings: (aliasTagIds) =>
+    ipcRenderer.invoke(IpcChannel.TAG_REMOVE_SIBLINGS, aliasTagIds),
   createManagedTag: (styleId, tag) =>
     ipcRenderer.invoke(IpcChannel.TAG_CREATE_MANAGED_TAG, styleId, tag),
+  createManagedTags: (styleId, tags) =>
+    ipcRenderer.invoke(IpcChannel.TAG_CREATE_MANAGED_TAGS, styleId, tags),
   renameManagedTag: (tagId, tag) =>
     ipcRenderer.invoke(IpcChannel.TAG_RENAME_MANAGED_TAG, tagId, tag),
   previewManagedTagRename: (tagId, tag) =>

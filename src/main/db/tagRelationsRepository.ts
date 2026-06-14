@@ -1,8 +1,11 @@
 import type Database from "better-sqlite3";
 import type {
+  BatchMutationResult,
+  TagParentPair,
   TagParentRecord,
   TagRecord,
   TagRelationTree,
+  TagSiblingPair,
   TagSiblingRecord,
 } from "../../shared/ipc.js";
 import { getDatabaseConnection } from "./connection.js";
@@ -57,39 +60,25 @@ export function addTagParent(
 ): TagParentRecord {
   const db = getDatabaseConnection();
 
+  return db.transaction(() => addTagParentInDb(db, childTagId, parentTagId))();
+}
+
+export function addTagParents(pairs: TagParentPair[]): BatchMutationResult {
+  const db = getDatabaseConnection();
+
   return db.transaction(() => {
-    const childId = readTagId(db, childTagId);
-    const parentId = readTagId(db, parentTagId);
+    const result = createBatchMutationResult();
 
-    if (childId === parentId) {
-      throw new Error("标签不能成为自己的父级");
+    for (const pair of pairs) {
+      try {
+        addTagParentInDb(db, pair.childTagId, pair.parentTagId);
+        result.succeeded += 1;
+      } catch (error) {
+        result.errors.push(readErrorMessage(error, "标签父子级关系创建失败"));
+      }
     }
 
-    const existing = db
-      .prepare(
-        "SELECT 1 FROM tag_parents WHERE child_tag_id = ? AND parent_tag_id = ?",
-      )
-      .get(childId, parentId) as { 1: number } | undefined;
-
-    if (existing) {
-      throw new Error("标签父子级关系已存在");
-    }
-
-    if (wouldCreateTagParentCycle(db, childId, parentId)) {
-      throw new Error("标签父子级关系不能形成循环");
-    }
-
-    db.prepare(
-      "INSERT INTO tag_parents (child_tag_id, parent_tag_id) VALUES (?, ?)",
-    ).run(childId, parentId);
-
-    const record = readTagParentRecord(db, childId, parentId);
-
-    if (!record) {
-      throw new Error("标签父子级关系创建失败");
-    }
-
-    return record;
+    return result;
   })();
 }
 
@@ -103,51 +92,59 @@ export function removeTagParent(childTagId: number, parentTagId: number): void {
   ).run(childId, parentId);
 }
 
+export function removeTagParents(pairs: TagParentPair[]): BatchMutationResult {
+  const db = getDatabaseConnection();
+
+  return db.transaction(() => {
+    const result = createBatchMutationResult();
+
+    for (const pair of pairs) {
+      try {
+        const childId = readTagId(db, pair.childTagId);
+        const parentId = readTagId(db, pair.parentTagId);
+        const change = db
+          .prepare(
+            "DELETE FROM tag_parents WHERE child_tag_id = ? AND parent_tag_id = ?",
+          )
+          .run(childId, parentId);
+
+        if (change.changes > 0) {
+          result.succeeded += 1;
+        }
+      } catch (error) {
+        result.errors.push(readErrorMessage(error, "标签父子级关系删除失败"));
+      }
+    }
+
+    return result;
+  })();
+}
+
 export function addTagSibling(
   aliasTagId: number,
   canonicalTagId: number,
 ): TagSiblingRecord {
   const db = getDatabaseConnection();
 
+  return db.transaction(() => addTagSiblingInDb(db, aliasTagId, canonicalTagId))();
+}
+
+export function addTagSiblings(pairs: TagSiblingPair[]): BatchMutationResult {
+  const db = getDatabaseConnection();
+
   return db.transaction(() => {
-    const aliasId = readTagId(db, aliasTagId);
-    const canonicalId = readTagId(db, canonicalTagId);
+    const result = createBatchMutationResult();
 
-    if (aliasId === canonicalId) {
-      throw new Error("别名标签不能指向自己");
+    for (const pair of pairs) {
+      try {
+        addTagSiblingInDb(db, pair.aliasTagId, pair.canonicalTagId);
+        result.succeeded += 1;
+      } catch (error) {
+        result.errors.push(readErrorMessage(error, "标签别名关系创建失败"));
+      }
     }
 
-    const aliasIsCanonical = db
-      .prepare("SELECT 1 FROM tag_siblings WHERE canonical_tag_id = ?")
-      .get(aliasId) as { 1: number } | undefined;
-
-    if (aliasIsCanonical) {
-      throw new Error("别名标签不能同时作为标准标签");
-    }
-
-    const canonicalIsAlias = db
-      .prepare("SELECT 1 FROM tag_siblings WHERE alias_tag_id = ?")
-      .get(canonicalId) as { 1: number } | undefined;
-
-    if (canonicalIsAlias) {
-      throw new Error("标准标签不能同时作为别名标签");
-    }
-
-    db.prepare(
-      `INSERT INTO tag_siblings (alias_tag_id, canonical_tag_id)
-       VALUES (?, ?)
-       ON CONFLICT(alias_tag_id) DO UPDATE SET
-         canonical_tag_id = excluded.canonical_tag_id,
-         created_at = datetime('now')`,
-    ).run(aliasId, canonicalId);
-
-    const record = readTagSiblingRecord(db, aliasId);
-
-    if (!record) {
-      throw new Error("标签别名关系创建失败");
-    }
-
-    return record;
+    return result;
   })();
 }
 
@@ -156,6 +153,31 @@ export function removeTagSibling(aliasTagId: number): void {
   const aliasId = readTagId(db, aliasTagId);
 
   db.prepare("DELETE FROM tag_siblings WHERE alias_tag_id = ?").run(aliasId);
+}
+
+export function removeTagSiblings(aliasTagIds: number[]): BatchMutationResult {
+  const db = getDatabaseConnection();
+
+  return db.transaction(() => {
+    const result = createBatchMutationResult();
+
+    for (const aliasTagId of normalizeTagIds(aliasTagIds)) {
+      try {
+        const aliasId = readTagId(db, aliasTagId);
+        const change = db
+          .prepare("DELETE FROM tag_siblings WHERE alias_tag_id = ?")
+          .run(aliasId);
+
+        if (change.changes > 0) {
+          result.succeeded += 1;
+        }
+      } catch (error) {
+        result.errors.push(readErrorMessage(error, "标签别名关系删除失败"));
+      }
+    }
+
+    return result;
+  })();
 }
 
 export function getDirectParentTagIds(tagId: number): number[] {
@@ -413,6 +435,98 @@ function wouldCreateTagParentCycle(
   parentTagId: number,
 ): boolean {
   return resolveParentTagIdsFromDb(db, [parentTagId]).includes(childTagId);
+}
+
+function addTagParentInDb(
+  db: Database.Database,
+  childTagId: number,
+  parentTagId: number,
+): TagParentRecord {
+  const childId = readTagId(db, childTagId);
+  const parentId = readTagId(db, parentTagId);
+
+  if (childId === parentId) {
+    throw new Error("标签不能成为自己的父级");
+  }
+
+  const existing = db
+    .prepare(
+      "SELECT 1 FROM tag_parents WHERE child_tag_id = ? AND parent_tag_id = ?",
+    )
+    .get(childId, parentId) as { 1: number } | undefined;
+
+  if (existing) {
+    throw new Error("标签父子级关系已存在");
+  }
+
+  if (wouldCreateTagParentCycle(db, childId, parentId)) {
+    throw new Error("标签父子级关系不能形成循环");
+  }
+
+  db.prepare(
+    "INSERT INTO tag_parents (child_tag_id, parent_tag_id) VALUES (?, ?)",
+  ).run(childId, parentId);
+
+  const record = readTagParentRecord(db, childId, parentId);
+
+  if (!record) {
+    throw new Error("标签父子级关系创建失败");
+  }
+
+  return record;
+}
+
+function addTagSiblingInDb(
+  db: Database.Database,
+  aliasTagId: number,
+  canonicalTagId: number,
+): TagSiblingRecord {
+  const aliasId = readTagId(db, aliasTagId);
+  const canonicalId = readTagId(db, canonicalTagId);
+
+  if (aliasId === canonicalId) {
+    throw new Error("别名标签不能指向自己");
+  }
+
+  const aliasIsCanonical = db
+    .prepare("SELECT 1 FROM tag_siblings WHERE canonical_tag_id = ?")
+    .get(aliasId) as { 1: number } | undefined;
+
+  if (aliasIsCanonical) {
+    throw new Error("别名标签不能同时作为标准标签");
+  }
+
+  const canonicalIsAlias = db
+    .prepare("SELECT 1 FROM tag_siblings WHERE alias_tag_id = ?")
+    .get(canonicalId) as { 1: number } | undefined;
+
+  if (canonicalIsAlias) {
+    throw new Error("标准标签不能同时作为别名标签");
+  }
+
+  db.prepare(
+    `INSERT INTO tag_siblings (alias_tag_id, canonical_tag_id)
+     VALUES (?, ?)
+     ON CONFLICT(alias_tag_id) DO UPDATE SET
+       canonical_tag_id = excluded.canonical_tag_id,
+       created_at = datetime('now')`,
+  ).run(aliasId, canonicalId);
+
+  const record = readTagSiblingRecord(db, aliasId);
+
+  if (!record) {
+    throw new Error("标签别名关系创建失败");
+  }
+
+  return record;
+}
+
+function createBatchMutationResult(): BatchMutationResult {
+  return { succeeded: 0, errors: [] };
+}
+
+function readErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
 }
 
 function normalizeExistingTagIds(

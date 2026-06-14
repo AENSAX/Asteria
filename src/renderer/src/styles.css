@@ -300,6 +300,10 @@ canvas {
   background: var(--panel);
 }
 
+.flexlayout__tab {
+  overflow: hidden;
+}
+
 .flexlayout__tabset_tabbar_outer,
 .flexlayout__tabset_tabbar_inner,
 .flexlayout__tabset_tabbar_inner_tab_container,
@@ -590,10 +594,6 @@ progress::-webkit-progress-value {
 
 .browser-file-cell {
   line-height: 0;
-}
-
-.browser-gallery-row + .browser-gallery-row {
-  margin-top: 12px;
 }
 
 .browser-file-media {

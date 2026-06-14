@@ -1,6 +1,8 @@
 import type { IpcMain, WebContents } from "electron";
 import type {
   BatchFileTagRecord,
+  BatchMutationResult,
+  CreateManagedTagsResult,
   DeleteManagedTagsResult,
   DeleteTagStyleResult,
   FileTagRecord,
@@ -11,10 +13,12 @@ import type {
   SearchHintRecord,
   SortDirection,
   TagDraft,
+  TagParentPair,
   TagParentRecord,
   TagRecord,
   TagRelationTree,
   TagRelationTreeKind,
+  TagSiblingPair,
   TagSiblingRecord,
   TagStyleRecord,
 } from "../../shared/ipc.js";
@@ -47,13 +51,21 @@ export interface TagHandlersContext {
     kind: TagRelationTreeKind,
   ) => TagRelationTree;
   addTagParent: (childTagId: number, parentTagId: number) => TagParentRecord;
+  addTagParents: (pairs: TagParentPair[]) => BatchMutationResult;
   removeTagParent: (childTagId: number, parentTagId: number) => void;
+  removeTagParents: (pairs: TagParentPair[]) => BatchMutationResult;
   addTagSibling: (
     aliasTagId: number,
     canonicalTagId: number,
   ) => TagSiblingRecord;
+  addTagSiblings: (pairs: TagSiblingPair[]) => BatchMutationResult;
   removeTagSibling: (aliasTagId: number) => void;
+  removeTagSiblings: (aliasTagIds: number[]) => BatchMutationResult;
   createManagedTag: (styleId: number, tag: TagDraft) => ManagedTagRecord;
+  createManagedTags: (
+    styleId: number,
+    tags: TagDraft[],
+  ) => CreateManagedTagsResult;
   renameManagedTag: (tagId: number, tag: TagDraft) => ManagedTagRecord;
   previewManagedTagRename: (
     tagId: number,
@@ -121,6 +133,64 @@ async function normalizeTagPair(
   }
 
   return [left, right];
+}
+
+function normalizeTagParentPairs(value: unknown): TagParentPair[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((item) => {
+    const pair = item as Partial<TagParentPair> | null;
+
+    return isPositiveInteger(pair?.childTagId) &&
+      isPositiveInteger(pair?.parentTagId)
+      ? [
+          {
+            childTagId: pair.childTagId,
+            parentTagId: pair.parentTagId,
+          },
+        ]
+      : [];
+  });
+}
+
+function normalizeTagSiblingPairs(value: unknown): TagSiblingPair[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((item) => {
+    const pair = item as Partial<TagSiblingPair> | null;
+
+    return isPositiveInteger(pair?.aliasTagId) &&
+      isPositiveInteger(pair?.canonicalTagId)
+      ? [
+          {
+            aliasTagId: pair.aliasTagId,
+            canonicalTagId: pair.canonicalTagId,
+          },
+        ]
+      : [];
+  });
+}
+
+function createEmptyBatchMutationResult(): BatchMutationResult {
+  return { succeeded: 0, errors: [] };
+}
+
+function broadcastRelationBatchResult(
+  context: TagHandlersContext,
+  result: BatchMutationResult,
+): BatchMutationResult {
+  if (result.succeeded > 0) {
+    context.broadcastFilesChanged({
+      kind: "relations",
+      fullRefresh: true,
+    });
+  }
+
+  return result;
 }
 
 export function registerTagHandlers(
@@ -250,6 +320,16 @@ export function registerTagHandlers(
       return parent;
     },
   );
+  ipcMain.handle(IpcChannel.TAG_ADD_PARENTS, (_event, pairs: unknown) => {
+    const normalizedPairs = normalizeTagParentPairs(pairs);
+
+    return normalizedPairs.length > 0
+      ? broadcastRelationBatchResult(
+          context,
+          context.addTagParents(normalizedPairs),
+        )
+      : createEmptyBatchMutationResult();
+  });
   ipcMain.handle(
     IpcChannel.TAG_REMOVE_PARENT,
     async (event, childTagId: unknown, parentTagId: unknown) => {
@@ -267,6 +347,16 @@ export function registerTagHandlers(
       });
     },
   );
+  ipcMain.handle(IpcChannel.TAG_REMOVE_PARENTS, (_event, pairs: unknown) => {
+    const normalizedPairs = normalizeTagParentPairs(pairs);
+
+    return normalizedPairs.length > 0
+      ? broadcastRelationBatchResult(
+          context,
+          context.removeTagParents(normalizedPairs),
+        )
+      : createEmptyBatchMutationResult();
+  });
   ipcMain.handle(
     IpcChannel.TAG_ADD_SIBLING,
     async (event, aliasTagId: unknown, canonicalTagId: unknown) => {
@@ -285,6 +375,16 @@ export function registerTagHandlers(
       return sibling;
     },
   );
+  ipcMain.handle(IpcChannel.TAG_ADD_SIBLINGS, (_event, pairs: unknown) => {
+    const normalizedPairs = normalizeTagSiblingPairs(pairs);
+
+    return normalizedPairs.length > 0
+      ? broadcastRelationBatchResult(
+          context,
+          context.addTagSiblings(normalizedPairs),
+        )
+      : createEmptyBatchMutationResult();
+  });
   ipcMain.handle(
     IpcChannel.TAG_REMOVE_SIBLING,
     async (event, aliasTagId: unknown) => {
@@ -302,6 +402,16 @@ export function registerTagHandlers(
       });
     },
   );
+  ipcMain.handle(IpcChannel.TAG_REMOVE_SIBLINGS, (_event, aliasTagIds) => {
+    const normalizedAliasTagIds = normalizeNumberArray(aliasTagIds);
+
+    return normalizedAliasTagIds.length > 0
+      ? broadcastRelationBatchResult(
+          context,
+          context.removeTagSiblings(normalizedAliasTagIds),
+        )
+      : createEmptyBatchMutationResult();
+  });
   ipcMain.handle(
     IpcChannel.TAG_CREATE_MANAGED_TAG,
     async (event, styleId: unknown, tag: unknown) => {
@@ -310,6 +420,40 @@ export function registerTagHandlers(
       }
 
       return context.createManagedTag(styleId, tag);
+    },
+  );
+  ipcMain.handle(
+    IpcChannel.TAG_CREATE_MANAGED_TAGS,
+    async (event, styleId: unknown, tags: unknown) => {
+      if (!isPositiveInteger(styleId) || !Array.isArray(tags)) {
+        throw await createLocalizedIpcError(event.sender, "tag.invalidTag");
+      }
+
+      const validTags = tags.filter(isTagDraft);
+      const invalidTagCount = tags.length - validTags.length;
+      const result: CreateManagedTagsResult =
+        validTags.length > 0
+          ? context.createManagedTags(styleId, validTags)
+          : { tags: [], errors: [] };
+
+      if (invalidTagCount > 0) {
+        const invalidTagMessage = (
+          await createLocalizedIpcError(event.sender, "tag.invalidTag")
+        ).message;
+
+        result.errors.push(
+          ...Array.from({ length: invalidTagCount }, () => invalidTagMessage),
+        );
+      }
+
+      if (result.tags.length > 0) {
+        context.broadcastFilesChanged({
+          kind: "tags",
+          fullRefresh: true,
+        });
+      }
+
+      return result;
     },
   );
   ipcMain.handle(

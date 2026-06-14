@@ -1,5 +1,6 @@
 import type Database from "better-sqlite3";
 import type {
+  CreateManagedTagsResult,
   DeleteManagedTagsResult,
   ManagedTagRecord,
   ManagedTagRenamePreview,
@@ -56,6 +57,41 @@ export function createManagedTag(
   tag: TagDraft,
 ): ManagedTagRecord {
   const db = getDatabaseConnection();
+
+  return db.transaction(() => createManagedTagInDb(db, styleId, tag))();
+}
+
+export function createManagedTags(
+  styleId: number,
+  tags: TagDraft[],
+): CreateManagedTagsResult {
+  const db = getDatabaseConnection();
+
+  return db.transaction(() => {
+    const result: CreateManagedTagsResult = {
+      tags: [],
+      errors: [],
+    };
+
+    for (const tag of tags) {
+      try {
+        result.tags.push(createManagedTagInDb(db, styleId, tag));
+      } catch (error) {
+        result.errors.push(
+          error instanceof Error ? error.message : "标签创建失败",
+        );
+      }
+    }
+
+    return result;
+  })();
+}
+
+function createManagedTagInDb(
+  db: Database.Database,
+  styleId: number,
+  tag: TagDraft,
+): ManagedTagRecord {
   const normalizedTag = normalizeTagDrafts([tag])[0];
 
   if (!Number.isInteger(styleId) || styleId <= 0) {

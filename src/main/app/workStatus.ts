@@ -5,6 +5,7 @@ import { IpcEvent } from "../../shared/ipcChannels.js";
 interface WorkStatusManagerOptions {
   getImageConversionWorkStatus: () => WorkStatus;
   getAiTaggingWorkStatus: () => WorkStatus;
+  getHydrusImportWorkStatus: () => WorkStatus;
   getThumbnailWorkStatus: () => WorkStatus;
 }
 
@@ -19,6 +20,7 @@ export interface WorkStatusManager {
 export function createWorkStatusManager({
   getImageConversionWorkStatus,
   getAiTaggingWorkStatus,
+  getHydrusImportWorkStatus,
   getThumbnailWorkStatus,
 }: WorkStatusManagerOptions): WorkStatusManager {
   let tagTranslationWorkStatus = createIdleTagTranslationWorkStatus();
@@ -38,6 +40,12 @@ export function createWorkStatusManager({
 
     if (tagTranslationWorkStatus.active) {
       return tagTranslationWorkStatus;
+    }
+
+    const hydrusImportStatus = getHydrusImportWorkStatus();
+
+    if (hydrusImportStatus.active) {
+      return hydrusImportStatus;
     }
 
     return getThumbnailWorkStatus();
