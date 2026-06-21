@@ -10,6 +10,7 @@ import {
   ensureTagStyleByName,
   getDefaultTagStyleId,
 } from "./tagStylesRepository.js";
+import { syncRatingsFromTagsForFiles } from "./systemTagsRepository.js";
 import {
   expandTagDraftsWithTranslation,
   normalizeTagDrafts,
@@ -287,6 +288,8 @@ function replaceApiFileTags(
       "INSERT OR IGNORE INTO file_tags (file_id, tag_id) VALUES (?, ?)",
     ).run(fileId, tagId);
   }
+
+  syncRatingsFromTagsForFiles(db, [fileId]);
 }
 
 function replaceApiFileUrls(

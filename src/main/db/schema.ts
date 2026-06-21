@@ -2,8 +2,13 @@ import type Database from "better-sqlite3";
 import { createApiFileIdentifier } from "./apiFilesRepository.js";
 import { FILE_DOMAIN_LIBRARY } from "./domainsRepository.js";
 import { DATABASE_FILE_SELECT_COLUMNS } from "./sqlFragments.js";
+import { ensureDefaultRatingsForFilesInDb } from "./ratingsRepository.js";
+import {
+  syncFavoriteTag,
+  syncRatingTagsForFiles,
+} from "./systemTagsRepository.js";
 
-const SCHEMA_VERSION = 11;
+const SCHEMA_VERSION = 13;
 const FILE_STORAGE_SETTING_KEY = "file_storage_path";
 const THUMBNAIL_STORAGE_SETTING_KEY = "thumbnail_storage_path";
 
@@ -205,6 +210,14 @@ export function runMigrations(
   if (currentVersion < 11) {
     migrateToTagSiblings(db);
   }
+
+  if (currentVersion < 12) {
+    migrateToRatingFavoriteTags(db);
+  }
+
+  if (currentVersion < 13) {
+    migrateToDefaultRatingEntries(db);
+  }
 }
 
 export function readSchemaVersion(db: Database.Database): number {
@@ -235,6 +248,78 @@ function migrateToApiFileIdentifiers(db: Database.Database): void {
       "INSERT INTO schema_migrations (version, name) VALUES (?, ?)",
     ).run(9, "api_file_identifiers");
   })();
+}
+
+function migrateToRatingFavoriteTags(db: Database.Database): void {
+  db.transaction(() => {
+    const favoriteRows = db
+      .prepare(
+        "SELECT id FROM files WHERE deleted_at IS NULL AND is_favorite = 1",
+      )
+      .all() as Array<{ id: number }>;
+
+    for (const row of favoriteRows) {
+      syncFavoriteTag(db, row.id, true);
+    }
+
+    const ratingRows = db
+      .prepare(
+        `SELECT
+          file_ratings.file_id AS fileId,
+          rating_entries.group_id AS groupId,
+          rating_entries.id AS entryId
+         FROM file_ratings
+         JOIN rating_entries ON rating_entries.id = file_ratings.entry_id
+         JOIN files ON files.id = file_ratings.file_id
+         WHERE files.deleted_at IS NULL
+         ORDER BY file_ratings.file_id ASC, rating_entries.group_id ASC`,
+      )
+      .all() as Array<{ fileId: number; groupId: number; entryId: number }>;
+    const entryIdsByFileAndGroup = new Map<string, number[]>();
+
+    for (const row of ratingRows) {
+      const key = `${row.fileId}:${row.groupId}`;
+      const entryIds = entryIdsByFileAndGroup.get(key) ?? [];
+      entryIds.push(row.entryId);
+      entryIdsByFileAndGroup.set(key, entryIds);
+    }
+
+    for (const [key, entryIds] of entryIdsByFileAndGroup) {
+      const [fileIdText, groupIdText] = key.split(":");
+      syncRatingTagsForFiles(
+        db,
+        [Number(fileIdText)],
+        Number(groupIdText),
+        entryIds,
+      );
+    }
+
+    ensureDefaultRatingsForFilesInDb(
+      db,
+      readActiveFileIds(db),
+    );
+
+    db.prepare(
+      "INSERT INTO schema_migrations (version, name) VALUES (?, ?)",
+    ).run(12, "rating_favorite_tags");
+  })();
+}
+
+function migrateToDefaultRatingEntries(db: Database.Database): void {
+  db.transaction(() => {
+    ensureDefaultRatingsForFilesInDb(db, readActiveFileIds(db));
+    db.prepare(
+      "INSERT INTO schema_migrations (version, name) VALUES (?, ?)",
+    ).run(13, "default_rating_entries");
+  })();
+}
+
+function readActiveFileIds(db: Database.Database): number[] {
+  return (
+    db
+      .prepare("SELECT id FROM files WHERE deleted_at IS NULL")
+      .all() as Array<{ id: number }>
+  ).map((row) => row.id);
 }
 
 function ensureApiFileIdentifiersSchema(db: Database.Database): void {

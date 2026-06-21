@@ -4,6 +4,7 @@ import type {
   AiSettings,
   BrowserFileRecord,
   ImportQueueFileRecord,
+  RatingEntryRecord,
   RatingGroupRecord,
   TagTranslationSettings,
 } from "../../../shared/ipc";
@@ -21,13 +22,18 @@ import {
 import { filesChangedAffectsBrowserPage } from "../utils/filesChanged";
 import { confirmDuplicateImports } from "../utils/importConfirm";
 import { markInternalFileDrag } from "../utils/internalFileDrag";
-import { isImageExtension, isVideoExtension } from "../utils/media";
+import {
+  isAudioExtension,
+  isImageExtension,
+  isVideoExtension,
+} from "../utils/media";
 import { useLanguage } from "../utils/language";
 
 interface FileBrowserViewProps {
   searchQuery: string;
   refreshSequence: number;
   importQueueMode: boolean;
+  importQueueKey: string;
   state: BrowserViewState;
   onImportQueueEmpty: () => void;
   onSelectionChange: (fileIds: number[]) => void;
@@ -115,6 +121,7 @@ const contextMenuClass = "context-menu";
 
 export function FileBrowserView({
   importQueueMode,
+  importQueueKey,
   onImportQueueEmpty,
   onSelectionChange,
   onStateChange,
@@ -130,6 +137,9 @@ export function FileBrowserView({
   const [activeRatingGroups, setActiveRatingGroups] = useState<
     RatingGroupRecord[]
   >([]);
+  const [ratingEntriesByGroupId, setRatingEntriesByGroupId] = useState<
+    Map<number, RatingEntryRecord[]>
+  >(new Map());
   const [message, setMessage] = useState(() => t("common.loading"));
   const [pendingFileIds, setPendingFileIds] = useState<number[]>([]);
   const [lastPendingFileId, setLastPendingFileId] = useState<number | null>(
@@ -525,7 +535,7 @@ export function FileBrowserView({
 
     try {
       const nextFiles = importQueueMode
-        ? await window.asteria.listImportQueueFiles()
+        ? await window.asteria.listImportQueueFiles(importQueueKey)
         : searchQuery
           ? await window.asteria.searchBrowserFilePage({
               query: searchQuery,
@@ -549,10 +559,27 @@ export function FileBrowserView({
       const nextRatingGroups = importQueueMode
         ? []
         : await window.asteria.listRatingGroups();
+      const nextActiveRatingGroups = nextRatingGroups.filter(
+        (group) => group.isActive,
+      );
+      const nextRatingEntriesByGroupId = new Map<
+        number,
+        RatingEntryRecord[]
+      >();
+
+      await Promise.all(
+        nextActiveRatingGroups.map(async (group) => {
+          nextRatingEntriesByGroupId.set(
+            group.id,
+            await window.asteria.listRatingEntries(group.id),
+          );
+        }),
+      );
       setFiles(nextDisplayFiles);
       setTotalFileCount(nextTotalCount);
       setVisiblePreviewIds([]);
-      setActiveRatingGroups(nextRatingGroups.filter((group) => group.isActive));
+      setActiveRatingGroups(nextActiveRatingGroups);
+      setRatingEntriesByGroupId(nextRatingEntriesByGroupId);
       setPendingFileIds((currentIds) =>
         currentIds.filter((id) =>
           nextDisplayFiles.some((file) => file.id === id),
@@ -1038,9 +1065,15 @@ export function FileBrowserView({
         queueFiles,
         t,
       );
+
+      if (confirmedDuplicateIds === null) {
+        return;
+      }
+
       const result = await window.asteria.commitImportQueue(
         fileIds,
         confirmedDuplicateIds,
+        importQueueKey,
       );
       setPendingFileIds([]);
       setLastPendingFileId(null);
@@ -1073,7 +1106,7 @@ export function FileBrowserView({
     }
 
     try {
-      await window.asteria.removeImportQueueFiles(fileIds);
+      await window.asteria.removeImportQueueFiles(fileIds, importQueueKey);
       setPendingFileIds([]);
       setLastPendingFileId(null);
       await loadBrowserFiles();
@@ -1094,6 +1127,31 @@ export function FileBrowserView({
 
     setContextMenu(null);
     await window.asteria.openFileRatingEditorWindow(fileIds, group.id);
+  }
+
+  async function setQuickRating(
+    file: BrowserDisplayFile,
+    group: RatingGroupRecord,
+    entry: RatingEntryRecord,
+  ): Promise<void> {
+    if (importQueueMode || isImportQueueFile(file) || !window.asteria) {
+      return;
+    }
+
+    setFiles((currentFiles) =>
+      patchFileRating(currentFiles, file.id, group, entry),
+    );
+
+    try {
+      await window.asteria.setFileRatingEntries([file.id], group.id, [
+        entry.id,
+      ]);
+    } catch (error) {
+      await loadBrowserFiles();
+      setMessage(
+        error instanceof Error ? error.message : t("common.operationFailed"),
+      );
+    }
   }
 
   function changePage(offset: -1 | 1): void {
@@ -1237,7 +1295,15 @@ export function FileBrowserView({
                       </div>
                     ) : (
                       <>
-                        <FileRatingStack ratings={file.ratings} />
+                        <FileRatingStack
+                          entriesByGroupId={ratingEntriesByGroupId}
+                          groups={activeRatingGroups}
+                          interactive
+                          ratings={file.ratings}
+                          onChange={(group, entry) =>
+                            void setQuickRating(file, group, entry)
+                          }
+                        />
                         <FavoriteButton
                           active={Boolean(file.isFavorite)}
                           onToggle={() => void toggleFavorite(file)}
@@ -1650,16 +1716,29 @@ function renderBrowserMedia(
   }
 
   if (isVideoExtension(extension)) {
-    const previewUrl =
-      "thumbnailUrl" in file ? file.thumbnailUrl : file.mediaUrl;
+    if ("thumbnailUrl" in file) {
+      return shouldLoadPreview ? (
+        <img
+          alt={file.fileName}
+          loading="lazy"
+          src={file.thumbnailUrl}
+          onLoad={(event) => onImageLoad(file.id, event)}
+        />
+      ) : (
+        <span />
+      );
+    }
 
     return shouldLoadPreview ? (
-      <img
-        alt={file.fileName}
-        loading="lazy"
-        src={previewUrl}
-        onLoad={(event) => onImageLoad(file.id, event)}
-      />
+      <video muted preload="metadata" src={file.mediaUrl} />
+    ) : (
+      <span />
+    );
+  }
+
+  if (isAudioExtension(extension)) {
+    return shouldLoadPreview ? (
+      <audio controls preload="metadata" src={file.mediaUrl} />
     ) : (
       <span />
     );
@@ -1723,6 +1802,37 @@ function patchFileFavorite(
   return changed ? nextFiles : files;
 }
 
+function patchFileRating(
+  files: BrowserDisplayFile[],
+  fileId: number,
+  group: RatingGroupRecord,
+  entry: RatingEntryRecord,
+): BrowserDisplayFile[] {
+  let changed = false;
+  const nextFiles = files.map((file) => {
+    if (isImportQueueFile(file) || file.id !== fileId) {
+      return file;
+    }
+
+    changed = true;
+    return {
+      ...file,
+      ratings: [
+        ...file.ratings.filter((rating) => rating.groupId !== group.id),
+        {
+          groupId: group.id,
+          groupName: group.name,
+          entryId: entry.id,
+          label: entry.label,
+          color: entry.color,
+        },
+      ],
+    };
+  });
+
+  return changed ? nextFiles : files;
+}
+
 function warmDecodedPreviewCache(files: BrowserDisplayFile[]): void {
   const viewedAt = Date.now();
 
@@ -1755,7 +1865,10 @@ function warmDecodedPreviewCache(files: BrowserDisplayFile[]): void {
 
 function usesThumbnailPreview(file: BrowserDisplayFile): boolean {
   const extension = file.extension?.toLowerCase() ?? "";
-  return isImageExtension(extension) || isVideoExtension(extension);
+  return (
+    isImageExtension(extension) ||
+    (isVideoExtension(extension) && "thumbnailUrl" in file)
+  );
 }
 
 function isPreviewCached(

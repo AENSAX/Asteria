@@ -15,6 +15,7 @@ import {
   readSqlCount,
 } from "./queryUtils.js";
 import { createEffectiveTagFilesCte } from "./sqlFragments.js";
+import { syncRatingsFromTagsForFiles } from "./systemTagsRepository.js";
 import { normalizeTagPart } from "./tagText.js";
 import {
   expandTagDraftsWithTranslation,
@@ -157,12 +158,20 @@ export function renameManagedTag(
 
   return db.transaction(() => {
     const existingTag = db
-      .prepare("SELECT id, style_id AS styleId FROM tags WHERE id = ?")
+      .prepare(
+        `SELECT
+          id,
+          style_id AS styleId
+         FROM tags
+         WHERE id = ?`,
+      )
       .get(tagId) as { id: number; styleId: number } | undefined;
 
     if (!existingTag) {
       throw new Error("标签不存在");
     }
+
+    const affectedFileIds = readDirectTagFileIds(db, [existingTag.id]);
 
     const duplicate = db
       .prepare(
@@ -211,6 +220,7 @@ export function renameManagedTag(
       throw new Error("标签重命名失败");
     }
 
+    syncRatingsFromTagsForFiles(db, affectedFileIds);
     return renamed;
   })();
 }
@@ -323,12 +333,15 @@ export function deleteManagedTags(tagIds: number[]): DeleteManagedTagsResult {
     .get(...normalizedTagIds) as { count: number } | undefined;
 
   db.transaction(() => {
+    const affectedFileIds = readDirectTagFileIds(db, normalizedTagIds);
+
     db.prepare(`DELETE FROM file_tags WHERE tag_id IN (${placeholders})`).run(
       ...normalizedTagIds,
     );
     db.prepare(`DELETE FROM tags WHERE id IN (${placeholders})`).run(
       ...normalizedTagIds,
     );
+    syncRatingsFromTagsForFiles(db, affectedFileIds);
   })();
 
   return {
@@ -396,6 +409,26 @@ export function readTagId(db: Database.Database, tagId: number): number {
   }
 
   return existing.id;
+}
+
+function readDirectTagFileIds(
+  db: Database.Database,
+  tagIds: number[],
+): number[] {
+  if (tagIds.length === 0) {
+    return [];
+  }
+
+  const placeholders = createPlaceholders(tagIds.length);
+  const rows = db
+    .prepare(
+      `SELECT DISTINCT file_id AS fileId
+       FROM file_tags
+       WHERE tag_id IN (${placeholders})`,
+    )
+    .all(...tagIds) as Array<{ fileId: number }>;
+
+  return rows.map((row) => row.fileId);
 }
 
 function readManagedTag(

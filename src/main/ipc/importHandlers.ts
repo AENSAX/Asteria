@@ -14,18 +14,33 @@ import { normalizeHydrusImportSettings } from "../settings/normalizers.js";
 type NormalizeIpcFileIds = (value: unknown) => number[];
 
 export interface ImportHandlersContext {
-  importFiles: (sender: WebContents) => Promise<ImportProgress>;
-  importFolder: (sender: WebContents) => Promise<ImportProgress>;
-  importPaths: (sender: WebContents, paths: unknown) => Promise<ImportProgress>;
-  importUrls: (sender: WebContents, urls: unknown) => Promise<ImportProgress>;
-  listImportQueueFiles: () => ImportQueueFileRecord[];
+  importFiles: (
+    sender: WebContents,
+    queueKey: string,
+  ) => Promise<ImportProgress>;
+  importFolder: (
+    sender: WebContents,
+    queueKey: string,
+  ) => Promise<ImportProgress>;
+  importPaths: (
+    sender: WebContents,
+    paths: unknown,
+    queueKey: string,
+  ) => Promise<ImportProgress>;
+  importUrls: (
+    sender: WebContents,
+    urls: unknown,
+    queueKey: string,
+  ) => Promise<ImportProgress>;
+  listImportQueueFiles: (queueKey: string) => ImportQueueFileRecord[];
   commitImportQueue: (
     sender: WebContents,
     queueIds: number[],
     confirmedDuplicateQueueIds: number[],
+    queueKey: string,
   ) => Promise<ImportCommitResult>;
-  removeImportQueueFiles: (queueIds: number[]) => ImportProgress;
-  clearImportQueue: () => ImportProgress;
+  removeImportQueueFiles: (queueIds: number[], queueKey: string) => ImportProgress;
+  clearImportQueue: (queueKey: string) => ImportProgress;
   testHydrusConnection: (
     options: HydrusImportOptions,
   ) => Promise<HydrusConnectionStatus>;
@@ -49,36 +64,62 @@ export function registerImportHandlers(
   ipcMain: IpcMain,
   context: ImportHandlersContext,
 ): void {
-  ipcMain.handle(IpcChannel.IMPORT_FILES, async (event) => {
-    const result = await context.importFiles(event.sender);
+  ipcMain.handle(IpcChannel.IMPORT_FILES, async (event, queueKey: unknown) => {
+    const result = await context.importFiles(
+      event.sender,
+      normalizeQueueKey(queueKey),
+    );
     context.broadcastImportQueueChanged();
     return result;
   });
-  ipcMain.handle(IpcChannel.IMPORT_FOLDER, async (event) => {
-    const result = await context.importFolder(event.sender);
+  ipcMain.handle(IpcChannel.IMPORT_FOLDER, async (event, queueKey: unknown) => {
+    const result = await context.importFolder(
+      event.sender,
+      normalizeQueueKey(queueKey),
+    );
     context.broadcastImportQueueChanged();
     return result;
   });
-  ipcMain.handle(IpcChannel.IMPORT_PATHS, async (event, paths: unknown) => {
-    const result = await context.importPaths(event.sender, paths);
-    context.broadcastImportQueueChanged();
-    return result;
-  });
-  ipcMain.handle(IpcChannel.IMPORT_URLS, async (event, urls: unknown) => {
-    const result = await context.importUrls(event.sender, urls);
-    context.broadcastImportQueueChanged();
-    return result;
-  });
-  ipcMain.handle(IpcChannel.IMPORT_LIST_QUEUE_FILES, () =>
-    context.listImportQueueFiles(),
+  ipcMain.handle(
+    IpcChannel.IMPORT_PATHS,
+    async (event, paths: unknown, queueKey: unknown) => {
+      const result = await context.importPaths(
+        event.sender,
+        paths,
+        normalizeQueueKey(queueKey),
+      );
+      context.broadcastImportQueueChanged();
+      return result;
+    },
+  );
+  ipcMain.handle(
+    IpcChannel.IMPORT_URLS,
+    async (event, urls: unknown, queueKey: unknown) => {
+      const result = await context.importUrls(
+        event.sender,
+        urls,
+        normalizeQueueKey(queueKey),
+      );
+      context.broadcastImportQueueChanged();
+      return result;
+    },
+  );
+  ipcMain.handle(IpcChannel.IMPORT_LIST_QUEUE_FILES, (_event, queueKey) =>
+    context.listImportQueueFiles(normalizeQueueKey(queueKey)),
   );
   ipcMain.handle(
     IpcChannel.IMPORT_COMMIT_QUEUE,
-    async (event, queueIds: unknown, confirmedDuplicateQueueIds: unknown) => {
+    async (
+      event,
+      queueIds: unknown,
+      confirmedDuplicateQueueIds: unknown,
+      queueKey: unknown,
+    ) => {
       const result = await context.commitImportQueue(
         event.sender,
         context.normalizeIpcFileIds(queueIds),
         context.normalizeIpcFileIds(confirmedDuplicateQueueIds),
+        normalizeQueueKey(queueKey),
       );
 
       if (result.phase !== "canceled") {
@@ -100,16 +141,17 @@ export function registerImportHandlers(
   );
   ipcMain.handle(
     IpcChannel.IMPORT_REMOVE_QUEUE_FILES,
-    (_event, queueIds: unknown) => {
+    (_event, queueIds: unknown, queueKey: unknown) => {
       const result = context.removeImportQueueFiles(
         context.normalizeIpcFileIds(queueIds),
+        normalizeQueueKey(queueKey),
       );
       context.broadcastImportQueueChanged();
       return result;
     },
   );
-  ipcMain.handle(IpcChannel.IMPORT_CLEAR_QUEUE, () => {
-    const result = context.clearImportQueue();
+  ipcMain.handle(IpcChannel.IMPORT_CLEAR_QUEUE, (_event, queueKey: unknown) => {
+    const result = context.clearImportQueue(normalizeQueueKey(queueKey));
     context.broadcastImportQueueChanged();
     return result;
   });
@@ -141,4 +183,13 @@ export function registerImportHandlers(
     (_event, settings: unknown) =>
       context.setHydrusImportSettings(normalizeHydrusImportSettings(settings)),
   );
+}
+
+function normalizeQueueKey(value: unknown): string {
+  if (typeof value !== "string") {
+    return "default";
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed.slice(0, 128) : "default";
 }

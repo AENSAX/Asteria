@@ -1,5 +1,10 @@
+import type Database from "better-sqlite3";
 import type { RatingEntryRecord, RatingGroupRecord } from "../../shared/ipc.js";
 import { getDatabaseConnection } from "./connection.js";
+import {
+  removeRatingGroupTagsFromFiles,
+  syncRatingTagsForFiles,
+} from "./systemTagsRepository.js";
 
 export function listRatingGroups(): RatingGroupRecord[] {
   const db = getDatabaseConnection();
@@ -64,12 +69,20 @@ export function setRatingGroupActive(
     throw new Error("分级无效");
   }
 
-  db.prepare(
-    `UPDATE rating_groups
-     SET is_active = ?,
-         updated_at = datetime('now')
-     WHERE id = ?`,
-  ).run(active ? 1 : 0, groupId);
+  db.transaction(() => {
+    db.prepare(
+      `UPDATE rating_groups
+       SET is_active = ?,
+           updated_at = datetime('now')
+       WHERE id = ?`,
+    ).run(active ? 1 : 0, groupId);
+
+    if (active) {
+      ensureDefaultRatingsForAllFiles(db, [groupId]);
+    } else {
+      removeRatingGroupTagsFromFiles(db, groupId);
+    }
+  })();
 
   return listRatingGroups();
 }
@@ -128,10 +141,13 @@ export function createRatingEntry(
     )
     .get(groupId) as { sortOrder: number } | undefined;
 
-  db.prepare(
-    `INSERT INTO rating_entries (group_id, label, color, sort_order)
-     VALUES (?, ?, ?, ?)`,
-  ).run(groupId, normalizedLabel, normalizedColor, row?.sortOrder ?? 1);
+  db.transaction(() => {
+    db.prepare(
+      `INSERT INTO rating_entries (group_id, label, color, sort_order)
+       VALUES (?, ?, ?, ?)`,
+    ).run(groupId, normalizedLabel, normalizedColor, row?.sortOrder ?? 1);
+    ensureDefaultRatingsForAllFiles(db, [groupId]);
+  })();
 
   return listRatingEntries(groupId);
 }
@@ -183,7 +199,10 @@ export function deleteRatingEntry(entryId: number): RatingEntryRecord[] {
     return [];
   }
 
-  db.prepare("DELETE FROM rating_entries WHERE id = ?").run(entryId);
+  db.transaction(() => {
+    db.prepare("DELETE FROM rating_entries WHERE id = ?").run(entryId);
+    ensureDefaultRatingsForAllFiles(db, [row.groupId]);
+  })();
   return listRatingEntries(row.groupId);
 }
 
@@ -277,7 +296,134 @@ export function setFileRatingEntries(
         ).run(fileId, entryId);
       }
     }
+
+    syncRatingTagsForFiles(db, normalizedFileIds, groupId, validEntryIds);
   })();
+}
+
+export function ensureDefaultRatingsForFiles(fileIds: number[]): void {
+  const db = getDatabaseConnection();
+  const normalizedFileIds = normalizeFileIds(fileIds);
+
+  if (normalizedFileIds.length === 0) {
+    return;
+  }
+
+  db.transaction(() => {
+    ensureDefaultRatingsForFilesInDb(db, normalizedFileIds);
+  })();
+}
+
+export function ensureDefaultRatingsForFilesInDb(
+  db: Database.Database,
+  fileIds: number[],
+): void {
+  ensureDefaultRatingsForFileIds(db, fileIds);
+}
+
+function ensureDefaultRatingsForAllFiles(
+  db: Database.Database,
+  groupIds?: number[],
+): void {
+  const rows = db
+    .prepare("SELECT id FROM files WHERE deleted_at IS NULL")
+    .all() as Array<{ id: number }>;
+
+  ensureDefaultRatingsForFileIds(
+    db,
+    rows.map((row) => row.id),
+    groupIds,
+  );
+}
+
+function ensureDefaultRatingsForFileIds(
+  db: Database.Database,
+  fileIds: number[],
+  groupIds?: number[],
+): void {
+  const normalizedFileIds = normalizeFileIds(fileIds);
+
+  if (normalizedFileIds.length === 0) {
+    return;
+  }
+
+  const activeGroups = readActiveRatingGroupsWithFirstEntry(db, groupIds);
+  const insertRating = db.prepare(
+    "INSERT OR IGNORE INTO file_ratings (file_id, entry_id) VALUES (?, ?)",
+  );
+
+  for (const group of activeGroups) {
+    const missingFileIds = filterFilesMissingRatingGroup(
+      db,
+      normalizedFileIds,
+      group.groupId,
+    );
+
+    if (missingFileIds.length === 0) {
+      continue;
+    }
+
+    for (const fileId of missingFileIds) {
+      insertRating.run(fileId, group.entryId);
+    }
+
+    syncRatingTagsForFiles(db, missingFileIds, group.groupId, [group.entryId]);
+  }
+}
+
+function readActiveRatingGroupsWithFirstEntry(
+  db: Database.Database,
+  groupIds?: number[],
+): Array<{ groupId: number; entryId: number }> {
+  const normalizedGroupIds = groupIds ? normalizePositiveIds(groupIds) : [];
+  const groupFilter =
+    normalizedGroupIds.length > 0
+      ? `AND rating_groups.id IN (${createPlaceholders(normalizedGroupIds.length)})`
+      : "";
+
+  return db
+    .prepare(
+      `SELECT
+        rating_groups.id AS groupId,
+        rating_entries.id AS entryId
+       FROM rating_groups
+       JOIN rating_entries ON rating_entries.group_id = rating_groups.id
+       WHERE rating_groups.is_active = 1
+         ${groupFilter}
+         AND rating_entries.id = (
+           SELECT first_entries.id
+           FROM rating_entries AS first_entries
+           WHERE first_entries.group_id = rating_groups.id
+           ORDER BY first_entries.sort_order ASC, first_entries.id ASC
+           LIMIT 1
+         )
+       ORDER BY rating_groups.id ASC`,
+    )
+    .all(...normalizedGroupIds) as Array<{ groupId: number; entryId: number }>;
+}
+
+function filterFilesMissingRatingGroup(
+  db: Database.Database,
+  fileIds: number[],
+  groupId: number,
+): number[] {
+  if (fileIds.length === 0) {
+    return [];
+  }
+
+  const placeholders = createPlaceholders(fileIds.length);
+  const rows = db
+    .prepare(
+      `SELECT file_id AS fileId
+       FROM file_ratings
+       JOIN rating_entries ON rating_entries.id = file_ratings.entry_id
+       WHERE file_ratings.file_id IN (${placeholders})
+         AND rating_entries.group_id = ?`,
+    )
+    .all(...fileIds, groupId) as Array<{ fileId: number }>;
+  const existingFileIds = new Set(rows.map((row) => row.fileId));
+
+  return fileIds.filter((fileId) => !existingFileIds.has(fileId));
 }
 
 function normalizeFileIds(fileIds: number[]): number[] {

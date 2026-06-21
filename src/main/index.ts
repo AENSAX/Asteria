@@ -11,10 +11,12 @@ import {
   type NativeImage,
   type WebContents,
 } from "electron";
+import { createReadStream } from "node:fs";
 import { existsSync } from "node:fs";
 import { copyFile, cp, mkdir, rm, stat, unlink } from "node:fs/promises";
 import { readFile, readdir, rename, writeFile } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
+import { Readable } from "node:stream";
 import { pathToFileURL } from "node:url";
 import {
   closeDatabase,
@@ -1224,6 +1226,179 @@ function resolveFileDragIcon(fileIds: number[]): NativeImage {
   return nativeImage.createFromDataURL(TRANSPARENT_DRAG_ICON_URL);
 }
 
+async function createMediaFileResponse(
+  request: Request,
+  filePath: string,
+): Promise<Response> {
+  let fileStat: Awaited<ReturnType<typeof stat>>;
+
+  try {
+    fileStat = await stat(filePath);
+  } catch {
+    return new Response("Media file not found", { status: 404 });
+  }
+
+  if (!fileStat.isFile()) {
+    return new Response("Media file not found", { status: 404 });
+  }
+
+  const fileSize = fileStat.size;
+  const range = parseHttpRange(request.headers.get("range"), fileSize);
+  const headers = new Headers({
+    "accept-ranges": "bytes",
+    "content-type": getMediaContentType(filePath),
+  });
+
+  if (!range) {
+    headers.set("content-length", String(fileSize));
+    return new Response(createFileReadableStream(filePath), {
+      headers,
+    });
+  }
+
+  if (range.invalid) {
+    headers.set("content-range", `bytes */${fileSize}`);
+    return new Response(null, {
+      status: 416,
+      headers,
+    });
+  }
+
+  const contentLength = range.end - range.start + 1;
+  headers.set("content-length", String(contentLength));
+  headers.set("content-range", `bytes ${range.start}-${range.end}/${fileSize}`);
+
+  return new Response(
+    createFileReadableStream(filePath, {
+      start: range.start,
+      end: range.end,
+    }),
+    {
+      status: 206,
+      headers,
+    },
+  );
+}
+
+function createFileReadableStream(
+  filePath: string,
+  options?: { start: number; end: number },
+): ReadableStream<Uint8Array> {
+  return Readable.toWeb(createReadStream(filePath, options)) as ReadableStream<
+    Uint8Array
+  >;
+}
+
+function parseHttpRange(
+  rangeHeader: string | null,
+  fileSize: number,
+): { start: number; end: number; invalid?: false } | { invalid: true } | null {
+  if (!rangeHeader) {
+    return null;
+  }
+
+  const match = /^bytes=(\d*)-(\d*)$/u.exec(rangeHeader.trim());
+
+  if (!match || fileSize <= 0) {
+    return { invalid: true };
+  }
+
+  const [, startText, endText] = match;
+
+  if (!startText && !endText) {
+    return { invalid: true };
+  }
+
+  if (!startText) {
+    const suffixLength = Number(endText);
+
+    if (!Number.isFinite(suffixLength) || suffixLength <= 0) {
+      return { invalid: true };
+    }
+
+    return {
+      start: Math.max(0, fileSize - suffixLength),
+      end: fileSize - 1,
+    };
+  }
+
+  const start = Number(startText);
+  const requestedEnd = endText ? Number(endText) : fileSize - 1;
+
+  if (
+    !Number.isFinite(start) ||
+    !Number.isFinite(requestedEnd) ||
+    start < 0 ||
+    requestedEnd < start ||
+    start >= fileSize
+  ) {
+    return { invalid: true };
+  }
+
+  return {
+    start,
+    end: Math.min(requestedEnd, fileSize - 1),
+  };
+}
+
+function getMediaContentType(filePath: string): string {
+  const lowerPath = filePath.toLowerCase();
+
+  if (lowerPath.endsWith(".mp4")) {
+    return "video/mp4";
+  }
+
+  if (lowerPath.endsWith(".webm")) {
+    return "video/webm";
+  }
+
+  if (lowerPath.endsWith(".ogg") || lowerPath.endsWith(".ogv")) {
+    return "video/ogg";
+  }
+
+  if (lowerPath.endsWith(".mp3")) {
+    return "audio/mpeg";
+  }
+
+  if (lowerPath.endsWith(".wav")) {
+    return "audio/wav";
+  }
+
+  if (lowerPath.endsWith(".flac")) {
+    return "audio/flac";
+  }
+
+  if (lowerPath.endsWith(".m4a")) {
+    return "audio/mp4";
+  }
+
+  if (lowerPath.endsWith(".jpg") || lowerPath.endsWith(".jpeg")) {
+    return "image/jpeg";
+  }
+
+  if (lowerPath.endsWith(".png")) {
+    return "image/png";
+  }
+
+  if (lowerPath.endsWith(".gif")) {
+    return "image/gif";
+  }
+
+  if (lowerPath.endsWith(".webp")) {
+    return "image/webp";
+  }
+
+  if (lowerPath.endsWith(".avif")) {
+    return "image/avif";
+  }
+
+  if (lowerPath.endsWith(".bmp")) {
+    return "image/bmp";
+  }
+
+  return "application/octet-stream";
+}
+
 async function deleteStoredFilesPermanently(fileIds: number[]): Promise<void> {
   const deletedFiles = deleteFilesPermanentlyFromDatabase(fileIds);
   await deleteStoredFileArtifacts(deletedFiles);
@@ -1310,6 +1485,10 @@ app.whenReady().then(async () => {
       }
 
       return new Response("Media file not found", { status: 404 });
+    }
+
+    if (kind === "file" || kind === "import") {
+      return createMediaFileResponse(request, filePath);
     }
 
     return net.fetch(pathToFileURL(filePath).toString());

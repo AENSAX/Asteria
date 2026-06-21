@@ -239,21 +239,31 @@ const api: AsteriaApi = {
     ipcRenderer.invoke(IpcChannel.TAG_ADD_TAGS_TO_FILES, fileIds, tags),
   removeTagsFromFiles: (fileIds, tagIds) =>
     ipcRenderer.invoke(IpcChannel.TAG_REMOVE_TAGS_FROM_FILES, fileIds, tagIds),
-  importFiles: () => ipcRenderer.invoke(IpcChannel.IMPORT_FILES),
-  importFolder: () => ipcRenderer.invoke(IpcChannel.IMPORT_FOLDER),
-  importPaths: (paths) => ipcRenderer.invoke(IpcChannel.IMPORT_PATHS, paths),
-  importUrls: (urls) => ipcRenderer.invoke(IpcChannel.IMPORT_URLS, urls),
-  listImportQueueFiles: () =>
-    ipcRenderer.invoke(IpcChannel.IMPORT_LIST_QUEUE_FILES),
-  commitImportQueue: (queueIds, confirmedDuplicateQueueIds) =>
+  importFiles: (queueKey) =>
+    ipcRenderer.invoke(IpcChannel.IMPORT_FILES, queueKey),
+  importFolder: (queueKey) =>
+    ipcRenderer.invoke(IpcChannel.IMPORT_FOLDER, queueKey),
+  importPaths: (paths, queueKey) =>
+    ipcRenderer.invoke(IpcChannel.IMPORT_PATHS, paths, queueKey),
+  importUrls: (urls, queueKey) =>
+    ipcRenderer.invoke(IpcChannel.IMPORT_URLS, urls, queueKey),
+  listImportQueueFiles: (queueKey) =>
+    ipcRenderer.invoke(IpcChannel.IMPORT_LIST_QUEUE_FILES, queueKey),
+  commitImportQueue: (queueIds, confirmedDuplicateQueueIds, queueKey) =>
     ipcRenderer.invoke(
       IpcChannel.IMPORT_COMMIT_QUEUE,
       queueIds,
       confirmedDuplicateQueueIds,
+      queueKey,
     ),
-  removeImportQueueFiles: (queueIds) =>
-    ipcRenderer.invoke(IpcChannel.IMPORT_REMOVE_QUEUE_FILES, queueIds),
-  clearImportQueue: () => ipcRenderer.invoke(IpcChannel.IMPORT_CLEAR_QUEUE),
+  removeImportQueueFiles: (queueIds, queueKey) =>
+    ipcRenderer.invoke(
+      IpcChannel.IMPORT_REMOVE_QUEUE_FILES,
+      queueIds,
+      queueKey,
+    ),
+  clearImportQueue: (queueKey) =>
+    ipcRenderer.invoke(IpcChannel.IMPORT_CLEAR_QUEUE, queueKey),
   testHydrusConnection: (options) =>
     ipcRenderer.invoke(IpcChannel.HYDRUS_TEST_CONNECTION, options),
   importFromHydrus: (options) =>

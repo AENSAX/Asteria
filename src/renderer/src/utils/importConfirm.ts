@@ -4,7 +4,7 @@ import type { TranslationFunction } from "./language";
 export async function confirmDuplicateImports(
   queueFiles: ImportQueueFileRecord[],
   t: TranslationFunction,
-): Promise<number[]> {
+): Promise<number[] | null> {
   if (!window.asteria) {
     return [];
   }
@@ -22,5 +22,5 @@ export async function confirmDuplicateImports(
     }),
   });
 
-  return confirmed ? duplicateFiles.map((file) => file.id) : [];
+  return confirmed ? duplicateFiles.map((file) => file.id) : null;
 }

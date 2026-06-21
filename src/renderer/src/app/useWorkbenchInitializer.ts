@@ -40,12 +40,12 @@ export function useWorkbenchInitializer({
     async function initializeWorkbench(): Promise<void> {
       const pageLayoutState = await reloadPageLayoutState();
       const savedState = readSavedWorkbenchState();
-      const hasImportQueue = window.asteria
-        ? (await window.asteria.listImportQueueFiles()).length > 0
-        : false;
 
       if (savedState && savedState.pages.length > 0) {
-        const restoredPages = savedState.pages.map((page, index) => {
+        const restoredPages = await Promise.all(savedState.pages.map(async (page) => {
+          const hasImportQueue = window.asteria
+            ? (await window.asteria.listImportQueueFiles(page.id)).length > 0
+            : false;
           const restoredPage: PageItem = {
             id: page.id,
             title:
@@ -58,18 +58,14 @@ export function useWorkbenchInitializer({
             searchInputState: page.searchInputState,
             searchAppendTagRequest: null,
             viewRefreshSequenceByTabId: {},
-            importQueueActive:
-              page.importQueueActive ||
-              (hasImportQueue &&
-                (page.id === savedState.activePageId ||
-                  (!savedState.activePageId && index === 0))),
+            importQueueActive: page.importQueueActive || hasImportQueue,
             selectedBrowserFileIds: [],
             browserViewState: page.browserViewState,
             tagListViewState: page.tagListViewState,
           };
 
           return syncViewTabTitles(restoredPage, t);
-        });
+        }));
 
         setPages(restoredPages);
         setActivePageId(
@@ -85,7 +81,9 @@ export function useWorkbenchInitializer({
           templateText: pageLayoutState.templateText.default,
           title: t("app.pageName", { index: 1 }),
         });
-        page.importQueueActive = hasImportQueue;
+        page.importQueueActive = window.asteria
+          ? (await window.asteria.listImportQueueFiles(page.id)).length > 0
+          : false;
         setPages([page]);
         setActivePageId(page.id);
         syncCountersFromPages([page]);

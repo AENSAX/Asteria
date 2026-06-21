@@ -779,17 +779,21 @@ export interface AsteriaApi {
     fileIds: number[],
     tagIds: number[],
   ) => Promise<BatchFileTagRecord[]>;
-  importFiles: () => Promise<ImportProgress>;
-  importFolder: () => Promise<ImportProgress>;
-  importPaths: (paths: string[]) => Promise<ImportProgress>;
-  importUrls: (urls: string[]) => Promise<ImportProgress>;
-  listImportQueueFiles: () => Promise<ImportQueueFileRecord[]>;
+  importFiles: (queueKey?: string) => Promise<ImportProgress>;
+  importFolder: (queueKey?: string) => Promise<ImportProgress>;
+  importPaths: (paths: string[], queueKey?: string) => Promise<ImportProgress>;
+  importUrls: (urls: string[], queueKey?: string) => Promise<ImportProgress>;
+  listImportQueueFiles: (queueKey?: string) => Promise<ImportQueueFileRecord[]>;
   commitImportQueue: (
     queueIds: number[],
     confirmedDuplicateQueueIds: number[],
+    queueKey?: string,
   ) => Promise<ImportCommitResult>;
-  removeImportQueueFiles: (queueIds: number[]) => Promise<ImportProgress>;
-  clearImportQueue: () => Promise<ImportProgress>;
+  removeImportQueueFiles: (
+    queueIds: number[],
+    queueKey?: string,
+  ) => Promise<ImportProgress>;
+  clearImportQueue: (queueKey?: string) => Promise<ImportProgress>;
   testHydrusConnection: (
     options: HydrusImportOptions,
   ) => Promise<HydrusConnectionStatus>;

@@ -3,6 +3,7 @@ import type {
   FileDomain,
   FileDetailRecord,
   FileTagRecord,
+  RatingEntryRecord,
   RatingGroupRecord,
   TagStyleRecord,
 } from "../../../shared/ipc";
@@ -70,6 +71,9 @@ export function FileDetailWindow({
   const [activeRatingGroups, setActiveRatingGroups] = useState<
     RatingGroupRecord[]
   >([]);
+  const [ratingEntriesByGroupId, setRatingEntriesByGroupId] = useState<
+    Map<number, RatingEntryRecord[]>
+  >(new Map());
   const [selectedTagClipboardText, setSelectedTagClipboardText] = useState<
     string | null
   >(null);
@@ -177,10 +181,27 @@ export function FileDetailWindow({
         contextFileIds.length > 0
           ? contextFileIds
           : await window.asteria.listBrowserFileIds();
+      const nextActiveRatingGroups = nextRatingGroups.filter(
+        (group) => group.isActive,
+      );
+      const nextRatingEntriesByGroupId = new Map<
+        number,
+        RatingEntryRecord[]
+      >();
+
+      await Promise.all(
+        nextActiveRatingGroups.map(async (group) => {
+          nextRatingEntriesByGroupId.set(
+            group.id,
+            await window.asteria.listRatingEntries(group.id),
+          );
+        }),
+      );
 
       setFile(nextFile);
       setOrderedFileIds(orderedIds);
-      setActiveRatingGroups(nextRatingGroups.filter((group) => group.isActive));
+      setActiveRatingGroups(nextActiveRatingGroups);
+      setRatingEntriesByGroupId(nextRatingEntriesByGroupId);
       resetImageViewport();
       setMessage(nextFile ? "" : t("window.fileDetail.notFound"));
     } catch (error) {
@@ -370,6 +391,29 @@ export function FileDetailWindow({
     await window.asteria.openFileRatingEditorWindow([file.id], group.id);
   }
 
+  async function setQuickRating(
+    group: RatingGroupRecord,
+    entry: RatingEntryRecord,
+  ): Promise<void> {
+    if (!window.asteria || !file) {
+      return;
+    }
+
+    setFile(patchDetailFileRating(file, group, entry));
+
+    try {
+      await window.asteria.setFileRatingEntries([file.id], group.id, [
+        entry.id,
+      ]);
+      await loadFileDetail();
+    } catch (error) {
+      await loadFileDetail();
+      setMessage(
+        error instanceof Error ? error.message : t("common.operationFailed"),
+      );
+    }
+  }
+
   function switchFile(offset: -1 | 1): void {
     if (orderedFileIds.length === 0) {
       return;
@@ -475,7 +519,11 @@ export function FileDetailWindow({
             <>
               <FileRatingStack
                 className="top-1.5 left-1.5 z-2 max-w-[calc(100%-12px)]"
+                entriesByGroupId={ratingEntriesByGroupId}
+                groups={activeRatingGroups}
+                interactive
                 ratings={file.ratings}
+                onChange={(group, entry) => void setQuickRating(group, entry)}
               />
               <FavoriteButton
                 active={Boolean(file.isFavorite)}
@@ -524,6 +572,26 @@ export function FileDetailWindow({
       }
     />
   );
+}
+
+function patchDetailFileRating(
+  file: FileDetailRecord,
+  group: RatingGroupRecord,
+  entry: RatingEntryRecord,
+): FileDetailRecord {
+  return {
+    ...file,
+    ratings: [
+      ...file.ratings.filter((rating) => rating.groupId !== group.id),
+      {
+        groupId: group.id,
+        groupName: group.name,
+        entryId: entry.id,
+        label: entry.label,
+        color: entry.color,
+      },
+    ],
+  };
 }
 
 interface ScreeningDetailWindowProps {

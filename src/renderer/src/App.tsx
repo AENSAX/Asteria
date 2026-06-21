@@ -1,5 +1,6 @@
 import { useMemo, useReducer, useRef, useState } from "react";
 import { Actions, DockLocation, Layout, TabNode } from "flexlayout-react";
+import type { Action } from "flexlayout-react";
 import defaultPageTemplateText from "../../../config/page-templates/default-page.jsonc?raw";
 import type { ImportProgress, TagRecord, WorkStatus } from "../../shared/ipc";
 import { PageTabs } from "./app/PageTabs";
@@ -89,7 +90,7 @@ function WorkbenchApp(): JSX.Element {
       title: t("app.pageName", { index: 1 }),
     }),
   ]);
-  const { pageLayoutSettings, pageTemplateText, reloadPageLayoutState } =
+  const { pageTemplateText, reloadPageLayoutState } =
     useWorkbenchPageLayout(defaultPageTemplateText);
   const [workbenchLoaded, setWorkbenchLoaded] = useState(false);
   const [viewContextMenu, setViewContextMenu] =
@@ -135,6 +136,7 @@ function WorkbenchApp(): JSX.Element {
     closeMenu,
     createIdleProgress,
     deactivateActivePageImportQueue,
+    getActiveImportQueueKey,
     isImporting,
     openImportView,
     progress,
@@ -182,14 +184,21 @@ function WorkbenchApp(): JSX.Element {
       return;
     }
 
-    const hasImportQueue =
-      (await window.asteria.listImportQueueFiles()).length > 0;
+    const queueStates = new Map(
+      await Promise.all(
+        pages.map(async (page) => [
+          page.id,
+          (await window.asteria.listImportQueueFiles(page.id)).length > 0,
+        ] as const),
+      ),
+    );
 
-    if (!hasImportQueue) {
-      setPages((currentPages) =>
-        currentPages.map((page) => ({ ...page, importQueueActive: false })),
-      );
-    }
+    setPages((currentPages) =>
+      currentPages.map((page) => ({
+        ...page,
+        importQueueActive: queueStates.get(page.id) ?? page.importQueueActive,
+      })),
+    );
   }
 
   function createPage(): void {
@@ -219,6 +228,7 @@ function WorkbenchApp(): JSX.Element {
 
   function closePageById(pageId: string): void {
     setPageContextMenu(null);
+    void window.asteria?.clearImportQueue(pageId);
     setPages((currentPages) => {
       const closingIndex = currentPages.findIndex((page) => page.id === pageId);
       const nextPages = currentPages.filter((page) => page.id !== pageId);
@@ -327,18 +337,6 @@ function WorkbenchApp(): JSX.Element {
     });
   }
 
-  function createImportPage(): PageItem {
-    const pageNumber = pageCounterRef.current;
-    pageCounterRef.current += 1;
-
-    return createPageItemFromTemplate({
-      pageNumber,
-      t,
-      templateText: pageTemplateText.default,
-      title: t("app.pageName", { index: pageNumber }),
-    });
-  }
-
   function openView(component: OpenableViewComponent): void {
     openViewOnPage(getOrCreateActivePage(), component);
   }
@@ -384,14 +382,6 @@ function WorkbenchApp(): JSX.Element {
   }
 
   function openImportView(): PageItem {
-    if (pageLayoutSettings.defaultConfigId) {
-      const page = createImportPage();
-      setPages((currentPages) => [...currentPages, page]);
-      setActivePageId(page.id);
-      openViewOnPage(page, "file-import");
-      return page;
-    }
-
     const page = getOrCreateActivePage();
     openViewOnPage(page, "file-import");
     return page;
@@ -404,13 +394,13 @@ function WorkbenchApp(): JSX.Element {
       return;
     }
 
-    const queueFiles = await window.asteria.listImportQueueFiles();
+    const targetPage = page ?? getOrCreateActivePage();
+    const queueFiles = await window.asteria.listImportQueueFiles(targetPage.id);
 
     if (queueFiles.length === 0) {
       return;
     }
 
-    const targetPage = page ?? getOrCreateActivePage();
     updatePage(targetPage.id, (currentPage) => ({
       ...currentPage,
       importQueueActive: true,
@@ -421,6 +411,10 @@ function WorkbenchApp(): JSX.Element {
 
   function deactivateActivePageImportQueue(): void {
     updateActivePage((page) => ({ ...page, importQueueActive: false }));
+  }
+
+  function getActiveImportQueueKey(): string | null {
+    return activePage?.id ?? null;
   }
 
   function pageHasView(
@@ -541,6 +535,20 @@ function WorkbenchApp(): JSX.Element {
     viewCounterRef.current = nextViewCounter;
   }
 
+  function handleLayoutAction(action: Action): Action | undefined {
+    if (
+      action.type === Actions.DELETE_TAB &&
+      typeof action.data.node === "string" &&
+      activePage &&
+      findViewTabId(activePage.model, "file-import") === action.data.node
+    ) {
+      void window.asteria?.clearImportQueue(activePage.id);
+      updateActivePage((page) => ({ ...page, importQueueActive: false }));
+    }
+
+    return action;
+  }
+
   function viewFactory(node: TabNode): JSX.Element {
     return renderWorkbenchView({
       activePage,
@@ -616,6 +624,7 @@ function WorkbenchApp(): JSX.Element {
           <Layout
             factory={viewFactory}
             model={activePage.model}
+            onAction={handleLayoutAction}
             onContextMenu={openViewTabContextMenu}
             onModelChange={queueWorkbenchStateSave}
           />

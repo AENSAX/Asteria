@@ -15,6 +15,7 @@ import {
 } from "./queryUtils.js";
 import { getTagTranslationSettings } from "./settingsRepository.js";
 import { createSemanticTagFilesCte } from "./sqlFragments.js";
+import { syncRatingsFromTagsForFiles } from "./systemTagsRepository.js";
 import { getDefaultTagStyleId } from "./tagStylesRepository.js";
 import {
   expandTagDraftsWithTranslation,
@@ -159,6 +160,8 @@ export function addFileTags(fileId: number, tags: TagDraft[]): FileTagRecord[] {
         "INSERT OR IGNORE INTO file_tags (file_id, tag_id) VALUES (?, ?)",
       ).run(fileId, tagId);
     }
+
+    syncRatingsFromTagsForFiles(db, [fileId]);
   })();
 
   return listFileTags(fileId);
@@ -200,6 +203,7 @@ export function replaceFileTags(
       ).run(fileId, tagId);
     }
 
+    syncRatingsFromTagsForFiles(db, [fileId]);
     db.prepare(
       "UPDATE files SET updated_at = datetime('now') WHERE id = ?",
     ).run(fileId);
@@ -226,6 +230,8 @@ export function removeFileTags(
         tagId,
       );
     }
+
+    syncRatingsFromTagsForFiles(db, [fileId]);
   })();
 
   return listFileTags(fileId);
@@ -364,6 +370,8 @@ export function addTagsToFiles(
         ).run(fileId, tagId);
       }
     }
+
+    syncRatingsFromTagsForFiles(db, normalizedFileIds);
   })();
 
   return listBatchFileTags(normalizedFileIds);
@@ -384,11 +392,15 @@ export function removeTagsFromFiles(
   const filePlaceholders = createPlaceholders(normalizedFileIds.length);
   const tagPlaceholders = createPlaceholders(normalizedTagIds.length);
 
-  db.prepare(
-    `DELETE FROM file_tags
-     WHERE file_id IN (${filePlaceholders})
-       AND tag_id IN (${tagPlaceholders})`,
-  ).run(...normalizedFileIds, ...normalizedTagIds);
+  db.transaction(() => {
+    db.prepare(
+      `DELETE FROM file_tags
+       WHERE file_id IN (${filePlaceholders})
+         AND tag_id IN (${tagPlaceholders})`,
+    ).run(...normalizedFileIds, ...normalizedTagIds);
+
+    syncRatingsFromTagsForFiles(db, normalizedFileIds);
+  })();
 
   return listBatchFileTags(normalizedFileIds);
 }
@@ -498,6 +510,7 @@ export function translateFileTags(
     }
 
     if (summary.translatedTagCount > 0 || summary.removedOriginalTagCount > 0) {
+      syncRatingsFromTagsForFiles(db, normalizedFileIds);
       db.prepare(
         `UPDATE files SET updated_at = datetime('now') WHERE id IN (${filePlaceholders})`,
       ).run(...normalizedFileIds);

@@ -23,6 +23,8 @@ interface DialogRequest {
   resolve?: (confirmed: boolean) => void;
 }
 
+const GENERIC_DIALOG_WIDTH = 520;
+
 export interface DialogManager {
   openConfirmDialog: (
     options: ConfirmDialogOptions,
@@ -54,14 +56,16 @@ export function createDialogManager({
   ): BrowserWindow {
     const parentOptions = parent ? { parent } : {};
     const window = createAsteriaWindow({
-      width: state.kind === "progress" ? 460 : 560,
+      width: GENERIC_DIALOG_WIDTH,
       height: state.kind === "progress" ? 170 : 210,
-      minWidth: 360,
+      minWidth: GENERIC_DIALOG_WIDTH,
+      maxWidth: GENERIC_DIALOG_WIDTH,
       minHeight: 150,
       title: state.title,
       show: false,
       ...parentOptions,
       modal: false,
+      resizable: false,
       minimizable: false,
       maximizable: false,
     });
@@ -268,7 +272,7 @@ export function createDialogManager({
 
   function resizeGenericDialog(
     id: string,
-    width: number,
+    _width: number,
     height: number,
   ): void {
     const request = dialogs.get(id);
@@ -277,7 +281,7 @@ export function createDialogManager({
       return;
     }
 
-    const nextWidth = Math.min(900, Math.max(280, Math.ceil(width)));
+    const nextWidth = GENERIC_DIALOG_WIDTH;
     const nextHeight = Math.min(560, Math.max(90, Math.ceil(height)));
     request.window.setContentSize(nextWidth, nextHeight);
     showDialogWindow(request.window);

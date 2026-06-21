@@ -11,8 +11,9 @@ import {
 } from "../utils/internalFileDrag";
 import { type TranslationFunction } from "../utils/language";
 
-interface WorkbenchImportHandlersOptions<PageItem> {
+interface WorkbenchImportHandlersOptions<PageItem extends { id: string }> {
   isImporting: boolean;
+  getActiveImportQueueKey: () => string | null;
   t: TranslationFunction;
   activateImportQueuePreview: (page: PageItem | null) => Promise<void>;
   closeMenu: () => void;
@@ -36,11 +37,12 @@ export interface WorkbenchImportHandlers {
   startFolderImport: () => Promise<void>;
 }
 
-export function createWorkbenchImportHandlers<PageItem>({
+export function createWorkbenchImportHandlers<PageItem extends { id: string }>({
   activateImportQueuePreview,
   closeMenu,
   createIdleProgress,
   deactivateActivePageImportQueue,
+  getActiveImportQueueKey,
   isImporting,
   openImportView,
   progress,
@@ -65,6 +67,8 @@ export function createWorkbenchImportHandlers<PageItem>({
       return;
     }
 
+    const queueKey = importPage.id;
+
     setProgress({
       ...createIdleProgress(t),
       phase: "selecting",
@@ -72,7 +76,7 @@ export function createWorkbenchImportHandlers<PageItem>({
     });
 
     try {
-      const result = await window.asteria.importFiles();
+      const result = await window.asteria.importFiles(queueKey);
       setProgress(result);
       await activateImportQueuePreview(importPage);
     } catch (error) {
@@ -102,6 +106,8 @@ export function createWorkbenchImportHandlers<PageItem>({
       return;
     }
 
+    const queueKey = importPage.id;
+
     setProgress({
       ...createIdleProgress(t),
       phase: "selecting",
@@ -109,7 +115,7 @@ export function createWorkbenchImportHandlers<PageItem>({
     });
 
     try {
-      const result = await window.asteria.importFolder();
+      const result = await window.asteria.importFolder(queueKey);
       setProgress(result);
       await activateImportQueuePreview(importPage);
     } catch (error) {
@@ -139,6 +145,12 @@ export function createWorkbenchImportHandlers<PageItem>({
       return;
     }
 
+    const queueKey = importPage?.id ?? getActiveImportQueueKey();
+
+    if (!queueKey) {
+      return;
+    }
+
     const droppedData = readDroppedImportData(dataTransfer);
     const paths = droppedData.files
       .map((file) => window.asteria.getPathForFile(file))
@@ -164,11 +176,11 @@ export function createWorkbenchImportHandlers<PageItem>({
       let result: ImportProgress | null = null;
 
       if (paths.length > 0) {
-        result = await window.asteria.importPaths(paths);
+        result = await window.asteria.importPaths(paths, queueKey);
       }
 
       if (urls.length > 0) {
-        result = await window.asteria.importUrls(urls);
+        result = await window.asteria.importUrls(urls, queueKey);
       }
 
       if (!result) {
@@ -229,9 +241,14 @@ export function createWorkbenchImportHandlers<PageItem>({
 
     const confirmedDuplicateIds = await confirmDuplicateImports(queueFiles, t);
 
+    if (confirmedDuplicateIds === null) {
+      return;
+    }
+
     const result = await window.asteria.commitImportQueue(
       queueFiles.map((file) => file.id),
       confirmedDuplicateIds,
+      getQueueKeyOrDefault(),
     );
     setProgress(result);
 
@@ -245,7 +262,8 @@ export function createWorkbenchImportHandlers<PageItem>({
       return;
     }
 
-    const queueFiles = await window.asteria.listImportQueueFiles();
+    const queueKey = getQueueKeyOrDefault();
+    const queueFiles = await window.asteria.listImportQueueFiles(queueKey);
 
     if (queueFiles.length > 0) {
       const confirmed = await window.asteria.confirmDialog({
@@ -261,7 +279,7 @@ export function createWorkbenchImportHandlers<PageItem>({
     }
 
     const wasImporting = progress.phase === "importing";
-    const result = await window.asteria.clearImportQueue();
+    const result = await window.asteria.clearImportQueue(queueKey);
     setProgress(result);
 
     if (!wasImporting) {
@@ -278,4 +296,8 @@ export function createWorkbenchImportHandlers<PageItem>({
     startFileImport,
     startFolderImport,
   };
+
+  function getQueueKeyOrDefault(): string {
+    return getActiveImportQueueKey() ?? "default";
+  }
 }

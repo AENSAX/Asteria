@@ -93,6 +93,7 @@ export function renderWorkbenchView({
         dragActive={dragActive}
         percent={percent}
         progress={progress}
+        queueKey={activePage?.id ?? "default"}
         onCancelQueue={() => void onCancelImportQueue()}
         onCommitQueue={(queueFiles) => void onCommitImportQueue(queueFiles)}
       />,
@@ -104,6 +105,7 @@ export function renderWorkbenchView({
       component,
       <FileBrowserView
         importQueueMode={Boolean(activePage?.importQueueActive)}
+        importQueueKey={activePage?.id ?? "default"}
         refreshSequence={refreshSequence}
         searchQuery={buildCombinedSearchQuery(activePage?.searchFilters ?? [])}
         state={activePage?.browserViewState ?? defaultBrowserViewState}

@@ -10,6 +10,7 @@ import {
 } from "./database.js";
 import { hashFile } from "./fileHash.js";
 import { storeNewMediaFile } from "./mediaStorage.js";
+import { ensureDefaultRatingsForFiles } from "./db/ratingsRepository.js";
 import {
   cleanupDownloadedImportFile,
   downloadWebMedia,
@@ -41,6 +42,7 @@ interface ImportFileResult {
 
 interface ImportQueueItem {
   id: number;
+  queueKey: string;
   filePath: string;
   fileName: string;
   extension: string | null;
@@ -59,16 +61,18 @@ let importQueue: ImportQueueItem[] = [];
 let queueIdCounter = 1;
 let importQueueLoaded = false;
 let activeImportCommit: {
+  queueKey: string;
   canceled: boolean;
   activeQueueId: number | null;
 } | null = null;
 
 export async function importFiles(
   sender: WebContents,
+  queueKey: string,
 ): Promise<ImportProgress> {
   sendProgress(
     sender,
-    createProgress({
+    createProgress(queueKey, {
       phase: "selecting",
       message: "选择媒体文件",
       messageKey: "window.import.selectMediaFiles",
@@ -92,18 +96,19 @@ export async function importFiles(
     : await dialog.showOpenDialog(options);
 
   if (selection.canceled || selection.filePaths.length === 0) {
-    return finishCanceled(sender);
+    return finishCanceled(sender, queueKey);
   }
 
-  return prepareSelectedPaths(sender, selection.filePaths);
+  return prepareSelectedPaths(sender, selection.filePaths, queueKey);
 }
 
 export async function importFolder(
   sender: WebContents,
+  queueKey: string,
 ): Promise<ImportProgress> {
   sendProgress(
     sender,
-    createProgress({
+    createProgress(queueKey, {
       phase: "selecting",
       message: "选择文件夹",
       messageKey: "window.import.selectFolder",
@@ -121,18 +126,19 @@ export async function importFolder(
     : await dialog.showOpenDialog(options);
 
   if (selection.canceled || selection.filePaths.length === 0) {
-    return finishCanceled(sender);
+    return finishCanceled(sender, queueKey);
   }
 
-  return prepareSelectedPaths(sender, selection.filePaths);
+  return prepareSelectedPaths(sender, selection.filePaths, queueKey);
 }
 
 export async function importPaths(
   sender: WebContents,
   value: unknown,
+  queueKey: string,
 ): Promise<ImportProgress> {
   if (!Array.isArray(value)) {
-    return finishFailed(sender, "拖入路径无效");
+    return finishFailed(sender, queueKey, "拖入路径无效");
   }
 
   const paths = value.filter(
@@ -140,32 +146,33 @@ export async function importPaths(
   );
 
   if (paths.length === 0) {
-    return finishCanceled(sender);
+    return finishCanceled(sender, queueKey);
   }
 
-  return prepareSelectedPaths(sender, paths);
+  return prepareSelectedPaths(sender, paths, queueKey);
 }
 
 export async function importUrls(
   sender: WebContents,
   value: unknown,
+  queueKey: string,
 ): Promise<ImportProgress> {
   if (!Array.isArray(value)) {
-    return finishFailed(sender, "拖入链接无效");
+    return finishFailed(sender, queueKey, "拖入链接无效");
   }
 
   const urls = normalizeImportUrls(value);
 
   if (urls.length === 0) {
-    return finishCanceled(sender);
+    return finishCanceled(sender, queueKey);
   }
 
-  return prepareWebUrls(sender, urls);
+  return prepareWebUrls(sender, urls, queueKey);
 }
 
-export function listImportQueueFiles(): ImportQueueFileRecord[] {
+export function listImportQueueFiles(queueKey: string): ImportQueueFileRecord[] {
   ensureImportQueueLoaded();
-  return importQueue.map(toQueueRecord);
+  return getQueueItems(queueKey).map(toQueueRecord);
 }
 
 export function getImportQueueFilePath(queueId: number): string | null {
@@ -177,6 +184,7 @@ export async function commitImportQueue(
   sender: WebContents,
   queueIds: number[],
   confirmedDuplicateQueueIds: number[],
+  queueKey: string,
 ): Promise<ImportCommitResult> {
   ensureImportQueueLoaded();
   const idSet = new Set(normalizeQueueIds(queueIds));
@@ -184,11 +192,12 @@ export async function commitImportQueue(
     normalizeQueueIds(confirmedDuplicateQueueIds),
   );
   const items = importQueue.filter(
-    (item) => idSet.has(item.id) && item.status === "ready",
+    (item) =>
+      item.queueKey === queueKey && idSet.has(item.id) && item.status === "ready",
   );
 
   if (items.length === 0) {
-    const empty = createProgress({
+    const empty = createProgress(queueKey, {
       phase: "completed",
       message: "没有可导入文件",
       messageKey: "window.import.noFilesToImport",
@@ -196,13 +205,13 @@ export async function commitImportQueue(
     sendProgress(sender, empty);
     return {
       ...empty,
-      remainingQueue: listImportQueueFiles(),
+      remainingQueue: listImportQueueFiles(queueKey),
       committedFileIds: [],
     };
   }
 
   if (activeImportCommit) {
-    const busy = createProgress({
+    const busy = createProgress(queueKey, {
       phase: "failed",
       message: "已有导入任务正在执行",
       messageKey: "window.import.queueBusy",
@@ -210,7 +219,7 @@ export async function commitImportQueue(
     sendProgress(sender, busy);
     return {
       ...busy,
-      remainingQueue: listImportQueueFiles(),
+      remainingQueue: listImportQueueFiles(queueKey),
       committedFileIds: [],
     };
   }
@@ -238,6 +247,7 @@ export async function commitImportQueue(
   const selectedQueueIds = items.map((item) => item.id);
 
   activeImportCommit = {
+    queueKey,
     canceled: false,
     activeQueueId: null,
   };
@@ -255,7 +265,7 @@ export async function commitImportQueue(
         activeImportCommit.activeQueueId = item.id;
         sendProgress(
           sender,
-          createProgress({
+          createProgress(queueKey, {
             phase: "importing",
             batchId,
             total,
@@ -319,10 +329,10 @@ export async function commitImportQueue(
       batchId,
     );
 
-    removeQueueItems(canceled ? selectedQueueIds : importedQueueIds);
+    removeQueueItems(canceled ? selectedQueueIds : importedQueueIds, queueKey);
     saveImportQueue();
 
-    const completed = createProgress({
+    const completed = createProgress(queueKey, {
       phase: canceled ? "canceled" : "completed",
       batchId,
       total,
@@ -339,7 +349,7 @@ export async function commitImportQueue(
 
     return {
       ...completed,
-      remainingQueue: listImportQueueFiles(),
+      remainingQueue: listImportQueueFiles(queueKey),
       committedFileIds,
     };
   } finally {
@@ -347,14 +357,18 @@ export async function commitImportQueue(
   }
 }
 
-export function removeImportQueueFiles(queueIds: number[]): ImportProgress {
+export function removeImportQueueFiles(
+  queueIds: number[],
+  queueKey: string,
+): ImportProgress {
   ensureImportQueueLoaded();
-  const removedCount = removeQueueItems(normalizeQueueIds(queueIds));
+  const removedCount = removeQueueItems(normalizeQueueIds(queueIds), queueKey);
   saveImportQueue();
 
-  return createProgress({
-    phase: importQueue.length > 0 ? "ready" : "idle",
-    total: importQueue.length,
+  const queueLength = getQueueItems(queueKey).length;
+  return createProgress(queueKey, {
+    phase: queueLength > 0 ? "ready" : "idle",
+    total: queueLength,
     message:
       removedCount > 0 ? `已删除 ${removedCount} 个待导入文件` : "没有删除文件",
     messageKey:
@@ -365,27 +379,29 @@ export function removeImportQueueFiles(queueIds: number[]): ImportProgress {
   });
 }
 
-export function clearImportQueue(): ImportProgress {
+export function clearImportQueue(queueKey: string): ImportProgress {
   ensureImportQueueLoaded();
 
-  if (activeImportCommit) {
+  if (activeImportCommit?.queueKey === queueKey) {
     activeImportCommit.canceled = true;
     const activeQueueId = activeImportCommit.activeQueueId;
 
-    for (const item of importQueue) {
+    for (const item of getQueueItems(queueKey)) {
       if (item.id !== activeQueueId) {
         cleanupQueueItem(item);
       }
     }
 
     importQueue = activeQueueId
-      ? importQueue.filter((item) => item.id === activeQueueId)
-      : [];
+      ? importQueue.filter(
+          (item) => item.queueKey !== queueKey || item.id === activeQueueId,
+        )
+      : importQueue.filter((item) => item.queueKey !== queueKey);
     saveImportQueue();
 
-    return createProgress({
+    return createProgress(queueKey, {
       phase: "canceled",
-      total: importQueue.length,
+      total: getQueueItems(queueKey).length,
       message: activeQueueId
         ? "正在取消导入，当前文件完成后停止"
         : "正在取消导入",
@@ -395,13 +411,13 @@ export function clearImportQueue(): ImportProgress {
     });
   }
 
-  for (const item of importQueue) {
+  for (const item of getQueueItems(queueKey)) {
     cleanupQueueItem(item);
   }
-  importQueue = [];
+  importQueue = importQueue.filter((item) => item.queueKey !== queueKey);
   saveImportQueue();
 
-  return createProgress({
+  return createProgress(queueKey, {
     phase: "canceled",
     message: "已取消导入",
     messageKey: "window.import.canceled",
@@ -411,11 +427,12 @@ export function clearImportQueue(): ImportProgress {
 async function prepareSelectedPaths(
   sender: WebContents,
   selectedPaths: string[],
+  queueKey: string,
 ): Promise<ImportProgress> {
   ensureImportQueueLoaded();
   sendProgress(
     sender,
-    createProgress({
+    createProgress(queueKey, {
       phase: "preparing",
       message: "扫描媒体文件",
       messageKey: "window.import.scanMediaFiles",
@@ -425,7 +442,7 @@ async function prepareSelectedPaths(
   const mediaFiles = await collectMediaFiles(selectedPaths);
 
   if (mediaFiles.length === 0) {
-    const empty = createProgress({
+    const empty = createProgress(queueKey, {
       phase: "completed",
       message: "未找到支持的媒体文件",
       messageKey: "window.import.noSupportedFiles",
@@ -434,7 +451,7 @@ async function prepareSelectedPaths(
     return empty;
   }
 
-  const progressBase = createProgress({
+  const progressBase = createProgress(queueKey, {
     phase: "preparing",
     total: mediaFiles.length,
     chunkTotal: Math.ceil(mediaFiles.length / CHUNK_SIZE),
@@ -460,10 +477,16 @@ async function prepareSelectedPaths(
         ...counters,
       });
 
-      const result = await analyzeOneFile(filePath);
-      importQueue.push(result);
-      saveImportQueue();
+      const result = await analyzeOneFile(filePath, queueKey);
+      const added = addQueueItemIfUnique(result, queueKey);
+      if (added) {
+        saveImportQueue();
+      }
       counters.processed += 1;
+
+      if (!added) {
+        continue;
+      }
 
       if (result.status === "failed") {
         counters.failed += 1;
@@ -475,9 +498,9 @@ async function prepareSelectedPaths(
     }
   }
 
-  const ready = createProgress({
+  const ready = createProgress(queueKey, {
     phase: "ready",
-    total: importQueue.length,
+    total: getQueueItems(queueKey).length,
     processed: counters.processed,
     imported: counters.imported,
     duplicated: counters.duplicated,
@@ -497,18 +520,19 @@ async function prepareSelectedPaths(
 async function prepareWebUrls(
   sender: WebContents,
   urls: string[],
+  queueKey: string,
 ): Promise<ImportProgress> {
   ensureImportQueueLoaded();
   sendProgress(
     sender,
-    createProgress({
+    createProgress(queueKey, {
       phase: "preparing",
       message: "下载网页媒体",
       messageKey: "window.import.downloadWebMedia",
     }),
   );
 
-  const progressBase = createProgress({
+  const progressBase = createProgress(queueKey, {
     phase: "preparing",
     total: urls.length,
     chunkTotal: Math.ceil(urls.length / CHUNK_SIZE),
@@ -534,10 +558,16 @@ async function prepareWebUrls(
         ...counters,
       });
 
-      const result = await analyzeOneWebUrl(url);
-      importQueue.push(result);
-      saveImportQueue();
+      const result = await analyzeOneWebUrl(url, queueKey);
+      const added = addQueueItemIfUnique(result, queueKey);
+      if (added) {
+        saveImportQueue();
+      }
       counters.processed += 1;
+
+      if (!added) {
+        continue;
+      }
 
       if (result.status === "failed") {
         counters.failed += 1;
@@ -549,9 +579,9 @@ async function prepareWebUrls(
     }
   }
 
-  const ready = createProgress({
+  const ready = createProgress(queueKey, {
     phase: "ready",
-    total: importQueue.length,
+    total: getQueueItems(queueKey).length,
     processed: counters.processed,
     imported: counters.imported,
     duplicated: counters.duplicated,
@@ -601,19 +631,26 @@ async function collectOnePath(path: string, files: string[]): Promise<void> {
   }
 }
 
-async function analyzeOneFile(filePath: string): Promise<ImportQueueItem> {
-  return analyzePreparedFile(nextQueueId(), filePath, "local", null);
+async function analyzeOneFile(
+  filePath: string,
+  queueKey: string,
+): Promise<ImportQueueItem> {
+  return analyzePreparedFile(nextQueueId(), queueKey, filePath, "local", null);
 }
 
-async function analyzeOneWebUrl(url: string): Promise<ImportQueueItem> {
+async function analyzeOneWebUrl(
+  url: string,
+  queueKey: string,
+): Promise<ImportQueueItem> {
   const id = nextQueueId();
 
   try {
     const filePath = await downloadWebMedia(url, id);
-    return analyzePreparedFile(id, filePath, "web", url);
+    return analyzePreparedFile(id, queueKey, filePath, "web", url);
   } catch (error) {
     return createFailedQueueItem(
       id,
+      queueKey,
       url,
       error instanceof Error ? error.message : "未知错误",
       "web",
@@ -624,6 +661,7 @@ async function analyzeOneWebUrl(url: string): Promise<ImportQueueItem> {
 
 async function analyzePreparedFile(
   id: number,
+  queueKey: string,
   filePath: string,
   sourceKind: ImportQueueItem["sourceKind"],
   sourceUrl: string | null,
@@ -634,6 +672,7 @@ async function analyzePreparedFile(
     if (!fileStat.isFile()) {
       return createFailedQueueItem(
         id,
+        queueKey,
         filePath,
         "不是文件",
         sourceKind,
@@ -647,6 +686,7 @@ async function analyzePreparedFile(
 
     return {
       id,
+      queueKey,
       filePath,
       fileName: basename(filePath),
       extension,
@@ -663,6 +703,7 @@ async function analyzePreparedFile(
   } catch (error) {
     return createFailedQueueItem(
       id,
+      queueKey,
       sourceUrl ?? filePath,
       error instanceof Error ? error.message : "未知错误",
       sourceKind,
@@ -673,6 +714,7 @@ async function analyzePreparedFile(
 
 function createFailedQueueItem(
   id: number,
+  queueKey: string,
   filePath: string,
   errorMessage: string,
   sourceKind: ImportQueueItem["sourceKind"] = "local",
@@ -680,6 +722,7 @@ function createFailedQueueItem(
 ): ImportQueueItem {
   return {
     id,
+    queueKey,
     filePath,
     fileName: basename(filePath),
     extension: normalizeExtension(filePath),
@@ -748,6 +791,7 @@ async function importOneQueuedFile(
         height: item.height,
       });
       attachQueuedFileMetadata(fileId, item);
+      ensureDefaultRatingsForFiles([fileId]);
 
       return {
         fileId,
@@ -774,6 +818,7 @@ async function importOneQueuedFile(
       height: item.height,
     });
     attachQueuedFileMetadata(fileId, item);
+    ensureDefaultRatingsForFiles([fileId]);
 
     return {
       fileId,
@@ -901,8 +946,11 @@ function findExistingStoredFile(sha256: string): {
   return row ?? null;
 }
 
-function finishCanceled(sender: WebContents): ImportProgress {
-  const canceled = createProgress({
+function finishCanceled(
+  sender: WebContents,
+  queueKey: string,
+): ImportProgress {
+  const canceled = createProgress(queueKey, {
     phase: "canceled",
     message: "已取消导入",
     messageKey: "window.import.canceled",
@@ -911,17 +959,24 @@ function finishCanceled(sender: WebContents): ImportProgress {
   return canceled;
 }
 
-function finishFailed(sender: WebContents, message: string): ImportProgress {
-  const failed = createProgress({ phase: "failed", message });
+function finishFailed(
+  sender: WebContents,
+  queueKey: string,
+  message: string,
+): ImportProgress {
+  const failed = createProgress(queueKey, { phase: "failed", message });
   sendProgress(sender, failed);
   return failed;
 }
 
-function createProgress(overrides: Partial<ImportProgress>): ImportProgress {
+function createProgress(
+  queueKey: string,
+  overrides: Partial<ImportProgress>,
+): ImportProgress {
   return {
     phase: "idle",
     batchId: null,
-    total: importQueue.length,
+    total: getQueueItems(queueKey).length,
     processed: 0,
     imported: 0,
     duplicated: 0,
@@ -938,17 +993,21 @@ function sendProgress(sender: WebContents, progress: ImportProgress): void {
   sender.send(IpcEvent.IMPORT_PROGRESS, progress);
 }
 
-function removeQueueItems(ids: number[]): number {
+function removeQueueItems(ids: number[], queueKey: string): number {
   const idSet = new Set(ids);
-  const before = importQueue.length;
-  const removedItems = importQueue.filter((item) => idSet.has(item.id));
-  importQueue = importQueue.filter((item) => !idSet.has(item.id));
+  const before = getQueueItems(queueKey).length;
+  const removedItems = importQueue.filter(
+    (item) => item.queueKey === queueKey && idSet.has(item.id),
+  );
+  importQueue = importQueue.filter(
+    (item) => item.queueKey !== queueKey || !idSet.has(item.id),
+  );
 
   for (const item of removedItems) {
     cleanupQueueItem(item);
   }
 
-  return before - importQueue.length;
+  return before - getQueueItems(queueKey).length;
 }
 
 function ensureImportQueueLoaded(): void {
@@ -1006,6 +1065,10 @@ function normalizeStoredQueueItem(
 
   return {
     id: value.id,
+    queueKey:
+      typeof value.queueKey === "string" && value.queueKey.trim().length > 0
+        ? value.queueKey
+        : "default",
     filePath: value.filePath,
     fileName: value.fileName,
     extension: typeof value.extension === "string" ? value.extension : null,
@@ -1032,6 +1095,28 @@ function normalizeQueueIds(ids: number[]): number[] {
   return Array.from(
     new Set(ids.filter((id) => Number.isInteger(id) && id > 0)),
   );
+}
+
+function getQueueItems(queueKey: string): ImportQueueItem[] {
+  ensureImportQueueLoaded();
+  return importQueue.filter((item) => item.queueKey === queueKey);
+}
+
+function addQueueItemIfUnique(item: ImportQueueItem, queueKey: string): boolean {
+  const duplicate = getQueueItems(queueKey).some(
+    (existing) =>
+      existing.filePath === item.filePath ||
+      (item.sourceUrl !== null && existing.sourceUrl === item.sourceUrl) ||
+      (item.sha256.length > 0 && existing.sha256 === item.sha256),
+  );
+
+  if (duplicate) {
+    cleanupQueueItem(item);
+    return false;
+  }
+
+  importQueue.push(item);
+  return true;
 }
 
 function toQueueRecord(item: ImportQueueItem): ImportQueueFileRecord {

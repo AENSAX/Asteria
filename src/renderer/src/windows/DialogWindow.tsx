@@ -14,6 +14,9 @@ interface DialogWindowProps {
   dialogId: string;
 }
 
+const DIALOG_CONTENT_WIDTH = 520;
+const DIALOG_RESIZE_PADDING = 4;
+
 export function DialogWindow({ dialogId }: DialogWindowProps): JSX.Element {
   const { t } = useLanguage();
   const [state, setState] = useState<GenericDialogState | null>(null);
@@ -53,31 +56,24 @@ export function DialogWindow({ dialogId }: DialogWindowProps): JSX.Element {
     }
 
     const root = rootRef.current;
-    let resizeFrame = 0;
-
-    function resizeToContent(): void {
-      window.cancelAnimationFrame(resizeFrame);
-      resizeFrame = window.requestAnimationFrame(() => {
-        const width = Math.ceil(root.scrollWidth) + 4;
-        const height = Math.ceil(root.scrollHeight) + 4;
-        void window.asteria?.resizeDialog(dialogId, width, height);
-      });
-    }
-
-    const observer = new ResizeObserver(resizeToContent);
-    observer.observe(root);
-    resizeToContent();
+    const resizeFrame = window.requestAnimationFrame(() => {
+      const height = Math.ceil(root.scrollHeight) + DIALOG_RESIZE_PADDING;
+      void window.asteria?.resizeDialog(
+        dialogId,
+        DIALOG_CONTENT_WIDTH,
+        height,
+      );
+    });
 
     return () => {
       window.cancelAnimationFrame(resizeFrame);
-      observer.disconnect();
     };
   }, [dialogId, state]);
 
   if (!state) {
     return (
       <section
-        className="grid w-fit min-w-[280px] overflow-hidden bg-(--bg) text-[12px] text-(--ink)"
+        className="grid w-[520px] min-w-0 overflow-hidden bg-(--bg) text-[12px] text-(--ink)"
         ref={rootRef}
       >
         {t("window.dialog.loading")}
@@ -92,11 +88,11 @@ export function DialogWindow({ dialogId }: DialogWindowProps): JSX.Element {
 
   return (
     <section
-      className="grid w-fit min-w-[280px] max-w-[900px] overflow-hidden bg-(--bg) text-[12px] text-(--ink)"
+      className="grid w-[520px] min-w-0 overflow-hidden bg-(--bg) text-[12px] text-(--ink)"
       ref={rootRef}
     >
       <main className="min-w-0 min-h-0 p-3">
-        <div className="max-w-[860px] whitespace-pre-line">
+        <div className="min-w-0 whitespace-pre-wrap break-words">
           {formatDialogMessage(state, t)}
         </div>
         {state.kind === "progress" && state.progress ? (

@@ -15,6 +15,7 @@ interface ImportViewProps {
   dragActive: boolean;
   percent: number;
   progress: ImportProgress;
+  queueKey: string;
   onCommitQueue: (queueFiles: ImportQueueFileRecord[]) => void;
   onCancelQueue: () => void;
 }
@@ -23,6 +24,7 @@ export function ImportView({
   dragActive,
   percent,
   progress,
+  queueKey,
   onCancelQueue,
   onCommitQueue,
 }: ImportViewProps): JSX.Element {
@@ -39,7 +41,7 @@ export function ImportView({
     return window.asteria.onImportQueueChanged(() => {
       void loadQueue();
     });
-  }, []);
+  }, [queueKey]);
 
   async function loadQueue(): Promise<void> {
     if (!window.asteria) {
@@ -47,7 +49,7 @@ export function ImportView({
       return;
     }
 
-    setQueueFiles(await window.asteria.listImportQueueFiles());
+    setQueueFiles(await window.asteria.listImportQueueFiles(queueKey));
   }
 
   const duplicateCount = queueFiles.filter((file) => file.duplicate).length;

@@ -15,7 +15,12 @@ import {
   DATABASE_FILE_SELECT_COLUMNS,
   DATABASE_FILE_SELECT_COLUMNS_WITH_DELETED_DOMAIN,
 } from "./sqlFragments.js";
+import {
+  removeFavoriteTagsFromFiles,
+  syncFavoriteTag,
+} from "./systemTagsRepository.js";
 import { listFileTagsByFileIds } from "./fileTagsRepository.js";
+import { ensureDefaultRatingsForFilesInDb } from "./ratingsRepository.js";
 
 export interface ThumbnailSourceRecord {
   fileId: number;
@@ -419,13 +424,21 @@ export function setFileFavorite(fileId: number, favorite: boolean): void {
     return;
   }
 
-  db.prepare(
-    `UPDATE files
-     SET is_favorite = ?,
-         updated_at = datetime('now')
-     WHERE id = ?
-       AND deleted_at IS NULL`,
-  ).run(favorite ? 1 : 0, fileId);
+  db.transaction(() => {
+    const result = db
+      .prepare(
+        `UPDATE files
+         SET is_favorite = ?,
+             updated_at = datetime('now')
+         WHERE id = ?
+           AND deleted_at IS NULL`,
+      )
+      .run(favorite ? 1 : 0, fileId);
+
+    if (result.changes > 0) {
+      syncFavoriteTag(db, fileId, favorite);
+    }
+  })();
 }
 
 export function trashFiles(fileIds: number[]): void {
@@ -437,13 +450,16 @@ export function trashFiles(fileIds: number[]): void {
   }
 
   const placeholders = createPlaceholders(normalizedFileIds.length);
-  db.prepare(
-    `UPDATE files
-     SET deleted_at = coalesce(deleted_at, datetime('now')),
-         is_favorite = 0,
-         updated_at = datetime('now')
-     WHERE id IN (${placeholders})`,
-  ).run(...normalizedFileIds);
+  db.transaction(() => {
+    db.prepare(
+      `UPDATE files
+       SET deleted_at = coalesce(deleted_at, datetime('now')),
+           is_favorite = 0,
+           updated_at = datetime('now')
+       WHERE id IN (${placeholders})`,
+    ).run(...normalizedFileIds);
+    removeFavoriteTagsFromFiles(db, normalizedFileIds);
+  })();
 }
 
 export function restoreFiles(fileIds: number[]): void {
@@ -455,12 +471,15 @@ export function restoreFiles(fileIds: number[]): void {
   }
 
   const placeholders = createPlaceholders(normalizedFileIds.length);
-  db.prepare(
-    `UPDATE files
-     SET deleted_at = NULL,
-         updated_at = datetime('now')
-     WHERE id IN (${placeholders})`,
-  ).run(...normalizedFileIds);
+  db.transaction(() => {
+    db.prepare(
+      `UPDATE files
+       SET deleted_at = NULL,
+           updated_at = datetime('now')
+       WHERE id IN (${placeholders})`,
+    ).run(...normalizedFileIds);
+    ensureDefaultRatingsForFilesInDb(db, normalizedFileIds);
+  })();
 }
 
 export function restoreAllTrashedFiles(): number {
