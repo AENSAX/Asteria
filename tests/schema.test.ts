@@ -64,7 +64,7 @@ describe("runMigrations", () => {
 
     // regression: the favorites migration used to record SCHEMA_VERSION
     // instead of 6, which made fresh databases crash on the version-11 insert
-    expect(versions).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+    expect(versions).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);
   });
 
   it("seeds a default tag style", () => {

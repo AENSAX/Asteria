@@ -10,6 +10,8 @@ release/
 
 # Local app data
 .dev-data/
+.claude/
+.yarn/install-state.gz
 doc_private/
 
 # Local binaries
