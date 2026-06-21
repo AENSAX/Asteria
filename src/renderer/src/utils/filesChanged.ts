@@ -63,6 +63,7 @@ export function filesChangedAffectsTagCatalog(
     payload.kind === "domain" ||
     payload.kind === "imported" ||
     payload.kind === "mixed" ||
+    payload.kind === "ratings" ||
     payload.kind === "relations" ||
     payload.kind === "restored" ||
     payload.kind === "tags" ||

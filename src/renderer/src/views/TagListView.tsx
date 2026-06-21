@@ -491,21 +491,19 @@ function filterStyleGroups(
     );
   }
 
-  const selectionCountByTagId = new Map(
-    selectionTags.map((tag) => [tag.id, tag.fileCount]),
-  );
+  const groupsByStyle = new Map<string, StyleTagGroup>();
 
-  return removeEmptyTagGroups(
-    groups.map((group) => ({
-      ...group,
-      tags: group.tags
-        .filter((tag) => selectionCountByTagId.has(tag.id))
-        .map((tag) => ({
-          ...tag,
-          fileCount: selectionCountByTagId.get(tag.id) ?? tag.fileCount,
-        })),
-    })),
-  );
+  for (const tag of selectionTags) {
+    const styleKey = tag.styleName;
+    const group =
+      groupsByStyle.get(styleKey) ??
+      createSelectionStyleGroup(tag.styleName, groupsByStyle.size);
+
+    group.tags.push(toManagedSelectionTag(tag));
+    groupsByStyle.set(styleKey, group);
+  }
+
+  return removeEmptyTagGroups([...groupsByStyle.values()]);
 }
 
 function removeEmptyTagGroups(groups: StyleTagGroup[]): StyleTagGroup[] {
@@ -577,6 +575,36 @@ function createDomainStyleGroup(
       direction,
       true,
     ),
+  };
+}
+
+function createSelectionStyleGroup(
+  styleName: string,
+  index: number,
+): StyleTagGroup {
+  return {
+    style: {
+      id: -1000 - index,
+      name: styleName,
+      displayName: styleName,
+      tagCount: 0,
+      createdAt: "",
+      isDefault: index === 0,
+    },
+    tags: [],
+  };
+}
+
+function toManagedSelectionTag(tag: BatchFileTagRecord): ManagedTagRecord {
+  return {
+    id: tag.id,
+    styleId: -1,
+    styleName: tag.styleName,
+    namespace: tag.namespace,
+    name: tag.name,
+    displayName: tag.displayName,
+    fileCount: tag.fileCount,
+    createdAt: tag.createdAt,
   };
 }
 
