@@ -69,13 +69,11 @@ export interface BrowserNamespaceGroupPage {
   groups: BrowserNamespaceGroupRecord[];
 }
 
-export interface BrowserNamespaceGroupPageRequest
-  extends BrowserSearchPageRequest {
+export interface BrowserNamespaceGroupPageRequest extends BrowserSearchPageRequest {
   namespace: string;
 }
 
-export interface BrowserNamespaceGroupFilePageRequest
-  extends BrowserFilePageRequest {
+export interface BrowserNamespaceGroupFilePageRequest extends BrowserFilePageRequest {
   namespace: string;
   value: string | null;
 }
@@ -752,6 +750,7 @@ export interface AsteriaApi {
     fileIds: number[],
   ) => Promise<BatchFileTagRecord[]>;
   searchTags: (query: string) => Promise<TagRecord[]>;
+  searchTagNamespaces: (query: string) => Promise<string[]>;
   searchHints: (query: string) => Promise<SearchHintRecord[]>;
   listTagStyles: () => Promise<TagStyleRecord[]>;
   createTagStyle: (name: string) => Promise<TagStyleRecord[]>;

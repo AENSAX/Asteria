@@ -73,8 +73,7 @@ const tagListRootClass =
   "grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] bg-(--panel)";
 const tagListToolbarClass =
   "grid grid-cols-[92px_112px_118px_minmax(0,1fr)] items-center gap-1.5 border-b border-(--line) bg-(--panel) p-1.5";
-const tagListSelectClass =
-  "ui-input";
+const tagListSelectClass = "ui-input";
 const tagListToolbarLabelClass =
   "flex min-w-0 items-center gap-1 whitespace-nowrap text-(--ink)";
 const tagListContentClass = "min-h-0 overflow-auto bg-(--surface-bg)";
@@ -137,21 +136,31 @@ export function TagListView({
     });
   }, [state.filterMode, selectedFileIds]);
 
-  const sortedGroups = useMemo(
-    () => {
-      const tagGroups = sortStyleGroups(groups).map((group) => ({
-        ...group,
-        tags: sortTags(group.tags, state.direction, state.namespaceFirst),
-      }));
-      const domainGroup = createDomainStyleGroup(domains, state.direction);
+  const sortedGroups = useMemo(() => {
+    const tagGroups = sortStyleGroups(groups).map((group) => ({
+      ...group,
+      tags: sortTags(group.tags, state.direction, state.namespaceFirst),
+    }));
+    const domainGroup = createDomainStyleGroup(domains, state.direction);
 
-      return domainGroup ? [domainGroup, ...tagGroups] : tagGroups;
-    },
-    [domains, groups, state.direction, state.namespaceFirst],
-  );
+    return domainGroup ? [domainGroup, ...tagGroups] : tagGroups;
+  }, [domains, groups, state.direction, state.namespaceFirst]);
   const displayGroups = useMemo(
-    () => filterStyleGroups(sortedGroups, state.filterMode, selectionTags),
-    [state.filterMode, selectionTags, sortedGroups],
+    () =>
+      filterStyleGroups(
+        sortedGroups,
+        state.filterMode,
+        selectionTags,
+        state.direction,
+        state.namespaceFirst,
+      ),
+    [
+      state.direction,
+      state.filterMode,
+      state.namespaceFirst,
+      selectionTags,
+      sortedGroups,
+    ],
   );
   const tagListLabels = useMemo(
     () => ({
@@ -468,6 +477,8 @@ function filterStyleGroups(
   groups: StyleTagGroup[],
   mode: TagListFilterMode,
   selectionTags: BatchFileTagRecord[],
+  direction: SortDirection,
+  namespaceFirst: boolean,
 ): StyleTagGroup[] {
   if (mode === "all") {
     return groups;
@@ -503,7 +514,14 @@ function filterStyleGroups(
     groupsByStyle.set(styleKey, group);
   }
 
-  return removeEmptyTagGroups([...groupsByStyle.values()]);
+  return sortStyleGroups(
+    removeEmptyTagGroups(
+      [...groupsByStyle.values()].map((group) => ({
+        ...group,
+        tags: sortTags(group.tags, direction, namespaceFirst),
+      })),
+    ),
+  );
 }
 
 function removeEmptyTagGroups(groups: StyleTagGroup[]): StyleTagGroup[] {

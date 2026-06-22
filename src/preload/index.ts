@@ -20,17 +20,17 @@ const api: AsteriaApi = {
   listBrowserFiles: () => ipcRenderer.invoke(IpcChannel.BROWSER_LIST_FILES),
   listBrowserFilesByIds: (fileIds) =>
     ipcRenderer.invoke(IpcChannel.BROWSER_LIST_FILES_BY_IDS, fileIds),
-    searchBrowserFilePage: (request) =>
-      ipcRenderer.invoke(IpcChannel.BROWSER_SEARCH_FILE_PAGE, request),
-    listBrowserNamespaceGroupPage: (request) =>
-      ipcRenderer.invoke(IpcChannel.BROWSER_LIST_NAMESPACE_GROUP_PAGE, request),
-    listBrowserNamespaceGroupFilePage: (request) =>
-      ipcRenderer.invoke(
-        IpcChannel.BROWSER_LIST_NAMESPACE_GROUP_FILE_PAGE,
-        request,
-      ),
-    listFavoriteFilePage: (request) =>
-      ipcRenderer.invoke(IpcChannel.BROWSER_LIST_FAVORITE_PAGE, request),
+  searchBrowserFilePage: (request) =>
+    ipcRenderer.invoke(IpcChannel.BROWSER_SEARCH_FILE_PAGE, request),
+  listBrowserNamespaceGroupPage: (request) =>
+    ipcRenderer.invoke(IpcChannel.BROWSER_LIST_NAMESPACE_GROUP_PAGE, request),
+  listBrowserNamespaceGroupFilePage: (request) =>
+    ipcRenderer.invoke(
+      IpcChannel.BROWSER_LIST_NAMESPACE_GROUP_FILE_PAGE,
+      request,
+    ),
+  listFavoriteFilePage: (request) =>
+    ipcRenderer.invoke(IpcChannel.BROWSER_LIST_FAVORITE_PAGE, request),
   listFavoriteFiles: () =>
     ipcRenderer.invoke(IpcChannel.BROWSER_LIST_FAVORITES),
   setFileFavorite: (fileId, favorite) =>
@@ -189,6 +189,8 @@ const api: AsteriaApi = {
   listBatchEffectiveFileTags: (fileIds) =>
     ipcRenderer.invoke(IpcChannel.TAG_LIST_BATCH_EFFECTIVE_FILE_TAGS, fileIds),
   searchTags: (query) => ipcRenderer.invoke(IpcChannel.TAG_SEARCH, query),
+  searchTagNamespaces: (query) =>
+    ipcRenderer.invoke(IpcChannel.TAG_SEARCH_NAMESPACES, query),
   searchHints: (query) => ipcRenderer.invoke(IpcChannel.SEARCH_HINTS, query),
   listTagStyles: () => ipcRenderer.invoke(IpcChannel.TAG_LIST_STYLES),
   createTagStyle: (name) =>
@@ -517,8 +519,7 @@ function normalizeFilesChangedPayload(payload: unknown): FilesChangedPayload {
   const candidate = payload as Partial<FilesChangedPayload>;
   const fileIds = Array.isArray(candidate.fileIds)
     ? candidate.fileIds.filter(
-        (fileId): fileId is number =>
-          Number.isInteger(fileId) && fileId > 0,
+        (fileId): fileId is number => Number.isInteger(fileId) && fileId > 0,
       )
     : undefined;
 

@@ -7,7 +7,6 @@ import type {
   ImportQueueFileRecord,
   RatingEntryRecord,
   RatingGroupRecord,
-  TagRecord,
   TagTranslationSettings,
 } from "../../../shared/ipc";
 import { FileContextMenu } from "../components/FileContextMenu";
@@ -131,7 +130,7 @@ const browserGroupStackClass =
 const browserGroupBadgeClass =
   "pointer-events-none absolute left-1 bottom-1 z-[3] max-w-[calc(100%-8px)] overflow-hidden text-ellipsis whitespace-nowrap border border-(--line-strong) bg-(--surface-inset-bg) px-1.5 leading-5 text-[10px] text-(--ink)";
 const browserStatusClass =
-  "grid h-6 min-w-0 grid-cols-[auto_auto_minmax(0,1fr)] items-center gap-2 overflow-hidden border-t border-(--line) bg-(--surface-bg) px-2 text-(--muted)";
+  "grid h-6 min-w-0 grid-cols-[auto_auto_minmax(0,1fr)] items-center gap-2 border-t border-(--line) bg-(--surface-bg) px-2 text-(--muted)";
 const browserFooterGroupClass =
   "inline-flex min-w-0 items-center gap-1.5 whitespace-nowrap";
 const browserSelectClass =
@@ -459,10 +458,10 @@ export function FileBrowserView({
       }
 
       try {
-        const tags = await window.asteria.searchTags(query);
+        const namespaces = await window.asteria.searchTagNamespaces(query);
 
         if (!cancelled) {
-          setNamespaceSuggestions(createNamespaceSuggestions(tags, query));
+          setNamespaceSuggestions(namespaces);
           setNamespaceSuggestionIndex(0);
         }
       } catch {
@@ -1989,33 +1988,6 @@ function formatNamespaceGroupName(
   t: TranslationFunction,
 ): string {
   return group.value ?? t("window.browser.noNamespaceGroupValue");
-}
-
-function createNamespaceSuggestions(
-  tags: TagRecord[],
-  query: string,
-): string[] {
-  const normalizedQuery = query.trim().toLowerCase();
-  const seen = new Set<string>();
-  const suggestions: string[] = [];
-
-  for (const tag of tags) {
-    if (!tag.namespace || seen.has(tag.namespace)) {
-      continue;
-    }
-
-    if (
-      normalizedQuery &&
-      !tag.namespace.toLowerCase().includes(normalizedQuery)
-    ) {
-      continue;
-    }
-
-    seen.add(tag.namespace);
-    suggestions.push(tag.namespace);
-  }
-
-  return suggestions.slice(0, 12);
 }
 
 function createVirtualGallery(

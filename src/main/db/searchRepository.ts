@@ -404,6 +404,33 @@ export function searchTags(query: string, limit = 12): TagRecord[] {
     ) as TagRecord[];
 }
 
+export function searchTagNamespaces(query: string, limit = 12): string[] {
+  const db = getDatabaseConnection();
+  const normalizedQuery = normalizeTagSearchQuery(query);
+
+  if (!normalizedQuery) {
+    return [];
+  }
+
+  const likeQuery = `%${normalizedQuery}%`;
+  const prefixQuery = `${normalizedQuery}%`;
+  const rows = db
+    .prepare(
+      `SELECT tags.namespace
+       FROM tags
+       WHERE tags.namespace <> ''
+         AND lower(tags.namespace) LIKE ?
+       GROUP BY tags.namespace
+       ORDER BY
+        CASE WHEN lower(tags.namespace) LIKE ? THEN 0 ELSE 1 END,
+        lower(tags.namespace) ASC
+       LIMIT ?`,
+    )
+    .all(likeQuery, prefixQuery, limit) as Array<{ namespace: string }>;
+
+  return rows.map((row) => row.namespace);
+}
+
 function createSearchTokenFilesCte(): string {
   return `${createEffectiveTagFilesCte()},
   search_token_files(file_id, search_key) AS (
@@ -541,7 +568,9 @@ function createNamespaceGroupId(
   namespace: string,
   value: string | null,
 ): string {
-  return value === null ? `${namespace}\u001f__missing__` : `${namespace}\u001f${value}`;
+  return value === null
+    ? `${namespace}\u001f__missing__`
+    : `${namespace}\u001f${value}`;
 }
 
 function compileSearchNode(node: SearchNode): CompiledSearchSql {

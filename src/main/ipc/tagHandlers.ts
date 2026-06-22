@@ -33,6 +33,7 @@ export interface TagHandlersContext {
   listBatchFileTags: (fileIds: number[]) => BatchFileTagRecord[];
   listBatchEffectiveFileTags: (fileIds: number[]) => BatchFileTagRecord[];
   searchTags: (query: string) => TagRecord[];
+  searchTagNamespaces: (query: string) => string[];
   searchHints: (query: string) => SearchHintRecord[];
   listTagStyles: () => TagStyleRecord[];
   createTagStyle: (name: string) => TagStyleRecord[];
@@ -226,6 +227,9 @@ export function registerTagHandlers(
   );
   ipcMain.handle(IpcChannel.TAG_SEARCH, (_event, query: unknown) =>
     context.searchTags(typeof query === "string" ? query : ""),
+  );
+  ipcMain.handle(IpcChannel.TAG_SEARCH_NAMESPACES, (_event, query: unknown) =>
+    context.searchTagNamespaces(typeof query === "string" ? query : ""),
   );
   ipcMain.handle(IpcChannel.SEARCH_HINTS, (_event, query: unknown) =>
     context.searchHints(typeof query === "string" ? query : ""),

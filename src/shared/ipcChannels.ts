@@ -116,6 +116,7 @@ export const IpcChannel = {
   TAG_REMOVE_TAGS_FROM_FILES: "tag:remove-tags-from-files",
   TAG_RENAME_MANAGED_TAG: "tag:rename-managed-tag",
   TAG_RENAME_STYLE: "tag:rename-style",
+  TAG_SEARCH_NAMESPACES: "tag:search-namespaces",
   TAG_SEARCH: "tag:search",
   TAG_SET_ACTIVE_STYLE: "tag:set-active-style",
   TAG_TRANSLATION_GET_SETTINGS: "tag-translation:get-settings",

@@ -124,6 +124,7 @@ export {
   listBrowserNamespaceGroupPage,
   searchBrowserFilePage,
   searchHints,
+  searchTagNamespaces,
   searchTags,
 } from "./db/searchRepository.js";
 export {

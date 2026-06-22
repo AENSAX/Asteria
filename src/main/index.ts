@@ -95,6 +95,7 @@ import {
   restoreAllTrashedFiles,
   restoreFiles,
   searchTags,
+  searchTagNamespaces,
   searchBrowserFilePage,
   searchHints,
   renameTagStyle,
@@ -1286,9 +1287,9 @@ function createFileReadableStream(
   filePath: string,
   options?: { start: number; end: number },
 ): ReadableStream<Uint8Array> {
-  return Readable.toWeb(createReadStream(filePath, options)) as ReadableStream<
-    Uint8Array
-  >;
+  return Readable.toWeb(
+    createReadStream(filePath, options),
+  ) as ReadableStream<Uint8Array>;
 }
 
 function parseHttpRange(
@@ -1614,6 +1615,7 @@ app.whenReady().then(async () => {
     listBatchFileTags,
     listBatchEffectiveFileTags,
     searchTags,
+    searchTagNamespaces,
     searchHints,
     listTagStyles,
     createTagStyle,
