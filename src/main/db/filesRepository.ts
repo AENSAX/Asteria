@@ -21,6 +21,7 @@ import {
 } from "./systemTagsRepository.js";
 import { listFileTagsByFileIds } from "./fileTagsRepository.js";
 import { ensureDefaultRatingsForFilesInDb } from "./ratingsRepository.js";
+import { normalizeTagPart } from "./tagText.js";
 
 export interface ThumbnailSourceRecord {
   fileId: number;
@@ -186,6 +187,51 @@ export function listBrowserFilePageByIds(
   return listBrowserFilePageWhere(
     `AND id IN (${placeholders})`,
     normalizedFileIds,
+    request,
+  );
+}
+
+export function listBrowserFilePageByNamespaceGroup(
+  namespace: string,
+  value: string | null,
+  request: BrowserFilePageRequest,
+): BrowserFilePage {
+  const normalizedNamespace = normalizeTagPart(namespace);
+
+  if (!normalizedNamespace) {
+    return createEmptyBrowserFilePage(request);
+  }
+
+  if (value === null) {
+    return listBrowserFilePageWhere(
+      `AND NOT EXISTS (
+        SELECT 1
+        FROM file_tags
+        JOIN tags ON tags.id = file_tags.tag_id
+        WHERE file_tags.file_id = files.id
+          AND tags.namespace = ?
+      )`,
+      [normalizedNamespace],
+      request,
+    );
+  }
+
+  const normalizedValue = normalizeTagPart(value);
+
+  if (!normalizedValue) {
+    return createEmptyBrowserFilePage(request);
+  }
+
+  return listBrowserFilePageWhere(
+    `AND EXISTS (
+      SELECT 1
+      FROM file_tags
+      JOIN tags ON tags.id = file_tags.tag_id
+      WHERE file_tags.file_id = files.id
+        AND tags.namespace = ?
+        AND tags.name = ?
+    )`,
+    [normalizedNamespace, normalizedValue],
     request,
   );
 }

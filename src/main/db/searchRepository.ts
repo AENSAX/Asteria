@@ -1,5 +1,7 @@
 import type {
   BrowserFilePage,
+  BrowserNamespaceGroupPage,
+  BrowserNamespaceGroupPageRequest,
   BrowserSearchPageRequest,
   DatabaseFileRecord,
   SearchHintRecord,
@@ -13,6 +15,7 @@ import {
 } from "./domainsRepository.js";
 import {
   hydrateBrowserFileRecords,
+  listBrowserFilePageByNamespaceGroup,
   listBrowserFilePage,
 } from "./filesRepository.js";
 import {
@@ -28,6 +31,11 @@ import {
 
 interface CompiledSearchSql {
   sql: string;
+  params: Array<string | number>;
+}
+
+interface MatchedFilesCte {
+  cte: string;
   params: Array<string | number>;
 }
 
@@ -93,6 +101,93 @@ export function searchBrowserFilePage(
     pageSize,
     total: totalRow?.count ?? 0,
     files: hydrateBrowserFileRecords(db, rows),
+  };
+}
+
+export function listBrowserNamespaceGroupPage(
+  request: BrowserNamespaceGroupPageRequest,
+): BrowserNamespaceGroupPage {
+  const normalizedNamespace = normalizeTagPart(request.namespace);
+  const page = normalizeBrowserPage(request.page);
+  const pageSize = normalizeBrowserPageSize(request.pageSize);
+
+  if (!normalizedNamespace) {
+    return { page, pageSize, total: 0, groups: [] };
+  }
+
+  const matchedFilesCte = createMatchedFilesCte(request.query);
+
+  if (!matchedFilesCte) {
+    return { page, pageSize, total: 0, groups: [] };
+  }
+
+  const db = getDatabaseConnection();
+  const valueRows = db
+    .prepare(
+      `${matchedFilesCte.cte}
+       SELECT DISTINCT tags.name AS value
+       FROM matched_files
+       JOIN file_tags ON file_tags.file_id = matched_files.file_id
+       JOIN tags ON tags.id = file_tags.tag_id
+       WHERE tags.namespace = ?
+       ORDER BY lower(tags.name) ASC`,
+    )
+    .all(...matchedFilesCte.params, normalizedNamespace) as Array<{
+    value: string;
+  }>;
+  const missingRow = db
+    .prepare(
+      `${matchedFilesCte.cte}
+       SELECT 1 AS found
+       FROM matched_files
+       WHERE NOT EXISTS (
+         SELECT 1
+         FROM file_tags
+         JOIN tags ON tags.id = file_tags.tag_id
+         WHERE file_tags.file_id = matched_files.file_id
+           AND tags.namespace = ?
+       )
+       LIMIT 1`,
+    )
+    .get(...matchedFilesCte.params, normalizedNamespace) as
+    | { found: number }
+    | undefined;
+  const groupValues: Array<string | null> = valueRows.map((row) => row.value);
+
+  if (missingRow) {
+    groupValues.push(null);
+  }
+
+  const total = groupValues.length;
+  const pageValues = groupValues.slice((page - 1) * pageSize, page * pageSize);
+  const groups = pageValues.flatMap((value) => {
+    const groupPage = listBrowserFilePageByNamespaceGroup(
+      normalizedNamespace,
+      value,
+      { ...request, page: 1, pageSize: 1 },
+    );
+    const coverFile = groupPage.files[0];
+
+    if (!coverFile || groupPage.total <= 0) {
+      return [];
+    }
+
+    return [
+      {
+        id: createNamespaceGroupId(normalizedNamespace, value),
+        namespace: normalizedNamespace,
+        value,
+        fileCount: groupPage.total,
+        coverFile,
+      },
+    ];
+  });
+
+  return {
+    page,
+    pageSize,
+    total,
+    groups,
   };
 }
 
@@ -402,6 +497,51 @@ function createSearchTokenFilesCte(): string {
     JOIN files ON files.id = file_ratings.file_id
     WHERE files.deleted_at IS NULL
   )`;
+}
+
+function createMatchedFilesCte(query: string): MatchedFilesCte | null {
+  const normalizedQuery = query.trim();
+
+  if (!normalizedQuery) {
+    return {
+      cte: `WITH matched_files(file_id) AS (
+        SELECT id FROM files WHERE deleted_at IS NULL
+      )`,
+      params: [],
+    };
+  }
+
+  const tokens = tokenizeSearchQuery(normalizedQuery, normalizeTagPart);
+
+  if (tokens.length === 0) {
+    return {
+      cte: `WITH matched_files(file_id) AS (
+        SELECT id FROM files WHERE deleted_at IS NULL
+      )`,
+      params: [],
+    };
+  }
+
+  const ast = parseSearchExpression(tokens);
+
+  if (!ast) {
+    return null;
+  }
+
+  const compiled = compileSearchNode(ast);
+
+  return {
+    cte: `${createSearchTokenFilesCte()},
+      matched_files(file_id) AS (${compiled.sql})`,
+    params: compiled.params,
+  };
+}
+
+function createNamespaceGroupId(
+  namespace: string,
+  value: string | null,
+): string {
+  return value === null ? `${namespace}\u001f__missing__` : `${namespace}\u001f${value}`;
 }
 
 function compileSearchNode(node: SearchNode): CompiledSearchSql {

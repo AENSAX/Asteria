@@ -76,6 +76,7 @@ type SettingsWindowState = {
   interface: {
     browserPageSize: string;
     browserPreviewSize: string;
+    hideBrowserPreviewOverlays: boolean;
   };
   appearance: {
     themeId: ThemeId;
@@ -152,6 +153,8 @@ export function SettingsWindow(): JSX.Element {
       interface: {
         browserPageSize: String(loadInterfaceSettings().browserPageSize),
         browserPreviewSize: String(loadInterfaceSettings().browserPreviewSize),
+        hideBrowserPreviewOverlays:
+          loadInterfaceSettings().hideBrowserPreviewOverlays,
       },
       appearance: {
         themeId: loadThemeSettings().themeId,
@@ -365,6 +368,8 @@ export function SettingsWindow(): JSX.Element {
     updateInterfaceState({
       browserPageSize: String(loadInterfaceSettings().browserPageSize),
       browserPreviewSize: String(loadInterfaceSettings().browserPreviewSize),
+      hideBrowserPreviewOverlays:
+        loadInterfaceSettings().hideBrowserPreviewOverlays,
     });
     updateAppearanceState({ themeId: loadThemeSettings().themeId });
     updateShortcutsState(loadShortcutSettings());
@@ -566,6 +571,19 @@ export function SettingsWindow(): JSX.Element {
 
     updateInterfaceState({
       browserPreviewSize: String(settings.browserPreviewSize),
+    });
+  }
+
+  function saveHideBrowserPreviewOverlays(): void {
+    const currentSettings = loadInterfaceSettings();
+    const settings = saveInterfaceSettings({
+      ...currentSettings,
+      hideBrowserPreviewOverlays:
+        interfaceSettings.hideBrowserPreviewOverlays,
+    });
+
+    updateInterfaceState({
+      hideBrowserPreviewOverlays: settings.hideBrowserPreviewOverlays,
     });
   }
 
@@ -818,6 +836,25 @@ export function SettingsWindow(): JSX.Element {
                     <ActionFeedbackButton
                       label={t("common.save")}
                       onAction={saveBrowserPreviewSize}
+                    />
+                  </label>
+                  <label className={checkRowClass}>
+                    <input
+                      checked={interfaceSettings.hideBrowserPreviewOverlays}
+                      type="checkbox"
+                      onChange={(event) =>
+                        updateInterfaceState({
+                          hideBrowserPreviewOverlays: event.target.checked,
+                        })
+                      }
+                    />
+                    <span>
+                      {t("settings.interface.hideBrowserPreviewOverlays")}
+                    </span>
+                    <ActionFeedbackButton
+                      feedbackKind="apply"
+                      label={t("common.apply")}
+                      onAction={saveHideBrowserPreviewOverlays}
                     />
                   </label>
                 </div>

@@ -19,6 +19,9 @@ export const IpcChannel = {
   BROWSER_LIST_FAVORITES: "browser:list-favorites",
   BROWSER_LIST_FILES: "browser:list-files",
   BROWSER_LIST_FILES_BY_IDS: "browser:list-files-by-ids",
+  BROWSER_LIST_NAMESPACE_GROUP_FILE_PAGE:
+    "browser:list-namespace-group-file-page",
+  BROWSER_LIST_NAMESPACE_GROUP_PAGE: "browser:list-namespace-group-page",
   BROWSER_SEARCH_FILE_PAGE: "browser:search-file-page",
   DATABASE_GET_STATUS: "database:get-status",
   DATABASE_LIST_FILES: "database:list-files",

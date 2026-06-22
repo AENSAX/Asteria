@@ -1,6 +1,7 @@
 import type { IJsonModel } from "flexlayout-react";
 import type { SortDirection } from "../../../shared/ipc";
 import type {
+  BrowserNamespaceGroupState,
   BrowserSortDirection,
   BrowserSortKey,
   BrowserViewState,
@@ -56,6 +57,9 @@ export const emptySearchInputState: SearchInputState = {
 export const defaultBrowserViewState: BrowserViewState = {
   sortKey: "importedAt",
   sortDirection: "desc",
+  namespaceGroupingEnabled: false,
+  selectedNamespaceGroup: "",
+  activeNamespaceGroup: null,
 };
 
 export const defaultTagListViewState: TagListViewState = {
@@ -202,8 +206,43 @@ function normalizeBrowserViewState(value: unknown): BrowserViewState {
     state?.sortDirection === "asc" || state?.sortDirection === "desc"
       ? state.sortDirection
       : defaultBrowserViewState.sortDirection;
+  const selectedNamespaceGroup =
+    typeof state?.selectedNamespaceGroup === "string"
+      ? state.selectedNamespaceGroup.trim()
+      : defaultBrowserViewState.selectedNamespaceGroup;
+  const activeNamespaceGroup = normalizeBrowserNamespaceGroupState(
+    state?.activeNamespaceGroup,
+    selectedNamespaceGroup,
+  );
 
-  return { sortKey, sortDirection };
+  return {
+    sortKey,
+    sortDirection,
+    namespaceGroupingEnabled: state?.namespaceGroupingEnabled === true,
+    selectedNamespaceGroup,
+    activeNamespaceGroup,
+  };
+}
+
+function normalizeBrowserNamespaceGroupState(
+  value: unknown,
+  selectedNamespaceGroup: string,
+): BrowserNamespaceGroupState | null {
+  const group = value as Partial<BrowserNamespaceGroupState> | null;
+
+  if (
+    !group ||
+    typeof group.namespace !== "string" ||
+    group.namespace.trim() !== selectedNamespaceGroup ||
+    selectedNamespaceGroup.length === 0
+  ) {
+    return null;
+  }
+
+  return {
+    namespace: selectedNamespaceGroup,
+    value: typeof group.value === "string" ? group.value.trim() : null,
+  };
 }
 
 function normalizeTagListViewState(value: unknown): TagListViewState {

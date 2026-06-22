@@ -1,6 +1,7 @@
 export interface InterfaceSettings {
   browserPageSize: number;
   browserPreviewSize: number;
+  hideBrowserPreviewOverlays: boolean;
 }
 
 const INTERFACE_SETTINGS_KEY = "asteria.interface-settings.v1";
@@ -84,6 +85,7 @@ function createDefaultInterfaceSettings(): InterfaceSettings {
   return {
     browserPageSize: DEFAULT_BROWSER_PAGE_SIZE,
     browserPreviewSize: DEFAULT_BROWSER_PREVIEW_SIZE,
+    hideBrowserPreviewOverlays: false,
   };
 }
 
@@ -95,6 +97,8 @@ function normalizeInterfaceSettings(value: unknown): InterfaceSettings {
     browserPreviewSize: normalizeBrowserPreviewSize(
       settings?.browserPreviewSize,
     ),
+    hideBrowserPreviewOverlays:
+      settings?.hideBrowserPreviewOverlays === true,
   };
 }
 

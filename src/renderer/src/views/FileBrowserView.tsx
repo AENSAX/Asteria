@@ -3,9 +3,11 @@ import type { CSSProperties, SyntheticEvent } from "react";
 import type {
   AiSettings,
   BrowserFileRecord,
+  BrowserNamespaceGroupRecord,
   ImportQueueFileRecord,
   RatingEntryRecord,
   RatingGroupRecord,
+  TagRecord,
   TagTranslationSettings,
 } from "../../../shared/ipc";
 import { FileContextMenu } from "../components/FileContextMenu";
@@ -27,7 +29,8 @@ import {
   isImageExtension,
   isVideoExtension,
 } from "../utils/media";
-import { useLanguage } from "../utils/language";
+import { useLanguage, type TranslationFunction } from "../utils/language";
+import { getTagNamespaceClassName, getTagNamespaceStyle } from "../utils/tags";
 
 interface FileBrowserViewProps {
   searchQuery: string;
@@ -40,7 +43,14 @@ interface FileBrowserViewProps {
   onStateChange: (state: BrowserViewState) => void;
 }
 
-type BrowserDisplayFile = BrowserFileRecord | ImportQueueFileRecord;
+type BrowserDisplayFile =
+  | BrowserFileRecord
+  | ImportQueueFileRecord
+  | BrowserNamespaceGroupDisplayFile;
+interface BrowserNamespaceGroupDisplayFile extends BrowserFileRecord {
+  displayKind: "namespace-group";
+  group: BrowserNamespaceGroupRecord;
+}
 interface BrowserGalleryItem {
   file: BrowserDisplayFile;
   index: number;
@@ -68,9 +78,17 @@ interface BrowserGalleryDraftItem {
 export type BrowserSortKey = "importedAt" | "updatedAt";
 export type BrowserSortDirection = "asc" | "desc";
 
+export interface BrowserNamespaceGroupState {
+  namespace: string;
+  value: string | null;
+}
+
 export interface BrowserViewState {
   sortKey: BrowserSortKey;
   sortDirection: BrowserSortDirection;
+  namespaceGroupingEnabled: boolean;
+  selectedNamespaceGroup: string;
+  activeNamespaceGroup: BrowserNamespaceGroupState | null;
 }
 
 const DECODED_PREVIEW_CACHE_LIMIT = 384;
@@ -96,8 +114,7 @@ const decodedPreviewCache = new Map<
 >();
 const browserRootClass =
   "grid h-full min-h-0 min-w-0 overflow-hidden grid-rows-[minmax(0,1fr)_24px] bg-(--panel)";
-const browserGridClass =
-  "relative min-h-0 overflow-auto p-3";
+const browserGridClass = "relative min-h-0 overflow-auto p-3";
 const browserGalleryViewportClass = "relative";
 const browserGalleryRowClass =
   "browser-gallery-row absolute top-0 left-0 flex items-start gap-3";
@@ -108,12 +125,19 @@ const importBadgeClass =
   "absolute right-1 bottom-1 z-[2] border border-(--line-strong) bg-(--surface-bg) px-1.5 leading-5 text-[10px] text-(--muted)";
 const importBadgeDuplicateClass = "border-(--warning) text-(--warning-ink)";
 const browserMediaClass =
-  "browser-file-media grid place-items-center [&>span]:text-(--muted)";
+  "browser-file-media relative z-[2] grid place-items-center [&>span]:text-(--muted)";
+const browserGroupStackClass =
+  "pointer-events-none absolute inset-0 z-0 translate-x-1 translate-y-1 border border-(--line-strong) bg-(--surface-raised-bg) shadow-sm after:absolute after:inset-0 after:translate-x-1 after:translate-y-1 after:border after:border-(--line) after:bg-(--surface-bg)";
+const browserGroupBadgeClass =
+  "pointer-events-none absolute left-1 bottom-1 z-[3] max-w-[calc(100%-8px)] overflow-hidden text-ellipsis whitespace-nowrap border border-(--line-strong) bg-(--surface-inset-bg) px-1.5 leading-5 text-[10px] text-(--ink)";
 const browserStatusClass =
-  "flex h-6 min-w-0 items-center justify-end gap-1.5 border-t border-(--line) bg-(--surface-bg) px-2 text-(--muted)";
+  "grid h-6 min-w-0 grid-cols-[auto_auto_minmax(0,1fr)] items-center gap-2 overflow-hidden border-t border-(--line) bg-(--surface-bg) px-2 text-(--muted)";
+const browserFooterGroupClass =
+  "inline-flex min-w-0 items-center gap-1.5 whitespace-nowrap";
 const browserSelectClass =
   "h-[18px] min-w-[72px] border border-(--line-strong) bg-(--surface-inset-bg) text-(--ink)";
-const browserPagerClass = "inline-flex min-w-0 items-center gap-1";
+const browserPagerClass =
+  "inline-flex shrink-0 items-center gap-1 whitespace-nowrap";
 const browserPagerButtonClass = "ui-button ui-button-compact ui-icon-button";
 const browserPagerInputClass =
   "h-[18px] w-[42px] border border-(--line-strong) bg-(--surface-inset-bg) px-1 text-(--ink) leading-4";
@@ -155,6 +179,14 @@ export function FileBrowserView({
   const [previewSize, setPreviewSize] = useState(
     () => loadInterfaceSettings().browserPreviewSize,
   );
+  const [hidePreviewOverlays, setHidePreviewOverlays] = useState(
+    () => loadInterfaceSettings().hideBrowserPreviewOverlays,
+  );
+  const [namespaceGroupInput, setNamespaceGroupInput] = useState("");
+  const [namespaceSuggestions, setNamespaceSuggestions] = useState<string[]>(
+    [],
+  );
+  const [namespaceSuggestionIndex, setNamespaceSuggestionIndex] = useState(0);
   const [gridWidth, setGridWidth] = useState(0);
   const [gridHeight, setGridHeight] = useState(0);
   const [scrollTop, setScrollTop] = useState(0);
@@ -181,6 +213,7 @@ export function FileBrowserView({
   const gridRef = useRef<HTMLDivElement | null>(null);
   const onSelectionChangeRef = useRef(onSelectionChange);
   const deferredPressFileIdRef = useRef<number | null>(null);
+  const previousSearchQueryRef = useRef(searchQuery);
   const pendingRuntimeDimensionsRef = useRef<
     Record<number, BrowserRuntimeDimensions>
   >({});
@@ -196,7 +229,25 @@ export function FileBrowserView({
         : files,
     [files, importQueueMode, state.sortDirection, state.sortKey],
   );
-  const effectiveTotalCount = importQueueMode ? sortedFiles.length : totalFileCount;
+  const namespaceGroupingEnabled = state.namespaceGroupingEnabled;
+  const selectedNamespaceGroup = state.selectedNamespaceGroup;
+  const groupingNamespace = selectedNamespaceGroup.trim();
+  const activeNamespaceGroup =
+    state.activeNamespaceGroup?.namespace === groupingNamespace
+      ? state.activeNamespaceGroup
+      : null;
+  const namespaceGroupOverviewActive =
+    namespaceGroupingEnabled &&
+    !importQueueMode &&
+    groupingNamespace.length > 0 &&
+    activeNamespaceGroup === null;
+  const namespaceGroupFileViewActive =
+    namespaceGroupingEnabled &&
+    !importQueueMode &&
+    activeNamespaceGroup !== null;
+  const effectiveTotalCount = importQueueMode
+    ? sortedFiles.length
+    : totalFileCount;
   const totalPages = Math.max(1, Math.ceil(effectiveTotalCount / pageSize));
   const clampedPage = Math.min(currentPage, totalPages);
   const pageStartIndex = (clampedPage - 1) * pageSize;
@@ -230,9 +281,22 @@ export function FileBrowserView({
     [visiblePreviewIds],
   );
   const visiblePreviewFiles = useMemo(
-    () => virtualGallery.rows.flatMap((row) => row.items.map((item) => item.file)),
+    () =>
+      virtualGallery.rows.flatMap((row) => row.items.map((item) => item.file)),
     [virtualGallery.rows],
   );
+  const selectedNamespaceGroupForTags = useMemo(() => {
+    if (pendingFileIds.length !== 1) {
+      return null;
+    }
+
+    const selectedId = pendingFileIds[0];
+    const selectedFile = pageFiles.find((file) => file.id === selectedId);
+
+    return selectedFile && isNamespaceGroupFile(selectedFile)
+      ? selectedFile.group
+      : null;
+  }, [pageFiles, pendingFileIds]);
   const pageEndIndex = pageStartIndex + pageFiles.length;
   const boxSelection = useBoxSelection({
     containerRef: gridRef,
@@ -258,11 +322,15 @@ export function FileBrowserView({
   }, [
     clampedPage,
     importQueueMode,
+    namespaceGroupingEnabled,
     pageSize,
     refreshSequence,
     searchQuery,
     state.sortDirection,
     state.sortKey,
+    activeNamespaceGroup?.namespace,
+    activeNamespaceGroup?.value,
+    groupingNamespace,
   ]);
 
   useEffect(
@@ -270,6 +338,7 @@ export function FileBrowserView({
       listenInterfaceSettingsChanged((settings) => {
         setPageSize(settings.browserPageSize);
         setPreviewSize(settings.browserPreviewSize);
+        setHidePreviewOverlays(settings.hideBrowserPreviewOverlays);
       }),
     [],
   );
@@ -296,18 +365,120 @@ export function FileBrowserView({
   );
 
   useEffect(() => {
-    onSelectionChangeRef.current(pendingFileIds);
-  }, [pendingFileIds]);
+    let cancelled = false;
+
+    async function syncSelection(): Promise<void> {
+      if (!selectedNamespaceGroupForTags || !window.asteria) {
+        onSelectionChangeRef.current(
+          pendingFileIds.filter((fileId) => fileId > 0),
+        );
+        return;
+      }
+
+      try {
+        const groupPage =
+          await window.asteria.listBrowserNamespaceGroupFilePage({
+            namespace: selectedNamespaceGroupForTags.namespace,
+            value: selectedNamespaceGroupForTags.value,
+            page: 1,
+            pageSize: Math.max(1, selectedNamespaceGroupForTags.fileCount),
+            sortKey: state.sortKey,
+            sortDirection: state.sortDirection,
+          });
+
+        if (!cancelled) {
+          onSelectionChangeRef.current(groupPage.files.map((file) => file.id));
+        }
+      } catch {
+        if (!cancelled) {
+          onSelectionChangeRef.current([]);
+        }
+      }
+    }
+
+    void syncSelection();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    pendingFileIds,
+    selectedNamespaceGroupForTags,
+    state.sortDirection,
+    state.sortKey,
+  ]);
 
   useEffect(() => {
     setCurrentPage(1);
   }, [
     importQueueMode,
+    namespaceGroupingEnabled,
     pageSize,
     searchQuery,
     state.sortDirection,
     state.sortKey,
+    activeNamespaceGroup?.namespace,
+    activeNamespaceGroup?.value,
+    groupingNamespace,
   ]);
+
+  useEffect(() => {
+    if (state.activeNamespaceGroup && !activeNamespaceGroup) {
+      onStateChange({ ...state, activeNamespaceGroup: null });
+    }
+  }, [activeNamespaceGroup, onStateChange, state]);
+
+  useEffect(() => {
+    if (previousSearchQueryRef.current === searchQuery) {
+      return;
+    }
+
+    previousSearchQueryRef.current = searchQuery;
+
+    if (state.activeNamespaceGroup) {
+      onStateChange({ ...state, activeNamespaceGroup: null });
+    }
+  }, [onStateChange, searchQuery, state]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadNamespaceSuggestions(): Promise<void> {
+      if (!window.asteria || !namespaceGroupingEnabled) {
+        setNamespaceSuggestions([]);
+        setNamespaceSuggestionIndex(0);
+        return;
+      }
+
+      const query = namespaceGroupInput.trim();
+
+      if (!query) {
+        setNamespaceSuggestions([]);
+        setNamespaceSuggestionIndex(0);
+        return;
+      }
+
+      try {
+        const tags = await window.asteria.searchTags(query);
+
+        if (!cancelled) {
+          setNamespaceSuggestions(createNamespaceSuggestions(tags, query));
+          setNamespaceSuggestionIndex(0);
+        }
+      } catch {
+        if (!cancelled) {
+          setNamespaceSuggestions([]);
+          setNamespaceSuggestionIndex(0);
+        }
+      }
+    }
+
+    void loadNamespaceSuggestions();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [namespaceGroupInput, namespaceGroupingEnabled]);
 
   useEffect(() => {
     setPageInputValue(String(clampedPage));
@@ -534,25 +705,37 @@ export function FileBrowserView({
     setMessage(t("window.browser.loading"));
 
     try {
+      const basePageRequest = {
+        page: clampedPage,
+        pageSize,
+        sortKey: state.sortKey,
+        sortDirection: state.sortDirection,
+      };
       const nextFiles = importQueueMode
         ? await window.asteria.listImportQueueFiles(importQueueKey)
-        : searchQuery
-          ? await window.asteria.searchBrowserFilePage({
-              query: searchQuery,
-              page: clampedPage,
-              pageSize,
-              sortKey: state.sortKey,
-              sortDirection: state.sortDirection,
+        : namespaceGroupFileViewActive && activeNamespaceGroup
+          ? await window.asteria.listBrowserNamespaceGroupFilePage({
+              ...basePageRequest,
+              namespace: activeNamespaceGroup.namespace,
+              value: activeNamespaceGroup.value,
             })
-          : await window.asteria.listBrowserFilePage({
-              page: clampedPage,
-              pageSize,
-              sortKey: state.sortKey,
-              sortDirection: state.sortDirection,
-            });
+          : namespaceGroupOverviewActive
+            ? await window.asteria.listBrowserNamespaceGroupPage({
+                ...basePageRequest,
+                namespace: groupingNamespace,
+                query: searchQuery,
+              })
+            : searchQuery
+              ? await window.asteria.searchBrowserFilePage({
+                  ...basePageRequest,
+                  query: searchQuery,
+                })
+              : await window.asteria.listBrowserFilePage(basePageRequest);
       const nextDisplayFiles = Array.isArray(nextFiles)
         ? nextFiles
-        : nextFiles.files;
+        : "groups" in nextFiles
+          ? nextFiles.groups.map(createNamespaceGroupDisplayFile)
+          : nextFiles.files;
       const nextTotalCount = Array.isArray(nextFiles)
         ? nextFiles.length
         : nextFiles.total;
@@ -562,10 +745,7 @@ export function FileBrowserView({
       const nextActiveRatingGroups = nextRatingGroups.filter(
         (group) => group.isActive,
       );
-      const nextRatingEntriesByGroupId = new Map<
-        number,
-        RatingEntryRecord[]
-      >();
+      const nextRatingEntriesByGroupId = new Map<number, RatingEntryRecord[]>();
 
       await Promise.all(
         nextActiveRatingGroups.map(async (group) => {
@@ -588,9 +768,18 @@ export function FileBrowserView({
       setMessage(
         importQueueMode
           ? t("window.browser.pendingCount", { count: nextTotalCount })
-          : searchQuery
-            ? t("window.browser.resultCount", { count: nextTotalCount })
-            : t("window.browser.fileCount", { count: nextTotalCount }),
+          : namespaceGroupFileViewActive && activeNamespaceGroup
+            ? t("window.browser.namespaceGroupFileCount", {
+                name: formatNamespaceGroupName(activeNamespaceGroup, t),
+                count: nextTotalCount,
+              })
+            : namespaceGroupOverviewActive
+              ? t("window.browser.namespaceGroupCount", {
+                  count: nextTotalCount,
+                })
+              : searchQuery
+                ? t("window.browser.resultCount", { count: nextTotalCount })
+                : t("window.browser.fileCount", { count: nextTotalCount }),
       );
     } catch (error) {
       setFiles([]);
@@ -611,6 +800,80 @@ export function FileBrowserView({
       id,
       sortedFiles.map((file) => file.id),
     );
+  }
+
+  function enterNamespaceGroup(group: BrowserNamespaceGroupRecord): void {
+    onStateChange({
+      ...state,
+      activeNamespaceGroup: {
+        namespace: group.namespace,
+        value: group.value,
+      },
+    });
+    setPendingFileIds([]);
+    setLastPendingFileId(null);
+    setCurrentPage(1);
+  }
+
+  function leaveNamespaceGroup(): void {
+    onStateChange({ ...state, activeNamespaceGroup: null });
+    setPendingFileIds([]);
+    setLastPendingFileId(null);
+    setCurrentPage(1);
+  }
+
+  function pickNamespaceGroup(namespace: string): void {
+    onStateChange({
+      ...state,
+      selectedNamespaceGroup: namespace,
+      activeNamespaceGroup: null,
+    });
+    setNamespaceGroupInput("");
+    setNamespaceSuggestions([]);
+    setNamespaceSuggestionIndex(0);
+    setCurrentPage(1);
+  }
+
+  function clearNamespaceGroup(): void {
+    onStateChange({
+      ...state,
+      selectedNamespaceGroup: "",
+      activeNamespaceGroup: null,
+    });
+    setNamespaceGroupInput("");
+    setNamespaceSuggestions([]);
+    setNamespaceSuggestionIndex(0);
+    setCurrentPage(1);
+  }
+
+  function handleNamespaceGroupInputKeyDown(
+    event: React.KeyboardEvent<HTMLInputElement>,
+  ): void {
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setNamespaceSuggestionIndex((index) =>
+        Math.min(index + 1, Math.max(0, namespaceSuggestions.length - 1)),
+      );
+      return;
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setNamespaceSuggestionIndex((index) => Math.max(0, index - 1));
+      return;
+    }
+
+    if (event.key !== "Enter") {
+      return;
+    }
+
+    const suggestion =
+      namespaceSuggestions[namespaceSuggestionIndex] ?? namespaceSuggestions[0];
+
+    if (suggestion) {
+      event.preventDefault();
+      pickNamespaceGroup(suggestion);
+    }
   }
 
   function clearFileSelection(): void {
@@ -636,7 +899,8 @@ export function FileBrowserView({
 
     const rect = element.getBoundingClientRect();
     const verticalScrollbarWidth = element.offsetWidth - element.clientWidth;
-    const horizontalScrollbarHeight = element.offsetHeight - element.clientHeight;
+    const horizontalScrollbarHeight =
+      element.offsetHeight - element.clientHeight;
     const isVerticalScrollbar =
       verticalScrollbarWidth > 0 &&
       element.scrollHeight > element.clientHeight &&
@@ -669,7 +933,12 @@ export function FileBrowserView({
   }
 
   async function toggleFavorite(file: BrowserDisplayFile): Promise<void> {
-    if (importQueueMode || isImportQueueFile(file) || !window.asteria) {
+    if (
+      importQueueMode ||
+      isImportQueueFile(file) ||
+      isNamespaceGroupFile(file) ||
+      !window.asteria
+    ) {
       return;
     }
 
@@ -719,6 +988,17 @@ export function FileBrowserView({
 
     deferredPressFileIdRef.current = null;
 
+    if (isNamespaceGroupFile(file)) {
+      if (pendingFileIds.length === 1 && pendingFileIds[0] === file.id) {
+        enterNamespaceGroup(file.group);
+        return;
+      }
+
+      setPendingFileIds([file.id]);
+      setLastPendingFileId(file.id);
+      return;
+    }
+
     if (
       !importQueueMode &&
       pendingFileIds.length === 1 &&
@@ -754,9 +1034,7 @@ export function FileBrowserView({
   function handleBrowserGridMouseDown(
     event: React.MouseEvent<HTMLDivElement>,
   ): void {
-    if (
-      isScrollbarMouseTarget(event.target, event.clientX, event.clientY)
-    ) {
+    if (isScrollbarMouseTarget(event.target, event.clientX, event.clientY)) {
       return;
     }
 
@@ -767,9 +1045,7 @@ export function FileBrowserView({
     }
   }
 
-  function handleBrowserGridScroll(
-    event: React.UIEvent<HTMLDivElement>,
-  ): void {
+  function handleBrowserGridScroll(event: React.UIEvent<HTMLDivElement>): void {
     pendingScrollTopRef.current = event.currentTarget.scrollTop;
 
     if (scrollFrameRef.current !== null) {
@@ -840,9 +1116,7 @@ export function FileBrowserView({
   function handleBrowserGridMouseDownCapture(
     event: React.MouseEvent<HTMLDivElement>,
   ): void {
-    if (
-      isScrollbarMouseTarget(event.target, event.clientX, event.clientY)
-    ) {
+    if (isScrollbarMouseTarget(event.target, event.clientX, event.clientY)) {
       return;
     }
 
@@ -872,6 +1146,14 @@ export function FileBrowserView({
   ): void {
     event.preventDefault();
     event.stopPropagation();
+
+    if (isNamespaceGroupFile(file)) {
+      setContextMenu(null);
+      setBlankContextMenu(null);
+      setPendingFileIds([file.id]);
+      setLastPendingFileId(file.id);
+      return;
+    }
 
     const fileIds =
       pendingFileIds.includes(file.id) && pendingFileIds.length > 1
@@ -1134,7 +1416,12 @@ export function FileBrowserView({
     group: RatingGroupRecord,
     entry: RatingEntryRecord,
   ): Promise<void> {
-    if (importQueueMode || isImportQueueFile(file) || !window.asteria) {
+    if (
+      importQueueMode ||
+      isImportQueueFile(file) ||
+      isNamespaceGroupFile(file) ||
+      !window.asteria
+    ) {
       return;
     }
 
@@ -1261,7 +1548,11 @@ export function FileBrowserView({
                   <article
                     className={`${browserCellClass} ${pendingFileIds.includes(file.id) ? browserCellPendingClass : ""}`}
                     data-box-select-id={file.id}
-                    draggable={!importQueueMode && !isImportQueueFile(file)}
+                    draggable={
+                      !importQueueMode &&
+                      !isImportQueueFile(file) &&
+                      !isNamespaceGroupFile(file)
+                    }
                     key={file.id}
                     style={{
                       height: `${height}px`,
@@ -1278,7 +1569,18 @@ export function FileBrowserView({
                       handleBrowserFileContextMenu(event, file)
                     }
                   >
-                    {isImportQueueFile(file) ? (
+                    {isNamespaceGroupFile(file) ? (
+                      <>
+                        <div className={browserGroupStackClass} />
+                        <div
+                          className={browserGroupBadgeClass}
+                          title={formatNamespaceGroupName(file.group, t)}
+                        >
+                          {formatNamespaceGroupName(file.group, t)} ·{" "}
+                          {file.group.fileCount}
+                        </div>
+                      </>
+                    ) : isImportQueueFile(file) ? (
                       <div
                         className={`${importBadgeClass} ${file.duplicate ? importBadgeDuplicateClass : ""}`}
                         title={
@@ -1293,7 +1595,7 @@ export function FileBrowserView({
                             ? t("window.import.failed")
                             : t("window.browser.pending")}
                       </div>
-                    ) : (
+                    ) : hidePreviewOverlays ? null : (
                       <>
                         <FileRatingStack
                           entriesByGroupId={ratingEntriesByGroupId}
@@ -1335,98 +1637,211 @@ export function FileBrowserView({
       </div>
 
       <footer className={browserStatusClass}>
-        <label className="inline-flex min-w-0 items-center gap-1">
-          <span>{t("window.browser.sort")}</span>
-          <select
-            className={browserSelectClass}
-            aria-label={t("window.browser.sortField")}
-            disabled={importQueueMode}
-            value={state.sortKey}
-            onChange={(event) =>
-              onStateChange({
-                ...state,
-                sortKey: event.target.value as BrowserSortKey,
-              })
-            }
-          >
-            <option value="importedAt">{t("window.browser.importedAt")}</option>
-            <option value="updatedAt">{t("window.browser.updatedAt")}</option>
-          </select>
-        </label>
-        <select
-          className={browserSelectClass}
-          aria-label={t("window.browser.sortDirection")}
-          disabled={importQueueMode}
-          value={state.sortDirection}
-          onChange={(event) =>
-            onStateChange({
-              ...state,
-              sortDirection: event.target.value as BrowserSortDirection,
-            })
-          }
-        >
-          <option value="desc">{t("window.browser.desc")}</option>
-          <option value="asc">{t("window.browser.asc")}</option>
-        </select>
-        <div className={browserPagerClass}>
+        <div className={browserFooterGroupClass}>
           <button
-            aria-label={t("window.browser.firstPage")}
+            aria-label={t("window.browser.backToGroups")}
             className={browserPagerButtonClass}
-            disabled={clampedPage <= 1}
-            title={t("window.browser.firstPage")}
+            disabled={!namespaceGroupFileViewActive}
+            title={t("window.browser.backToGroups")}
             type="button"
-            onClick={() => setCurrentPage(1)}
-          >
-            <Icon name="chevrons-left" />
-          </button>
-          <button
-            aria-label={t("window.browser.previousPage")}
-            className={browserPagerButtonClass}
-            disabled={clampedPage <= 1}
-            title={t("window.browser.previousPage")}
-            type="button"
-            onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+            onClick={leaveNamespaceGroup}
           >
             <Icon name="chevron-left" />
           </button>
-          <input
-            className={browserPagerInputClass}
-            aria-label={t("window.browser.pageInput")}
-            max={totalPages}
-            min={1}
-            type="number"
-            value={pageInputValue}
-            onBlur={commitPageInput}
-            onChange={(event) => setPageInputValue(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                commitPageInput();
+          <label className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap">
+            <input
+              checked={namespaceGroupingEnabled}
+              disabled={importQueueMode}
+              type="checkbox"
+              onChange={(event) => {
+                const checked = event.target.checked;
+
+                onStateChange({
+                  ...state,
+                  namespaceGroupingEnabled: checked,
+                  selectedNamespaceGroup: checked
+                    ? state.selectedNamespaceGroup
+                    : "",
+                  activeNamespaceGroup: null,
+                });
+
+                if (!checked) {
+                  setNamespaceGroupInput("");
+                  setNamespaceSuggestions([]);
+                  setNamespaceSuggestionIndex(0);
+                }
+                setPendingFileIds([]);
+                setLastPendingFileId(null);
+                setCurrentPage(1);
+              }}
+            />
+            <span>{t("window.browser.groupByNamespace")}</span>
+          </label>
+          <div className="relative min-w-[132px]">
+            {selectedNamespaceGroup ? (
+              <span
+                className={getTagNamespaceClassName(
+                  { namespace: selectedNamespaceGroup },
+                  "inline-grid h-[18px] max-w-[132px] grid-cols-[minmax(0,1fr)_18px] items-center border px-1 text-[11px] leading-4",
+                )}
+                style={getTagNamespaceStyle({
+                  namespace: selectedNamespaceGroup,
+                })}
+              >
+                <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
+                  {selectedNamespaceGroup}
+                </span>
+                <button
+                  aria-label={t("window.browser.clearGroupNamespace")}
+                  className="grid h-4 w-4 place-items-center border-0 bg-transparent p-0 text-(--ink)"
+                  type="button"
+                  onClick={clearNamespaceGroup}
+                >
+                  <Icon name="x" size={10} />
+                </button>
+              </span>
+            ) : (
+              <>
+                <input
+                  aria-label={t("window.browser.groupNamespace")}
+                  className="h-[18px] w-[132px] min-w-0 border border-(--line-strong) bg-(--surface-inset-bg) px-1 text-(--ink)"
+                  disabled={!namespaceGroupingEnabled || importQueueMode}
+                  placeholder={t("window.browser.groupNamespacePlaceholder")}
+                  value={namespaceGroupInput}
+                  onChange={(event) =>
+                    setNamespaceGroupInput(event.target.value)
+                  }
+                  onKeyDown={handleNamespaceGroupInputKeyDown}
+                />
+                {namespaceSuggestions.length > 0 &&
+                namespaceGroupingEnabled &&
+                !importQueueMode ? (
+                  <div className="ui-popover absolute bottom-full left-0 z-[5] w-[160px]">
+                    {namespaceSuggestions.map((namespace, index) => (
+                      <button
+                        className={getTagNamespaceClassName(
+                          { namespace },
+                          `grid h-6 w-full grid-cols-[minmax(0,1fr)] items-center border-0 border-b border-(--line) bg-transparent px-1.5 text-left text-[12px] text-(--ink) last:border-b-0 hover:bg-(--accent-weak) ${
+                            index === namespaceSuggestionIndex
+                              ? "bg-(--accent-weak)"
+                              : ""
+                          }`,
+                        )}
+                        key={namespace}
+                        style={getTagNamespaceStyle({ namespace })}
+                        type="button"
+                        onMouseDown={(event) => {
+                          event.preventDefault();
+                          pickNamespaceGroup(namespace);
+                        }}
+                      >
+                        <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
+                          {namespace}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </>
+            )}
+          </div>
+        </div>
+        <div className={browserFooterGroupClass}>
+          <label className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap">
+            <span>{t("window.browser.sort")}</span>
+            <select
+              className={browserSelectClass}
+              aria-label={t("window.browser.sortField")}
+              disabled={importQueueMode}
+              value={state.sortKey}
+              onChange={(event) =>
+                onStateChange({
+                  ...state,
+                  sortKey: event.target.value as BrowserSortKey,
+                })
               }
-            }}
-          />
-          <span>/ {totalPages}</span>
-          <button
-            aria-label={t("window.browser.nextPage")}
-            className={browserPagerButtonClass}
-            disabled={clampedPage >= totalPages}
-            title={t("window.browser.nextPage")}
-            type="button"
-            onClick={() =>
-              setCurrentPage((page) => Math.min(totalPages, page + 1))
+            >
+              <option value="importedAt">
+                {t("window.browser.importedAt")}
+              </option>
+              <option value="updatedAt">{t("window.browser.updatedAt")}</option>
+            </select>
+          </label>
+          <select
+            className={browserSelectClass}
+            aria-label={t("window.browser.sortDirection")}
+            disabled={importQueueMode}
+            value={state.sortDirection}
+            onChange={(event) =>
+              onStateChange({
+                ...state,
+                sortDirection: event.target.value as BrowserSortDirection,
+              })
             }
           >
-            <Icon name="chevron-right" />
-          </button>
-          <button
-            aria-label={t("window.browser.lastPage")}
-            className={browserPagerButtonClass}
-            disabled={clampedPage >= totalPages}
-            title={t("window.browser.lastPage")}
-            type="button"
-            onClick={() => setCurrentPage(totalPages)}
-          >
-            <Icon name="chevrons-right" />
-          </button>
+            <option value="desc">{t("window.browser.desc")}</option>
+            <option value="asc">{t("window.browser.asc")}</option>
+          </select>
+          <div className={browserPagerClass}>
+            <button
+              aria-label={t("window.browser.firstPage")}
+              className={browserPagerButtonClass}
+              disabled={clampedPage <= 1}
+              title={t("window.browser.firstPage")}
+              type="button"
+              onClick={() => setCurrentPage(1)}
+            >
+              <Icon name="chevrons-left" />
+            </button>
+            <button
+              aria-label={t("window.browser.previousPage")}
+              className={browserPagerButtonClass}
+              disabled={clampedPage <= 1}
+              title={t("window.browser.previousPage")}
+              type="button"
+              onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+            >
+              <Icon name="chevron-left" />
+            </button>
+            <input
+              className={browserPagerInputClass}
+              aria-label={t("window.browser.pageInput")}
+              max={totalPages}
+              min={1}
+              type="number"
+              value={pageInputValue}
+              onBlur={commitPageInput}
+              onChange={(event) => setPageInputValue(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  commitPageInput();
+                }
+              }}
+            />
+            <span>/ {totalPages}</span>
+            <button
+              aria-label={t("window.browser.nextPage")}
+              className={browserPagerButtonClass}
+              disabled={clampedPage >= totalPages}
+              title={t("window.browser.nextPage")}
+              type="button"
+              onClick={() =>
+                setCurrentPage((page) => Math.min(totalPages, page + 1))
+              }
+            >
+              <Icon name="chevron-right" />
+            </button>
+            <button
+              aria-label={t("window.browser.lastPage")}
+              className={browserPagerButtonClass}
+              disabled={clampedPage >= totalPages}
+              title={t("window.browser.lastPage")}
+              type="button"
+              onClick={() => setCurrentPage(totalPages)}
+            >
+              <Icon name="chevrons-right" />
+            </button>
+          </div>
         </div>
         <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
           {message}
@@ -1549,6 +1964,58 @@ function createPositionedGalleryRows(
   }
 
   return rows;
+}
+
+function createNamespaceGroupDisplayFile(
+  group: BrowserNamespaceGroupRecord,
+  index: number,
+): BrowserNamespaceGroupDisplayFile {
+  return {
+    ...group.coverFile,
+    id: -1000000 - index,
+    displayKind: "namespace-group",
+    group,
+  };
+}
+
+function isNamespaceGroupFile(
+  file: BrowserDisplayFile,
+): file is BrowserNamespaceGroupDisplayFile {
+  return "displayKind" in file && file.displayKind === "namespace-group";
+}
+
+function formatNamespaceGroupName(
+  group: Pick<BrowserNamespaceGroupRecord, "value">,
+  t: TranslationFunction,
+): string {
+  return group.value ?? t("window.browser.noNamespaceGroupValue");
+}
+
+function createNamespaceSuggestions(
+  tags: TagRecord[],
+  query: string,
+): string[] {
+  const normalizedQuery = query.trim().toLowerCase();
+  const seen = new Set<string>();
+  const suggestions: string[] = [];
+
+  for (const tag of tags) {
+    if (!tag.namespace || seen.has(tag.namespace)) {
+      continue;
+    }
+
+    if (
+      normalizedQuery &&
+      !tag.namespace.toLowerCase().includes(normalizedQuery)
+    ) {
+      continue;
+    }
+
+    seen.add(tag.namespace);
+    suggestions.push(tag.namespace);
+  }
+
+  return suggestions.slice(0, 12);
 }
 
 function createVirtualGallery(

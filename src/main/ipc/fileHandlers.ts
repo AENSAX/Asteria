@@ -4,6 +4,9 @@ import type {
   BrowserFilePage,
   BrowserFilePageRequest,
   BrowserFileRecord,
+  BrowserNamespaceGroupFilePageRequest,
+  BrowserNamespaceGroupPage,
+  BrowserNamespaceGroupPageRequest,
   BrowserSearchPageRequest,
   DatabaseFilePage,
   DatabaseStatus,
@@ -25,6 +28,14 @@ export interface FileHandlersContext {
   listBrowserFiles: () => BrowserFileRecord[];
   listBrowserFilesByIds: (fileIds: number[]) => BrowserFileRecord[];
   searchBrowserFilePage: (request: BrowserSearchPageRequest) => BrowserFilePage;
+  listBrowserNamespaceGroupPage: (
+    request: BrowserNamespaceGroupPageRequest,
+  ) => BrowserNamespaceGroupPage;
+  listBrowserFilePageByNamespaceGroup: (
+    namespace: string,
+    value: string | null,
+    request: BrowserFilePageRequest,
+  ) => BrowserFilePage;
   listFavoriteFilePage: (request: BrowserFilePageRequest) => BrowserFilePage;
   listFavoriteFiles: () => BrowserFileRecord[];
   setFileFavorite: (fileId: number, favorite: boolean) => void;
@@ -73,6 +84,33 @@ function normalizeBrowserSearchPageRequest(
   };
 }
 
+function normalizeBrowserNamespaceGroupPageRequest(
+  value: unknown,
+): BrowserNamespaceGroupPageRequest {
+  const request = value as Partial<BrowserNamespaceGroupPageRequest> | null;
+
+  return {
+    ...normalizeBrowserSearchPageRequest(value),
+    namespace: typeof request?.namespace === "string" ? request.namespace : "",
+  };
+}
+
+function normalizeBrowserNamespaceGroupFilePageRequest(
+  value: unknown,
+): BrowserNamespaceGroupFilePageRequest {
+  const request =
+    value as Partial<BrowserNamespaceGroupFilePageRequest> | null;
+
+  return {
+    ...normalizeBrowserFilePageRequest(value),
+    namespace: typeof request?.namespace === "string" ? request.namespace : "",
+    value:
+      typeof request?.value === "string" || request?.value === null
+        ? request.value
+        : null,
+  };
+}
+
 function isValidFileId(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value > 0;
 }
@@ -109,6 +147,26 @@ export function registerFileHandlers(
     IpcChannel.BROWSER_SEARCH_FILE_PAGE,
     (_event, request: unknown) =>
       context.searchBrowserFilePage(normalizeBrowserSearchPageRequest(request)),
+  );
+  ipcMain.handle(
+    IpcChannel.BROWSER_LIST_NAMESPACE_GROUP_PAGE,
+    (_event, request: unknown) =>
+      context.listBrowserNamespaceGroupPage(
+        normalizeBrowserNamespaceGroupPageRequest(request),
+      ),
+  );
+  ipcMain.handle(
+    IpcChannel.BROWSER_LIST_NAMESPACE_GROUP_FILE_PAGE,
+    (_event, request: unknown) => {
+      const normalizedRequest =
+        normalizeBrowserNamespaceGroupFilePageRequest(request);
+
+      return context.listBrowserFilePageByNamespaceGroup(
+        normalizedRequest.namespace,
+        normalizedRequest.value,
+        normalizedRequest,
+      );
+    },
   );
   ipcMain.handle(IpcChannel.BROWSER_LIST_FAVORITES, () =>
     context.listFavoriteFiles(),

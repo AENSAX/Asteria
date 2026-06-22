@@ -54,6 +54,32 @@ export interface BrowserSearchPageRequest extends BrowserFilePageRequest {
   query: string;
 }
 
+export interface BrowserNamespaceGroupRecord {
+  id: string;
+  namespace: string;
+  value: string | null;
+  fileCount: number;
+  coverFile: BrowserFileRecord;
+}
+
+export interface BrowserNamespaceGroupPage {
+  page: number;
+  pageSize: number;
+  total: number;
+  groups: BrowserNamespaceGroupRecord[];
+}
+
+export interface BrowserNamespaceGroupPageRequest
+  extends BrowserSearchPageRequest {
+  namespace: string;
+}
+
+export interface BrowserNamespaceGroupFilePageRequest
+  extends BrowserFilePageRequest {
+  namespace: string;
+  value: string | null;
+}
+
 export type FilesChangedKind =
   | "ai-tags"
   | "deleted"
@@ -592,6 +618,12 @@ export interface AsteriaApi {
   listBrowserFilesByIds: (fileIds: number[]) => Promise<BrowserFileRecord[]>;
   searchBrowserFilePage: (
     request: BrowserSearchPageRequest,
+  ) => Promise<BrowserFilePage>;
+  listBrowserNamespaceGroupPage: (
+    request: BrowserNamespaceGroupPageRequest,
+  ) => Promise<BrowserNamespaceGroupPage>;
+  listBrowserNamespaceGroupFilePage: (
+    request: BrowserNamespaceGroupFilePageRequest,
   ) => Promise<BrowserFilePage>;
   listFavoriteFilePage: (
     request: BrowserFilePageRequest,

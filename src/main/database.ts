@@ -121,6 +121,7 @@ export {
 } from "./db/settingsRepository.js";
 export { listDomains, setFilesDomain } from "./db/domainsRepository.js";
 export {
+  listBrowserNamespaceGroupPage,
   searchBrowserFilePage,
   searchHints,
   searchTags,
@@ -136,6 +137,7 @@ export {
   listDatabaseFiles,
   listBrowserFileIds,
   listBrowserFilePage,
+  listBrowserFilePageByNamespaceGroup,
   listBrowserFiles,
   listBrowserFilesByIds,
   listFavoriteFilePage,

@@ -20,10 +20,17 @@ const api: AsteriaApi = {
   listBrowserFiles: () => ipcRenderer.invoke(IpcChannel.BROWSER_LIST_FILES),
   listBrowserFilesByIds: (fileIds) =>
     ipcRenderer.invoke(IpcChannel.BROWSER_LIST_FILES_BY_IDS, fileIds),
-  searchBrowserFilePage: (request) =>
-    ipcRenderer.invoke(IpcChannel.BROWSER_SEARCH_FILE_PAGE, request),
-  listFavoriteFilePage: (request) =>
-    ipcRenderer.invoke(IpcChannel.BROWSER_LIST_FAVORITE_PAGE, request),
+    searchBrowserFilePage: (request) =>
+      ipcRenderer.invoke(IpcChannel.BROWSER_SEARCH_FILE_PAGE, request),
+    listBrowserNamespaceGroupPage: (request) =>
+      ipcRenderer.invoke(IpcChannel.BROWSER_LIST_NAMESPACE_GROUP_PAGE, request),
+    listBrowserNamespaceGroupFilePage: (request) =>
+      ipcRenderer.invoke(
+        IpcChannel.BROWSER_LIST_NAMESPACE_GROUP_FILE_PAGE,
+        request,
+      ),
+    listFavoriteFilePage: (request) =>
+      ipcRenderer.invoke(IpcChannel.BROWSER_LIST_FAVORITE_PAGE, request),
   listFavoriteFiles: () =>
     ipcRenderer.invoke(IpcChannel.BROWSER_LIST_FAVORITES),
   setFileFavorite: (fileId, favorite) =>
